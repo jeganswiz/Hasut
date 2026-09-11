@@ -1,13 +1,14 @@
+import { AdminShell } from "../../components/admin-shell";
 import { DiscoverySettings } from "../../components/discovery-settings";
 
 export default function DiscoveryPage() {
   return (
-    <main>
-      <h1>Discovery</h1>
-      <p className="lede">
-        Admin-controlled defaults and ranking weights. Member apps read these from configuration.
-      </p>
+    <AdminShell
+      section="discovery"
+      title="Discovery"
+      lede="Admin-controlled defaults, basemap, and ranking weights. Member apps read these from configuration."
+    >
       <DiscoverySettings />
-    </main>
+    </AdminShell>
   );
 }

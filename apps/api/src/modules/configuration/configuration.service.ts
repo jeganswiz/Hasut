@@ -22,6 +22,8 @@ import {
   normalizeRankingWeights,
   readDiscoveryPolicy,
   readLocationPolicy,
+  resolveMapTileChain,
+  type ApiEnv,
   type AuthPolicy,
   type DiscoveryPolicy,
   type DiscoveryRankingWeights,
@@ -41,11 +43,15 @@ import type {
 } from "@hasut/types";
 import type { Prisma } from "@prisma/client";
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class ConfigurationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService<ApiEnv, true>,
+  ) {}
 
   async getAuthPolicy(): Promise<AuthPolicy> {
     const row = await this.prisma.remoteConfig.findUnique({
@@ -122,6 +128,12 @@ export class ConfigurationService {
   async getPublicDiscoveryPolicy(): Promise<DiscoveryPolicyView> {
     const policy = await this.getDiscoveryPolicy();
     const location = await this.getLocationPolicy();
+    const tiles = resolveMapTileChain({
+      primary: policy.mapProvider,
+      customTileUrl: policy.mapCustomTileUrl,
+      maptilerApiKey: this.config.get("MAPTILER_API_KEY", { infer: true }),
+      stadiaApiKey: this.config.get("STADIA_API_KEY", { infer: true }),
+    });
     return {
       defaultRadiusMeters: policy.defaultRadiusMeters,
       minRadiusMeters: policy.minRadiusMeters,
@@ -131,7 +143,11 @@ export class ConfigurationService {
       includeMembers: policy.includeMembers,
       availableCodes: policy.availableCodes,
       availableModeCodes: policy.availableModeCodes,
-      mapTileUrl: policy.mapTileUrl,
+      mapProvider: policy.mapProvider,
+      mapCustomTileUrl: policy.mapCustomTileUrl,
+      mapTileUrl: tiles.tileUrl,
+      mapFallbackTileUrls: tiles.fallbackTileUrls,
+      mapAttribution: tiles.attribution,
       demoLatitude: policy.demoLatitude,
       demoLongitude: policy.demoLongitude,
       minUpdateIntervalSeconds: location.minUpdateIntervalSeconds,
@@ -141,9 +157,21 @@ export class ConfigurationService {
     };
   }
 
-  async updateDiscoveryPolicy(patch: Partial<DiscoveryPolicy>): Promise<DiscoveryPolicy> {
+  async updateDiscoveryPolicy(
+    patch: Partial<DiscoveryPolicy> & { mapTileUrl?: string },
+  ): Promise<DiscoveryPolicy> {
     const current = await this.getDiscoveryPolicy();
-    const next = readDiscoveryPolicy({ ...current, ...patch });
+    const mapCustomTileUrl =
+      patch.mapCustomTileUrl !== undefined
+        ? patch.mapCustomTileUrl
+        : patch.mapTileUrl !== undefined
+          ? patch.mapTileUrl
+          : current.mapCustomTileUrl;
+    const next = readDiscoveryPolicy({
+      ...current,
+      ...patch,
+      mapCustomTileUrl,
+    });
     await this.prisma.remoteConfig.upsert({
       where: { key: DISCOVERY_POLICY_CONFIG_KEY },
       create: {

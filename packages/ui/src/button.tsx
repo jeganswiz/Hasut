@@ -22,6 +22,7 @@ export function Button({ children, variant = "primary", style, type, ...props }:
         padding: "10px 16px",
         fontWeight: 600,
         cursor: "pointer",
+        transition: "background-color 180ms ease, border-color 180ms ease, opacity 180ms ease",
         ...style,
       }}
       {...props}

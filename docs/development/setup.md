@@ -121,6 +121,8 @@ Set `OTP_PROVIDER` (`console` locally; never in production) plus `JWT_ACCESS_SEC
 
 `GEOCODER_PROVIDER` defaults to `console` (nearest-city approximation). `MEDIA_STORAGE=memory` is for local/test; production must use `s3`.
 
+Optional discovery basemap keys: `MAPTILER_API_KEY` (MapTiler Dataviz primary) and `STADIA_API_KEY` (Stadia Alidade Smooth). Empty MapTiler key skips that layer; CARTO Positron is the last fallback. Admins pick the primary provider under Discovery without a redeploy.
+
 ## Why these dependencies were added
 
 | Package                                     | Reason                                                    |

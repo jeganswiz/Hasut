@@ -16,6 +16,7 @@ export function Surface({ state, title, children }: SurfaceProps) {
     border: `1px solid ${cssVar("border")}`,
     borderRadius: cssVar("cardRadius"),
     padding: 20,
+    transition: "border-color 200ms ease, box-shadow 200ms ease",
   };
 
   return (

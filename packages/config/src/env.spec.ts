@@ -17,6 +17,8 @@ describe("parseApiEnv", () => {
     expect(env.OTP_PROVIDER).toBe("console");
     expect(env.GEOCODER_PROVIDER).toBe("console");
     expect(env.MEDIA_STORAGE).toBe("memory");
+    expect(env.MAPTILER_API_KEY).toBe("");
+    expect(env.STADIA_API_KEY).toBe("");
   });
 
   it("rejects a missing database URL", () => {

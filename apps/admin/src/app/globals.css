@@ -6,24 +6,107 @@ body {
   color: var(--hasut-color-text);
 }
 
+:focus-visible {
+  outline: 2px solid var(--hasut-color-primary);
+  outline-offset: 2px;
+}
+
+.admin-app {
+  min-height: 100vh;
+}
+
+.admin-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--hasut-color-border);
+  background: var(--hasut-color-surface);
+}
+
+.admin-brand {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--hasut-color-primary);
+  text-decoration: none;
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-nav a {
+  color: var(--hasut-color-muted-text);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: var(--hasut-radius-button);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.admin-nav a:hover,
+.admin-nav a.is-active {
+  color: var(--hasut-color-text);
+  background: var(--hasut-color-background);
+}
+
+.admin-nav a.is-active {
+  color: var(--hasut-color-primary);
+  font-weight: 600;
+}
+
 main {
-  max-width: 720px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 48px 24px;
+  padding: 32px 24px 48px;
+}
+
+.admin-page-head {
+  margin-bottom: 24px;
+}
+
+.admin-kicker {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hasut-color-muted-text);
 }
 
 h1 {
   margin: 0 0 8px;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+h3 {
+  margin: 8px 0 0;
+  font-size: 16px;
 }
 
 .lede {
   color: var(--hasut-color-muted-text);
-  margin-bottom: 24px;
+  margin: 0;
+  max-width: 62ch;
+}
+
+.admin-content {
+  display: grid;
+  gap: 20px;
+}
+
+.admin-content [data-state] {
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--hasut-color-text) 6%, transparent);
 }
 
 .stack {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   margin-top: 16px;
 }
 
@@ -44,24 +127,128 @@ input,
 select {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 1px solid var(--hasut-color-border);
-  border-radius: 8px;
+  border-radius: var(--hasut-radius);
   background: var(--hasut-color-background);
   color: var(--hasut-color-text);
+  transition: border-color 180ms ease;
+}
+
+input:hover,
+select:hover {
+  border-color: color-mix(in srgb, var(--hasut-color-primary) 35%, var(--hasut-color-border));
+}
+
+.admin-check,
+.admin-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.admin-check input,
+.admin-choice input {
+  width: auto;
+  min-height: 0;
+  margin-top: 4px;
+}
+
+.admin-fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--hasut-color-border);
+  border-radius: var(--hasut-radius-card);
+  background: var(--hasut-color-background);
+}
+
+.admin-fieldset legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.admin-choice-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-choice span {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-weight-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .hint {
   color: var(--hasut-color-muted-text);
   font-size: 14px;
+  margin: 0;
+}
+
+.health-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+
+.health-pills li {
+  padding: 6px 10px;
+  border: 1px solid var(--hasut-color-border);
+  border-radius: var(--hasut-radius);
+  background: var(--hasut-color-background);
+  font-size: 13px;
 }
 
 .category-list {
   list-style: none;
   padding: 0;
   margin: 12px 0;
+  display: grid;
+  gap: 8px;
 }
 
 .category-list li {
-  margin: 8px 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--hasut-color-border);
+  border-radius: var(--hasut-radius);
+  background: var(--hasut-color-background);
+}
+
+@media (max-width: 720px) {
+  .admin-chrome {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  main {
+    padding: 24px 16px 40px;
+  }
+
+  .actions {
+    grid-auto-flow: row;
+    width: 100%;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
 }

@@ -1,4 +1,4 @@
-import { DISCOVERY_KINDS } from "@hasut/types";
+import { DISCOVERY_KINDS, MAP_BASEMAP_PROVIDERS } from "@hasut/types";
 import { z } from "zod";
 
 export const discoveryKindSchema = z.enum(DISCOVERY_KINDS);
@@ -107,7 +107,11 @@ export const discoveryPolicyViewSchema = z.object({
   includeMembers: z.boolean(),
   availableCodes: z.array(z.string()),
   availableModeCodes: z.array(z.string()),
+  mapProvider: z.enum(MAP_BASEMAP_PROVIDERS),
+  mapCustomTileUrl: z.string(),
   mapTileUrl: z.string().min(1),
+  mapFallbackTileUrls: z.array(z.string().min(1)).max(2),
+  mapAttribution: z.string().min(1),
   demoLatitude: z.number(),
   demoLongitude: z.number(),
   minUpdateIntervalSeconds: z.number().int().positive(),
@@ -139,7 +143,27 @@ export const discoveryPolicyPatchSchema = z
     includeMembers: z.boolean().optional(),
     availableCodes: z.array(z.string().min(1)).min(1).optional(),
     availableModeCodes: z.array(z.string().min(1)).min(1).optional(),
-    mapTileUrl: z.string().url().optional(),
+    mapProvider: z.enum(MAP_BASEMAP_PROVIDERS).optional(),
+    mapCustomTileUrl: z
+      .string()
+      .max(512)
+      .refine(
+        (value) =>
+          value.length === 0 ||
+          (value.includes("{z}") && value.includes("{x}") && value.includes("{y}")),
+        { message: "Custom tile URL must include {z}, {x}, and {y}" },
+      )
+      .optional(),
+    mapTileUrl: z
+      .string()
+      .max(512)
+      .refine(
+        (value) =>
+          value.length === 0 ||
+          (value.includes("{z}") && value.includes("{x}") && value.includes("{y}")),
+        { message: "Tile URL must include {z}, {x}, and {y}" },
+      )
+      .optional(),
     distanceBucketStepsMeters: z.array(z.number().int().positive()).min(1).optional(),
     activityHalfLifeHours: z.number().positive().optional(),
     professionalMatch: z.enum(["service_area", "presence", "either"]).optional(),

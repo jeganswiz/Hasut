@@ -1,3 +1,6 @@
+import type { MapBasemapProvider } from "@hasut/types";
+import { CARTO_POSITRON_TILE_URL, isMapBasemapProvider } from "./map-basemaps";
+
 export interface DiscoveryPolicy {
   defaultRadiusMeters: number;
   minRadiusMeters: number;
@@ -7,7 +10,8 @@ export interface DiscoveryPolicy {
   includeMembers: boolean;
   availableCodes: string[];
   availableModeCodes: string[];
-  mapTileUrl: string;
+  mapProvider: MapBasemapProvider;
+  mapCustomTileUrl: string;
   distanceBucketStepsMeters: number[];
   activityHalfLifeHours: number;
   professionalMatch: "service_area" | "presence" | "either";
@@ -28,7 +32,8 @@ export const DISCOVERY_POLICY_DEFAULTS: DiscoveryPolicy = {
   includeMembers: true,
   availableCodes: ["AVAILABLE"],
   availableModeCodes: ["AVAILABLE", "LOOKING_FOR_WORK", "PROMOTING_SERVICE"],
-  mapTileUrl: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  mapProvider: "maptiler",
+  mapCustomTileUrl: "",
   distanceBucketStepsMeters: [200, 400, 600, 800, 1_100, 2_000, 5_000],
   activityHalfLifeHours: 72,
   professionalMatch: "either",
@@ -51,12 +56,22 @@ export function isDiscoveryPolicy(value: unknown): value is DiscoveryPolicy {
   );
 }
 
+function readMapCustomTileUrl(record: Record<string, unknown>): string {
+  if (typeof record.mapCustomTileUrl === "string") {
+    return record.mapCustomTileUrl.trim();
+  }
+  if (typeof record.mapTileUrl === "string" && record.mapTileUrl !== CARTO_POSITRON_TILE_URL) {
+    return record.mapTileUrl.trim();
+  }
+  return DISCOVERY_POLICY_DEFAULTS.mapCustomTileUrl;
+}
+
 export function readDiscoveryPolicy(value: unknown): DiscoveryPolicy {
   if (!isDiscoveryPolicy(value)) {
     return DISCOVERY_POLICY_DEFAULTS;
   }
   const record = value as DiscoveryPolicy & Record<string, unknown>;
-  return {
+  const next: DiscoveryPolicy = {
     ...DISCOVERY_POLICY_DEFAULTS,
     ...record,
     radiusOptionsMeters:
@@ -79,7 +94,16 @@ export function readDiscoveryPolicy(value: unknown): DiscoveryPolicy {
       typeof record.searchDebounceMs === "number"
         ? record.searchDebounceMs
         : DISCOVERY_POLICY_DEFAULTS.searchDebounceMs,
+    mapProvider: isMapBasemapProvider(record.mapProvider)
+      ? record.mapProvider
+      : DISCOVERY_POLICY_DEFAULTS.mapProvider,
+    mapCustomTileUrl: readMapCustomTileUrl(record),
   };
+  const extras = next as unknown as Record<string, unknown>;
+  delete extras.mapTileUrl;
+  delete extras.mapFallbackTileUrls;
+  delete extras.mapAttribution;
+  return next;
 }
 
 export interface DiscoveryRankingWeights {

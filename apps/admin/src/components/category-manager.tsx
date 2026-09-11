@@ -221,7 +221,7 @@ export function CategoryManager() {
             }
           />
         </label>
-        <label>
+        <label className="admin-check">
           <input
             type="checkbox"
             checked={form.isActive}

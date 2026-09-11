@@ -73,10 +73,11 @@ export function HealthPanel({ initialHealth = null }: { initialHealth?: HealthDa
     <Surface state={state} title="API status">
       <p>{message}</p>
       {health?.checks ? (
-        <p>
-          postgres {health.checks.postgres} · postgis {health.checks.postgis} · redis{" "}
-          {health.checks.redis}
-        </p>
+        <ul className="health-pills">
+          <li>postgres {health.checks.postgres}</li>
+          <li>postgis {health.checks.postgis}</li>
+          <li>redis {health.checks.redis}</li>
+        </ul>
       ) : null}
       {state === "error" ? (
         <p style={{ marginTop: 12 }}>

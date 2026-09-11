@@ -29,6 +29,7 @@ import {
   type DiscoveryPreview,
   type DiscoveryRankingWeightsView,
   type DiscoveryResult,
+  type MapBasemapProvider,
   type PublicBusiness,
   type BlockView,
   type ConnectionLookup,
@@ -668,6 +669,9 @@ export class HasutApiClient {
     radiusOptionsMeters?: number[];
     clusterCellMeters?: number;
     includeMembers?: boolean;
+    mapProvider?: MapBasemapProvider;
+    mapCustomTileUrl?: string;
+    mapTileUrl?: string;
   }): Promise<DiscoveryPolicyView> {
     const result = await this.request(discoveryPolicyViewSchema, "/api/v1/admin/discovery/policy", {
       method: "PATCH",

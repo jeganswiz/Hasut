@@ -22,6 +22,8 @@ export function DiscoveryExperience() {
     <div className="discovery-shell">
       <DiscoveryMap
         tileUrl={discovery.policy?.mapTileUrl ?? ""}
+        fallbackTileUrls={discovery.policy?.mapFallbackTileUrls ?? []}
+        attribution={discovery.policy?.mapAttribution}
         center={discovery.acceptedCoords}
         overlay={discovery.overlayCoords}
         panCellId={discovery.panCellId}

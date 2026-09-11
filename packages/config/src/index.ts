@@ -37,6 +37,18 @@ export {
 } from "./discovery";
 export type { DiscoveryPolicy, DiscoveryRankingWeights } from "./discovery";
 export {
+  CARTO_POSITRON_TILE_URL,
+  MAP_BASEMAP_CATALOG,
+  MAP_BASEMAP_OPTIONS,
+  OSM_MAP_ATTRIBUTION,
+  advanceBasemapIndex,
+  isMapBasemapProvider,
+  mapTilerDatavizTileUrl,
+  resolveMapTileChain,
+  stadiaAlidadeSmoothTileUrl,
+} from "./map-basemaps";
+export type { MapBasemapCatalogEntry, MapTileChain, MapTileChainInput } from "./map-basemaps";
+export {
   MESSAGING_POLICY_CONFIG_KEY,
   MESSAGING_POLICY_DEFAULTS,
   NOTIFICATION_TEMPLATE_KEYS,

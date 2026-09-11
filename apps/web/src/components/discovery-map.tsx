@@ -1,5 +1,6 @@
 "use client";
 
+import { OSM_MAP_ATTRIBUTION, advanceBasemapIndex } from "@hasut/config";
 import type { DiscoveryCluster, DiscoveryMarker } from "@hasut/types";
 import { diffDiscoveryMarkers } from "@hasut/utils";
 import { useEffect, useRef, useState } from "react";
@@ -10,8 +11,23 @@ function markerHtml(marker: DiscoveryMarker, selected: boolean): string {
   }${selected ? ` ${marker.label}` : ""}</button>`;
 }
 
+function uniqueTileChain(tileUrl: string, fallbackTileUrls: string[]): string[] {
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const url of [tileUrl, ...fallbackTileUrls]) {
+    if (url.length === 0 || seen.has(url)) {
+      continue;
+    }
+    seen.add(url);
+    urls.push(url);
+  }
+  return urls;
+}
+
 export function DiscoveryMap({
   tileUrl,
+  fallbackTileUrls = [],
+  attribution = OSM_MAP_ATTRIBUTION,
   center,
   overlay,
   panCellId,
@@ -21,6 +37,8 @@ export function DiscoveryMap({
   onSelect,
 }: {
   tileUrl: string;
+  fallbackTileUrls?: string[];
+  attribution?: string;
   center: { latitude: number; longitude: number } | null;
   overlay: { latitude: number; longitude: number } | null;
   panCellId: string | null;
@@ -37,6 +55,7 @@ export function DiscoveryMap({
   const onSelectRef = useRef(onSelect);
   const [mapReady, setMapReady] = useState(false);
   const ready = tileUrl.length > 0 && center !== null;
+  const tileKey = `${tileUrl}|${fallbackTileUrls.join("|")}|${attribution}`;
 
   const centerRef = useRef(center);
   centerRef.current = center;
@@ -52,6 +71,7 @@ export function DiscoveryMap({
       return;
     }
     let cancelled = false;
+    const urls = uniqueTileChain(tileUrl, fallbackTileUrls);
     void import("leaflet").then((leaflet) => {
       if (cancelled || mapNode.current === null || mapRef.current !== null) {
         return;
@@ -59,7 +79,28 @@ export function DiscoveryMap({
       const map = leaflet
         .map(mapNode.current, { zoomControl: false })
         .setView([start.latitude, start.longitude], 14);
-      leaflet.tileLayer(tileUrl, { attribution: "&copy; OpenStreetMap" }).addTo(map);
+      let index = 0;
+      let advancing = false;
+      const layer = leaflet.tileLayer(urls[0] ?? tileUrl, { attribution });
+      layer.on("tileerror", () => {
+        if (advancing) {
+          return;
+        }
+        const next = advanceBasemapIndex(index, urls.length);
+        if (next === null) {
+          return;
+        }
+        advancing = true;
+        index = next;
+        const nextUrl = urls[index];
+        if (nextUrl !== undefined) {
+          layer.setUrl(nextUrl);
+        }
+        queueMicrotask(() => {
+          advancing = false;
+        });
+      });
+      layer.addTo(map);
       mapRef.current = map;
       setMapReady(true);
     });
@@ -72,7 +113,7 @@ export function DiscoveryMap({
       clusterLayers.current.clear();
       selfLayer.current = null;
     };
-  }, [ready, tileUrl]);
+  }, [ready, tileKey]);
 
   useEffect(() => {
     const map = mapRef.current;

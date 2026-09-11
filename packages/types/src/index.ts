@@ -52,6 +52,7 @@ export {
   DISCOVERY_KINDS,
   DISCOVERY_PRESENCE_EVENT,
   DISCOVERY_REALTIME_NAMESPACE,
+  MAP_BASEMAP_PROVIDERS,
 } from "./discovery";
 export type {
   DiscoveryCard,
@@ -64,6 +65,7 @@ export type {
   DiscoveryPreview,
   DiscoveryRankingWeightsView,
   DiscoveryResult,
+  MapBasemapProvider,
   PublicBusiness,
 } from "./discovery";
 export type { HealthData, HealthProbes, ProbeStatus } from "./health";

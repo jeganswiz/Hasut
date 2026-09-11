@@ -51,26 +51,26 @@ Error:
 
 Prefix `/api/v1`.
 
-| Area          | Examples                                                                                      |
-| ------------- | --------------------------------------------------------------------------------------------- |
-| Auth          | `/auth/otp/request`, `/auth/otp/verify`, `/auth/token/refresh`, `/auth/logout`                |
-| Me            | `/me`, `/me/profile`, `/me/location`, `/me/mode`                                              |
-| Media         | `/media/presign`, `/media/complete`                                                           |
-| Categories    | `/categories` (public read)                                                                   |
-| Discovery     | `/discovery/nearby`, `/discovery/search`                                                      |
-| Members       | `/members/:id` (public projection)                                                            |
-| Professionals | `/professionals/:id`, `/me/professional`                                                      |
-| Businesses    | `/businesses/:id`, `/me/businesses`                                                           |
-| Services      | `/professionals/:id/services`                                                                 |
-| Connections   | `/connections`, `/connections/with/:memberId`, `/connections/:id/accept                       | reject | cancel` |
-| Messaging     | `/conversations`, `/conversations/:id/messages`, `/conversations/:id/read`                    |
-| Verification  | `/verification/identity`                                                                      |
-| Reports       | `/reports`, `/blocks`                                                                         |
-| Notifications | `/notifications`, `/notifications/unread-count`, `/notifications/:id/read`                    |
-| Support       | `/support/tickets`                                                                            |
-| Config        | `/config/theme`, `/config/flags`, `/config/messaging`, `/config/reports`, `/config/discovery` |
-| Discovery WS  | `/ws/v1/discovery` (`presence.updated`, `presence.sync`)                                      |
-| Admin         | `/admin/...` (role gated)                                                                     |
+| Area          | Examples                                                                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Auth          | `/auth/otp/request`, `/auth/otp/verify`, `/auth/token/refresh`, `/auth/logout`                                                   |
+| Me            | `/me`, `/me/profile`, `/me/location`, `/me/mode`                                                                                 |
+| Media         | `/media/presign`, `/media/complete`                                                                                              |
+| Categories    | `/categories` (public read)                                                                                                      |
+| Discovery     | `/discovery/nearby`, `/discovery/search`                                                                                         |
+| Members       | `/members/:id` (public projection)                                                                                               |
+| Professionals | `/professionals/:id`, `/me/professional`                                                                                         |
+| Businesses    | `/businesses/:id`, `/me/businesses`                                                                                              |
+| Services      | `/professionals/:id/services`                                                                                                    |
+| Connections   | `/connections`, `/connections/with/:memberId`, `/connections/:id/accept                                                          | reject | cancel` |
+| Messaging     | `/conversations`, `/conversations/:id/messages`, `/conversations/:id/read`                                                       |
+| Verification  | `/verification/identity`                                                                                                         |
+| Reports       | `/reports`, `/blocks`                                                                                                            |
+| Notifications | `/notifications`, `/notifications/unread-count`, `/notifications/:id/read`                                                       |
+| Support       | `/support/tickets`                                                                                                               |
+| Config        | `/config/theme`, `/config/flags`, `/config/messaging`, `/config/reports`, `/config/discovery` (includes resolved map tile chain) |
+| Discovery WS  | `/ws/v1/discovery` (`presence.updated`, `presence.sync`)                                                                         |
+| Admin         | `/admin/...` (role gated)                                                                                                        |
 
 WebSocket: `/ws/v1/messaging` (chat) and `/ws/v1/discovery` (snapped presence). Both are authenticated; guests do not join discovery rooms. Presence payloads are snapped map pins, not exact tracks. Location writes still persist through `PUT /api/v1/me/location`.
 

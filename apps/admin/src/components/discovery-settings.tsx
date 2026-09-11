@@ -1,11 +1,28 @@
 "use client";
 
 import { HasutApiError } from "@hasut/api-client";
+import { MAP_BASEMAP_OPTIONS } from "@hasut/config";
 import type { DiscoveryPolicyView, DiscoveryRankingWeightsView } from "@hasut/types";
 import { Button, Surface, type SurfaceState } from "@hasut/ui";
 import { useCallback, useEffect, useState } from "react";
 import { createAdminApiClient } from "../lib/api";
 import { adminTokenStorage } from "../lib/token-storage";
+
+const RANKING_KEYS = [
+  "distance",
+  "categoryRelevance",
+  "availability",
+  "verification",
+  "rating",
+  "activity",
+] as const;
+
+function rankingLabel(key: (typeof RANKING_KEYS)[number]): string {
+  if (key === "categoryRelevance") {
+    return "Category relevance";
+  }
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
 
 export function DiscoverySettings() {
   const [state, setState] = useState<SurfaceState>("loading");
@@ -60,6 +77,8 @@ export function DiscoverySettings() {
         defaultRadiusMeters: policy.defaultRadiusMeters,
         clusterCellMeters: policy.clusterCellMeters,
         includeMembers: policy.includeMembers,
+        mapProvider: policy.mapProvider,
+        mapCustomTileUrl: policy.mapCustomTileUrl,
       });
       await createAdminApiClient().patchAdminDiscoveryWeights(weights);
       await load();
@@ -72,7 +91,7 @@ export function DiscoverySettings() {
   }
 
   return (
-    <Surface state={state} title="Discovery">
+    <Surface state={state} title="Discovery policy">
       <p>{message}</p>
       {policy !== null ? (
         <form
@@ -82,62 +101,108 @@ export function DiscoverySettings() {
             void save();
           }}
         >
-          <label>
-            Default radius (meters)
-            <input
-              type="number"
-              value={policy.defaultRadiusMeters}
-              onChange={(event) =>
-                setPolicy({ ...policy, defaultRadiusMeters: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Cluster cell (meters)
-            <input
-              type="number"
-              value={policy.clusterCellMeters}
-              onChange={(event) =>
-                setPolicy({ ...policy, clusterCellMeters: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={policy.includeMembers}
-              onChange={(event) => setPolicy({ ...policy, includeMembers: event.target.checked })}
-            />
-            Include members when privacy permits
-          </label>
-          {weights !== null ? (
-            <>
-              <h3>Ranking weights</h3>
-              {(
-                [
-                  "distance",
-                  "categoryRelevance",
-                  "availability",
-                  "verification",
-                  "rating",
-                  "activity",
-                ] as const
-              ).map((key) => (
-                <label key={key}>
-                  {key}
+          <fieldset className="admin-fieldset">
+            <legend>Search defaults</legend>
+            <label>
+              Default radius (meters)
+              <input
+                type="number"
+                min={policy.minRadiusMeters}
+                max={policy.maxRadiusMeters}
+                value={policy.defaultRadiusMeters}
+                onChange={(event) =>
+                  setPolicy({ ...policy, defaultRadiusMeters: Number(event.target.value) })
+                }
+              />
+            </label>
+            <label>
+              Cluster cell (meters)
+              <input
+                type="number"
+                min={1}
+                value={policy.clusterCellMeters}
+                onChange={(event) =>
+                  setPolicy({ ...policy, clusterCellMeters: Number(event.target.value) })
+                }
+              />
+            </label>
+            <label className="admin-check">
+              <input
+                type="checkbox"
+                checked={policy.includeMembers}
+                onChange={(event) => setPolicy({ ...policy, includeMembers: event.target.checked })}
+              />
+              Include members when privacy permits
+            </label>
+          </fieldset>
+
+          <fieldset className="admin-fieldset">
+            <legend>Basemap</legend>
+            <p className="hint">
+              Primary tiles, then up to two fallbacks. MapTiler needs MAPTILER_API_KEY; Stadia can
+              run without a key and still accepts STADIA_API_KEY; CARTO is last resort.
+            </p>
+            <div className="admin-choice-list" role="radiogroup" aria-label="Basemap provider">
+              {MAP_BASEMAP_OPTIONS.map((option) => (
+                <label key={option.id} className="admin-choice">
                   <input
-                    type="number"
-                    step="0.01"
-                    value={weights[key]}
-                    onChange={(event) =>
-                      setWeights({ ...weights, [key]: Number(event.target.value) })
-                    }
+                    type="radio"
+                    name="mapProvider"
+                    value={option.id}
+                    checked={policy.mapProvider === option.id}
+                    onChange={() => setPolicy({ ...policy, mapProvider: option.id })}
                   />
+                  <span>
+                    <strong>{option.label}</strong>
+                    <span className="hint">{option.description}</span>
+                  </span>
                 </label>
               ))}
-            </>
+            </div>
+            <label>
+              Custom tile URL (optional)
+              <input
+                value={policy.mapCustomTileUrl}
+                onChange={(event) => setPolicy({ ...policy, mapCustomTileUrl: event.target.value })}
+                placeholder="https://tiles.example/{z}/{x}/{y}.png"
+                autoComplete="off"
+              />
+            </label>
+            <p className="hint">
+              Clients load {policy.mapTileUrl}
+              {policy.mapFallbackTileUrls.length > 0
+                ? `, then ${policy.mapFallbackTileUrls.join(", ")}`
+                : ""}
+              .
+            </p>
+          </fieldset>
+
+          {weights !== null ? (
+            <fieldset className="admin-fieldset">
+              <legend>Ranking weights</legend>
+              <div className="admin-weight-grid">
+                {RANKING_KEYS.map((key) => (
+                  <label key={key}>
+                    {rankingLabel(key)}
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={weights[key]}
+                      onChange={(event) =>
+                        setWeights({ ...weights, [key]: Number(event.target.value) })
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
           ) : null}
-          <Button type="submit">Save</Button>
+          <div className="actions">
+            <Button type="submit" disabled={state === "loading"}>
+              {state === "loading" ? "Saving…" : "Save"}
+            </Button>
+          </div>
         </form>
       ) : null}
     </Surface>

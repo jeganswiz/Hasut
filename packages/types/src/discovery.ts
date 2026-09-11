@@ -1,6 +1,9 @@
 export const DISCOVERY_KINDS = ["MEMBER", "PROFESSIONAL", "BUSINESS"] as const;
 export type DiscoveryKind = (typeof DISCOVERY_KINDS)[number];
 
+export const MAP_BASEMAP_PROVIDERS = ["maptiler", "stadia", "carto"] as const;
+export type MapBasemapProvider = (typeof MAP_BASEMAP_PROVIDERS)[number];
+
 export const DISCOVERY_PRESENCE_EVENT = "presence.updated" as const;
 export const DISCOVERY_REALTIME_NAMESPACE = "/ws/v1/discovery";
 
@@ -78,7 +81,11 @@ export interface DiscoveryPolicyView {
   includeMembers: boolean;
   availableCodes: string[];
   availableModeCodes: string[];
+  mapProvider: MapBasemapProvider;
+  mapCustomTileUrl: string;
   mapTileUrl: string;
+  mapFallbackTileUrls: string[];
+  mapAttribution: string;
   demoLatitude: number;
   demoLongitude: number;
   minUpdateIntervalSeconds: number;

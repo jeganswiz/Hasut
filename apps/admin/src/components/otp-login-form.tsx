@@ -100,6 +100,7 @@ export function OtpLoginForm({ nextPath }: { nextPath: string }) {
             onChange={(event) => setCode(event.target.value)}
             placeholder="123456"
             inputMode="numeric"
+            autoComplete="one-time-code"
           />
         </label>
         {debugCode !== null ? <p className="hint">Development code: {debugCode}</p> : null}

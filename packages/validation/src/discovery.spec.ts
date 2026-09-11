@@ -30,4 +30,13 @@ describe("discoveryPolicyPatchSchema", () => {
       discoveryPolicyPatchSchema.parse({ defaultRadiusMeters: 8_000 }).defaultRadiusMeters,
     ).toBe(8_000);
   });
+
+  it("accepts a Leaflet XYZ template as a custom tile override", () => {
+    expect(
+      discoveryPolicyPatchSchema.parse({
+        mapProvider: "stadia",
+        mapCustomTileUrl: "https://tiles.example/{z}/{x}/{y}.png",
+      }).mapProvider,
+    ).toBe("stadia");
+  });
 });

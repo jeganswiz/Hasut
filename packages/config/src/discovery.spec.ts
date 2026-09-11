@@ -26,6 +26,26 @@ describe("readDiscoveryPolicy", () => {
       DISCOVERY_POLICY_DEFAULTS.searchDebounceMs,
     );
   });
+
+  it("treats the legacy CARTO tile URL as an empty custom override", () => {
+    const { mapCustomTileUrl: _ignored, ...legacy } = DISCOVERY_POLICY_DEFAULTS;
+    const policy = readDiscoveryPolicy({
+      ...legacy,
+      mapTileUrl: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    });
+    expect(policy.mapProvider).toBe("maptiler");
+    expect(policy.mapCustomTileUrl).toBe("");
+    expect("mapTileUrl" in policy).toBe(false);
+  });
+
+  it("keeps a non-CARTO stored tile URL as a custom override", () => {
+    const { mapCustomTileUrl: _ignored, ...legacy } = DISCOVERY_POLICY_DEFAULTS;
+    const policy = readDiscoveryPolicy({
+      ...legacy,
+      mapTileUrl: "https://tiles.example/{z}/{x}/{y}.png",
+    });
+    expect(policy.mapCustomTileUrl).toBe("https://tiles.example/{z}/{x}/{y}.png");
+  });
 });
 
 describe("normalizeRankingWeights", () => {

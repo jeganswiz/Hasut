@@ -841,6 +841,22 @@
                 </td>
               </tr>
               <tr>
+                <td><code>MAPTILER_API_KEY</code></td>
+                <td>empty</td>
+                <td>
+                  Optional. When set, MapTiler Dataviz is the first discovery basemap. Without it,
+                  clients start on Stadia, then CARTO.
+                </td>
+              </tr>
+              <tr>
+                <td><code>STADIA_API_KEY</code></td>
+                <td>empty</td>
+                <td>
+                  Optional. Appended to Stadia Alidade Smooth tile URLs when present. Stadia still
+                  works without a key for low-volume use.
+                </td>
+              </tr>
+              <tr>
                 <td><code>NEXT_PUBLIC_API_URL</code></td>
                 <td><code>http://127.0.0.1:3001</code></td>
                 <td>Browser REST / WebSocket target for web and admin.</td>

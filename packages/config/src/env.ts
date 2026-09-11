@@ -41,6 +41,8 @@ export const apiEnvSchema = z
     TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(""),
     GEOCODER_PROVIDER: z.enum(GEOCODER_PROVIDERS).default("console"),
     MEDIA_STORAGE: z.enum(MEDIA_STORAGE_PROVIDERS).default("memory"),
+    MAPTILER_API_KEY: z.string().optional().default(""),
+    STADIA_API_KEY: z.string().optional().default(""),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === "production" && value.OTP_PROVIDER === "console") {
