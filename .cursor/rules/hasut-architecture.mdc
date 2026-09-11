@@ -1,0 +1,18 @@
+---
+description: HASUT product architecture — identity, monolith, deferred features
+alwaysApply: true
+---
+
+# HASUT architecture
+
+Phase 1 is a **Local Discovery Network** modular monolith (`apps/api` NestJS). Do not add microservices.
+
+**Identity:** one `Member`. Professional is a profile. Business is owned. Admin / Support Agent / Moderator are roles. Never split User vs Tasker.
+
+**Contracts:** change DTOs only in `packages/types`, `packages/validation`, `packages/api-client`. Do not duplicate clients or types in apps.
+
+**Do not implement** subscriptions, CRM, invoices, billing, booking, payments, marketplace checkout, live streaming, tokens, creator rewards, or Protected Service workflows unless the user explicitly starts that phase.
+
+Inspect related modules and `docs/` before editing. Prefer existing packages over new dependencies.
+
+Categories, current modes, theme colors, OTP timings, and ranking weights come from configuration — never hardcoded business values in components.

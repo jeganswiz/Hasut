@@ -1,0 +1,67 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  background: var(--hasut-color-background);
+  color: var(--hasut-color-text);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+h1 {
+  margin: 0 0 8px;
+}
+
+.lede {
+  color: var(--hasut-color-muted-text);
+  margin-bottom: 24px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stack label,
+.actions {
+  display: grid;
+  gap: 6px;
+}
+
+.actions {
+  grid-auto-flow: column;
+  justify-content: start;
+  align-items: center;
+  gap: 12px;
+}
+
+input,
+select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--hasut-color-border);
+  border-radius: 8px;
+  background: var(--hasut-color-background);
+  color: var(--hasut-color-text);
+}
+
+.hint {
+  color: var(--hasut-color-muted-text);
+  font-size: 14px;
+}
+
+.category-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+
+.category-list li {
+  margin: 8px 0;
+}

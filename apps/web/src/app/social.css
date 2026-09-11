@@ -1,0 +1,43 @@
+.app-nav {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.app-nav a {
+  color: var(--hasut-color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.thread {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 10px 12px;
+  border-radius: var(--hasut-radius-card);
+  background: var(--hasut-color-surface);
+  border: 1px solid var(--hasut-color-border);
+}
+
+.bubble.mine {
+  justify-self: end;
+  background: var(--hasut-color-primary);
+  color: var(--hasut-color-text-on-primary);
+  border-color: transparent;
+}
+
+.bubble img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.read-status {
+  color: var(--hasut-color-muted-text);
+  font-size: 12px;
+}

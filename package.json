@@ -1,0 +1,55 @@
+{
+  "name": "hasut",
+  "private": true,
+  "version": "0.0.0",
+  "description": "HASUT — location-intelligent professional and business network",
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.15.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @hasut/api prisma:generate",
+    "db:migrate": "pnpm --filter @hasut/api prisma:migrate",
+    "db:migrate:deploy": "pnpm --filter @hasut/api prisma:migrate:deploy",
+    "db:seed": "pnpm --filter @hasut/api prisma:seed",
+    "dev:up": "node scripts/dev-up.mjs",
+    "dev:down": "node scripts/dev-down.mjs",
+    "test:scripts": "node --test scripts/dev-stack.spec.mjs",
+    "infra:up": "docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio minio-init",
+    "infra:up:api": "docker compose -f infra/compose/docker-compose.yml up --build -d",
+    "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.6",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.42.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs,json,yml,yaml,md,css}": "prettier --write",
+    "*.{ts,tsx,js,jsx,mjs,cjs}": "eslint --fix --max-warnings 0 --no-warn-ignored"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "prisma"
+    ]
+  }
+}

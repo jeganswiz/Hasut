@@ -1,0 +1,666 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Operational row written by the Sprint 0 seed to prove migrate + PostGIS.
+model SchemaBootstrap {
+  id       String   @id @default("hasut")
+  postgis  Boolean
+  seededAt DateTime @default(now()) @map("seeded_at") @db.Timestamptz(6)
+
+  @@map("schema_bootstrap")
+}
+
+enum MemberStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum MemberRoleName {
+  MEMBER
+  ADMIN
+  SUPPORT_AGENT
+  MODERATOR
+}
+
+enum OtpPurpose {
+  LOGIN
+  REAUTH
+}
+
+enum ThemeConfigStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Member {
+  id        String       @id @default(uuid()) @db.Uuid
+  phoneE164 String       @unique @map("phone_e164")
+  status    MemberStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  roles          MemberRole[]
+  sessions       Session[]
+  audits         AuditLog[]            @relation("AuditActor")
+  profile        Profile?
+  location       MemberLocation?
+  publicLocation MemberPublicLocation?
+  mediaAssets           MediaAsset[]
+  professionalProfile   ProfessionalProfile?
+  verificationRequests  VerificationRequest[]
+  businesses            Business[]
+  requestedConnections  Connection[]               @relation("ConnectionRequester")
+  receivedConnections   Connection[]               @relation("ConnectionAddressee")
+  conversationMembers   ConversationParticipant[]
+  sentMessages          Message[]
+  messageReads          MessageRead[]
+  blocksCreated         Block[]                    @relation("Blocker")
+  blocksReceived        Block[]                    @relation("Blocked")
+  reportsFiled          Report[]
+  notifications         Notification[]
+  notificationPreferences NotificationPreference[]
+
+  @@map("members")
+}
+
+model MemberRole {
+  id        String         @id @default(uuid()) @db.Uuid
+  memberId  String         @map("member_id") @db.Uuid
+  role      MemberRoleName
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  member    Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, role])
+  @@map("member_roles")
+}
+
+model OtpChallenge {
+  id          String     @id @default(uuid()) @db.Uuid
+  phoneE164   String     @map("phone_e164")
+  codeHash    String     @map("code_hash")
+  purpose     OtpPurpose
+  expiresAt   DateTime   @map("expires_at") @db.Timestamptz(6)
+  attemptCount Int       @default(0) @map("attempt_count")
+  maxAttempts Int        @map("max_attempts")
+  lastSentAt  DateTime   @map("last_sent_at") @db.Timestamptz(6)
+  consumedAt  DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  ip          String?
+  deviceId    String?    @map("device_id")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([phoneE164, purpose, consumedAt])
+  @@map("otp_challenges")
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  memberId         String    @map("member_id") @db.Uuid
+  deviceId         String?   @map("device_id")
+  refreshTokenHash String    @map("refresh_token_hash")
+  tokenFamilyId    String    @map("token_family_id") @db.Uuid
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  ip               String?
+  userAgent        String?   @map("user_agent")
+  lastSeenAt       DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  member           Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, revokedAt])
+  @@index([tokenFamilyId])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  beforeJson Json?   @map("before_json")
+  afterJson  Json?   @map("after_json")
+  ip        String?
+  requestId String   @map("request_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor     Member?  @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt(sort: Desc)])
+  @@index([requestId])
+  @@map("audit_logs")
+}
+
+model RemoteConfig {
+  key         String   @id
+  valueJson   Json     @map("value_json")
+  environment String   @default("all")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("remote_configs")
+}
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean
+  rulesJson   Json?    @map("rules_json")
+  description String   @default("")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("feature_flags")
+}
+
+model ThemeConfig {
+  id          String            @id @default(uuid()) @db.Uuid
+  version     Int
+  status      ThemeConfigStatus
+  tokensJson  Json              @map("tokens_json")
+  publishedAt DateTime?         @map("published_at") @db.Timestamptz(6)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([status, version])
+  @@map("theme_configs")
+}
+
+model DiscoveryRankingWeights {
+  id                 String  @id @default(uuid()) @db.Uuid
+  distance           Float
+  categoryRelevance  Float   @map("category_relevance")
+  availability       Float
+  verification       Float
+  rating             Float
+  activity           Float
+  active             Boolean @default(false)
+
+  @@map("discovery_ranking_weights")
+}
+
+enum LocationPermission {
+  PROMPT
+  GRANTED
+  DENIED
+}
+
+enum MediaPurpose {
+  AVATAR
+  PORTFOLIO
+  CHAT
+  BUSINESS
+  VERIFICATION
+  THEME_LOGO
+}
+
+enum MediaStatus {
+  PENDING_UPLOAD
+  READY
+  REJECTED
+}
+
+model CurrentMode {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    @unique
+  label     String
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @map("sort_order")
+  profiles  Profile[]
+
+  @@map("current_modes")
+}
+
+model Profile {
+  memberId       String   @id @map("member_id") @db.Uuid
+  displayName    String   @default("") @map("display_name")
+  bio            String   @default("")
+  photoMediaId   String?  @map("photo_media_id") @db.Uuid
+  currentModeId  String?  @map("current_mode_id") @db.Uuid
+  statusText     String   @default("") @map("status_text")
+  isDiscoverable Boolean  @default(true) @map("is_discoverable")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  member      Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  photo       MediaAsset? @relation(fields: [photoMediaId], references: [id], onDelete: SetNull)
+  currentMode CurrentMode? @relation(fields: [currentModeId], references: [id], onDelete: SetNull)
+
+  @@map("profiles")
+}
+
+model MediaAsset {
+  id            String       @id @default(uuid()) @db.Uuid
+  ownerMemberId String       @map("owner_member_id") @db.Uuid
+  bucket        String
+  objectKey     String       @map("object_key")
+  mimeType      String       @map("mime_type")
+  byteSize      Int          @map("byte_size")
+  width         Int?
+  height        Int?
+  purpose       MediaPurpose
+  status        MediaStatus  @default(PENDING_UPLOAD)
+  checksum      String?
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner         Member       @relation(fields: [ownerMemberId], references: [id], onDelete: Cascade)
+  profilePhotos   Profile[]
+  categoryIcons   Category[]
+  businessCovers  Business[]
+  chatMessages    Message[]
+
+  @@index([ownerMemberId, purpose, status])
+  @@map("media_assets")
+}
+
+/// Exact personal point lives in PostGIS (`geog`); never selected on public APIs.
+model MemberLocation {
+  memberId        String             @id @map("member_id") @db.Uuid
+  accuracyMeters  Float?             @map("accuracy_meters")
+  permission      LocationPermission @default(PROMPT)
+  localityId      String?            @map("locality_id") @db.Uuid
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  member          Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("member_locations")
+}
+
+/// Snapped public location. `approx_geog` is PostGIS-only; APIs expose labels, not coordinates.
+model MemberPublicLocation {
+  memberId    String   @id @map("member_id") @db.Uuid
+  label       String
+  city        String?
+  region      String?
+  country     String?
+  countryCode String?  @map("country_code")
+  cellId      String   @map("cell_id")
+  localityId  String?  @map("locality_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("member_public_locations")
+}
+
+enum CategoryAppliesTo {
+  PROFESSIONAL
+  BUSINESS
+  SERVICE
+  ALL
+}
+
+enum ProfessionalStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum VerificationType {
+  IDENTITY
+  BUSINESS
+  SKILL
+}
+
+enum VerificationStatus {
+  NOT_STARTED
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+model Category {
+  id          String            @id @default(uuid()) @db.Uuid
+  parentId    String?           @map("parent_id") @db.Uuid
+  slug        String            @unique
+  name        String
+  iconMediaId String?           @map("icon_media_id") @db.Uuid
+  appliesTo   CategoryAppliesTo @default(ALL) @map("applies_to")
+  isActive    Boolean           @default(true) @map("is_active")
+  sortOrder   Int               @map("sort_order")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  parent                 Category?               @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children               Category[]              @relation("CategoryTree")
+  icon                   MediaAsset?             @relation(fields: [iconMediaId], references: [id], onDelete: SetNull)
+  professionalCategories ProfessionalCategory[]
+  businessCategories     BusinessCategory[]
+  skills                 ProfessionalSkill[]
+
+  @@index([parentId, isActive, sortOrder])
+  @@map("categories")
+}
+
+model ProfessionalProfile {
+  id                          String              @id @default(uuid()) @db.Uuid
+  memberId                    String              @unique @map("member_id") @db.Uuid
+  headline                    String              @default("")
+  experienceYears             Int                 @default(0) @map("experience_years")
+  availability                String              @default("")
+  status                      ProfessionalStatus  @default(DRAFT)
+  identityVerificationStatus  VerificationStatus  @default(NOT_STARTED) @map("identity_verification_status")
+  skillVerificationStatus     VerificationStatus  @default(NOT_STARTED) @map("skill_verification_status")
+  submittedAt                 DateTime?           @map("submitted_at") @db.Timestamptz(6)
+  createdAt                   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  member     Member                  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  categories ProfessionalCategory[]
+  skills     ProfessionalSkill[]
+  serviceArea ServiceArea?
+
+  @@map("professional_profiles")
+}
+
+model ProfessionalCategory {
+  professionalProfileId String @map("professional_profile_id") @db.Uuid
+  categoryId            String @map("category_id") @db.Uuid
+
+  professional ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+  category     Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([professionalProfileId, categoryId])
+  @@map("professional_categories")
+}
+
+model ProfessionalSkill {
+  id                    String  @id @default(uuid()) @db.Uuid
+  professionalProfileId String  @map("professional_profile_id") @db.Uuid
+  label                 String
+  categoryId            String? @map("category_id") @db.Uuid
+
+  professional ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+  category     Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@map("professional_skills")
+}
+
+/// Service-area center lives in PostGIS (`center_geog`); public APIs expose radius + label only.
+model ServiceArea {
+  professionalProfileId String   @id @map("professional_profile_id") @db.Uuid
+  radiusMeters          Int      @map("radius_meters")
+  label                 String
+  city                  String?
+  region                String?
+  country               String?
+  countryCode           String?  @map("country_code")
+  localityId            String?  @map("locality_id") @db.Uuid
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  professional ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+
+  @@map("service_areas")
+}
+
+model VerificationRequest {
+  id          String             @id @default(uuid()) @db.Uuid
+  memberId    String             @map("member_id") @db.Uuid
+  type        VerificationType
+  status      VerificationStatus
+  businessId  String?            @map("business_id") @db.Uuid
+  payloadJson Json               @map("payload_json")
+  reviewerId  String?            @map("reviewer_id") @db.Uuid
+  reviewNote  String?            @map("review_note")
+  decidedAt   DateTime?          @map("decided_at") @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, type, createdAt])
+  @@index([status, type])
+  @@map("verification_requests")
+}
+
+enum BusinessStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum ReviewSubjectType {
+  MEMBER
+  PROFESSIONAL
+  BUSINESS
+}
+
+model Business {
+  id                 String             @id @default(uuid()) @db.Uuid
+  ownerMemberId      String             @map("owner_member_id") @db.Uuid
+  name               String
+  description        String             @default("")
+  hoursJson          Json               @default("{}") @map("hours_json")
+  verificationStatus VerificationStatus @default(NOT_STARTED) @map("verification_status")
+  coverMediaId       String?            @map("cover_media_id") @db.Uuid
+  status             BusinessStatus     @default(ACTIVE)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner      Member              @relation(fields: [ownerMemberId], references: [id], onDelete: Cascade)
+  cover      MediaAsset?         @relation(fields: [coverMediaId], references: [id], onDelete: SetNull)
+  categories BusinessCategory[]
+  location   BusinessLocation?
+
+  @@index([ownerMemberId, status])
+  @@map("businesses")
+}
+
+model BusinessCategory {
+  businessId String @map("business_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([businessId, categoryId])
+  @@map("business_categories")
+}
+
+/// Business point lives in PostGIS (`geog`); public when the listing is active.
+model BusinessLocation {
+  businessId  String   @id @map("business_id") @db.Uuid
+  label       String
+  city        String?
+  region      String?
+  country     String?
+  countryCode String?  @map("country_code")
+  isPublic    Boolean  @default(true) @map("is_public")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("business_locations")
+}
+
+model ReviewAggregate {
+  subjectType ReviewSubjectType @map("subject_type")
+  subjectId   String            @map("subject_id") @db.Uuid
+  avgRating   Float             @map("avg_rating")
+  count       Int
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@id([subjectType, subjectId])
+  @@map("review_aggregates")
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum ConversationType {
+  DIRECT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+}
+
+enum ReportTargetType {
+  MEMBER
+  MESSAGE
+  PROFILE
+  BUSINESS
+  SERVICE
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+enum NotificationChannel {
+  IN_APP
+}
+
+/// Canonical pairKey prevents A→B and B→A rows at the same time.
+model Connection {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @map("requester_id") @db.Uuid
+  addresseeId String           @map("addressee_id") @db.Uuid
+  pairKey     String           @unique @map("pair_key")
+  status      ConnectionStatus @default(PENDING)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  requester    Member        @relation("ConnectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee    Member        @relation("ConnectionAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  conversation Conversation?
+
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+  @@map("connections")
+}
+
+model Conversation {
+  id           String           @id @default(uuid()) @db.Uuid
+  connectionId String           @unique @map("connection_id") @db.Uuid
+  type         ConversationType @default(DIRECT)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  connection   Connection                 @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId String @map("conversation_id") @db.Uuid
+  memberId       String @map("member_id") @db.Uuid
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  member       Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, memberId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String      @id @default(uuid()) @db.Uuid
+  conversationId String      @map("conversation_id") @db.Uuid
+  senderId       String      @map("sender_id") @db.Uuid
+  type           MessageType
+  body           String?
+  mediaId        String?     @map("media_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       Member        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  media        MediaAsset?   @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  reads        MessageRead[]
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model MessageRead {
+  messageId String   @map("message_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  readAt    DateTime @default(now()) @map("read_at") @db.Timestamptz(6)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, memberId])
+  @@map("message_reads")
+}
+
+model Block {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  blocker Member @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked Member @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+model Report {
+  id         String           @id @default(uuid()) @db.Uuid
+  reporterId String           @map("reporter_id") @db.Uuid
+  targetType ReportTargetType @map("target_type")
+  targetId   String           @map("target_id") @db.Uuid
+  reasonCode String           @map("reason_code")
+  details    String           @default("")
+  status     ReportStatus     @default(OPEN)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  reporter Member @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId, createdAt])
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+model NotificationTemplate {
+  id             String              @id @default(uuid()) @db.Uuid
+  key            String              @unique
+  channel        NotificationChannel @default(IN_APP)
+  titleTemplate  String              @map("title_template")
+  bodyTemplate   String              @map("body_template")
+  isActive       Boolean             @default(true) @map("is_active")
+
+  @@map("notification_templates")
+}
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  memberId    String    @map("member_id") @db.Uuid
+  templateKey String    @map("template_key")
+  title       String
+  body        String
+  payloadJson Json      @default("{}") @map("payload_json")
+  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, createdAt])
+  @@index([memberId, readAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  memberId String  @map("member_id") @db.Uuid
+  key      String
+  enabled  Boolean @default(true)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([memberId, key])
+  @@map("notification_preferences")
+}

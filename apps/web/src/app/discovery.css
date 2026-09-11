@@ -1,0 +1,104 @@
+.discovery-shell {
+  position: relative;
+  min-height: 100vh;
+  background: var(--hasut-color-background);
+  color: var(--hasut-color-text);
+}
+
+.discovery-map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.discovery-overlay {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  pointer-events: none;
+}
+
+.discovery-overlay > * {
+  pointer-events: auto;
+}
+
+.discovery-top {
+  padding: 16px 16px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.app-nav {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.app-nav a {
+  color: var(--hasut-color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.discovery-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.discovery-sheet {
+  margin-top: auto;
+}
+
+.discovery-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+}
+
+.discovery-status {
+  margin: 0;
+  color: var(--hasut-color-muted-text);
+}
+
+.discovery-preview {
+  background: var(--hasut-color-surface);
+  border: 1px solid var(--hasut-color-border);
+  border-radius: var(--hasut-radius-card);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.discovery-marker {
+  background: var(--hasut-color-surface);
+  border: 3px solid var(--hasut-color-primary);
+  color: var(--hasut-color-text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+}
+
+.discovery-marker span {
+  color: var(--hasut-color-accent);
+}
+
+.discovery-cluster {
+  background: var(--hasut-color-primary);
+  color: var(--hasut-color-text-on-primary);
+  border-radius: 999px;
+  min-width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+.leaflet-container {
+  background: var(--hasut-color-background);
+  font-family: inherit;
+}

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: hasut
+          POSTGRES_PASSWORD: hasut
+          POSTGRES_DB: hasut
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hasut -d hasut"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://hasut:hasut@localhost:5432/hasut?schema=public
+      REDIS_URL: redis://localhost:6379
+      CORS_ORIGINS: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      EXPO_PUBLIC_API_URL: http://localhost:3001
+      OTP_PROVIDER: console
+      JWT_ACCESS_SECRET: hasut-dev-access-secret-32chars-min
+      JWT_REFRESH_SECRET: hasut-dev-refresh-secret-32chars-min
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hasut/api prisma:migrate:deploy
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm test:scripts
+      - run: pnpm build

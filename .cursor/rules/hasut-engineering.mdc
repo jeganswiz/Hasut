@@ -1,0 +1,20 @@
+---
+description: HASUT TypeScript, privacy, and API safety
+alwaysApply: true
+---
+
+# HASUT engineering bar
+
+TypeScript `strict`. Do not use `any` unless a one-line comment justifies it.
+
+Never commit secrets. Never log OTP, refresh tokens, or exact personal coordinates.
+
+Public APIs must not expose phone numbers or exact member lat/lng. Return approximate labels and distance buckets.
+
+Every endpoint: validate input, authorize in the **service**, structured error envelope, request ID.
+
+Every UI surface: loading, empty, error, and success states. Use design tokens from `packages/ui` / theme config — no hex colors in feature components.
+
+OTP goes through `OtpProvider` (`sendOtp` / `verifyOtp` / `resendOtp`). Hash OTPs at rest. Identity verification must not be labeled as skill verification.
+
+Database changes need Prisma/SQL migrations. PostGIS SQL stays in location/discovery repositories.

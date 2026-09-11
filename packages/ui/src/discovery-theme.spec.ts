@@ -1,0 +1,19 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const FILES = [
+  "nearby-card.tsx",
+  "service-card.tsx",
+  "search-bar.tsx",
+  "filter-chip.tsx",
+  "rating.tsx",
+  "bottom-sheet.tsx",
+];
+
+describe("discovery UI primitives", () => {
+  it("use theme tokens instead of hardcoded purple or gold", () => {
+    const source = FILES.map((file) => readFileSync(join(__dirname, file), "utf8")).join("\n");
+    expect(source).not.toMatch(/#6D28D9|#EAB308|#7C3AED|#FBBF24/i);
+    expect(source).toContain("cssVar(");
+  });
+});

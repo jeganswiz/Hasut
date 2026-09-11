@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+node_modules
+dist
+build
+.next
+.turbo
+.expo
+coverage
+apps/api/src/generated
+*.tsbuildinfo
+LICENSE

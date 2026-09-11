@@ -1,0 +1,14 @@
+---
+description: HASUT implementation stage loop
+alwaysApply: true
+---
+
+# HASUT stage loop
+
+Before implementing: inspect the repo, state current architecture, list affected modules, then plan.
+
+After implementing: lint, typecheck, tests, security (authz/PII/uploads), UX states, update `docs/`, summarize files, give manual verification steps.
+
+Do not claim a feature complete without tests. Do not break existing behavior to add scope.
+
+Work only the requested sprint/stage. Sprint order is in `docs/product/sprint-breakdown.md`.
