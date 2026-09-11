@@ -121,6 +121,7 @@ export class ConfigurationService {
 
   async getPublicDiscoveryPolicy(): Promise<DiscoveryPolicyView> {
     const policy = await this.getDiscoveryPolicy();
+    const location = await this.getLocationPolicy();
     return {
       defaultRadiusMeters: policy.defaultRadiusMeters,
       minRadiusMeters: policy.minRadiusMeters,
@@ -133,6 +134,10 @@ export class ConfigurationService {
       mapTileUrl: policy.mapTileUrl,
       demoLatitude: policy.demoLatitude,
       demoLongitude: policy.demoLongitude,
+      minUpdateIntervalSeconds: location.minUpdateIntervalSeconds,
+      significantMoveMeters: location.significantMoveMeters,
+      geolocationTimeoutMs: location.geolocationTimeoutMs,
+      searchDebounceMs: policy.searchDebounceMs,
     };
   }
 

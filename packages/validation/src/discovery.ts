@@ -110,6 +110,14 @@ export const discoveryPolicyViewSchema = z.object({
   mapTileUrl: z.string().min(1),
   demoLatitude: z.number(),
   demoLongitude: z.number(),
+  minUpdateIntervalSeconds: z.number().int().positive(),
+  significantMoveMeters: z.number().positive(),
+  geolocationTimeoutMs: z.number().int().positive(),
+  searchDebounceMs: z.number().int().nonnegative(),
+});
+
+export const discoveryPresenceUpdatedSchema = z.object({
+  marker: discoveryMarkerSchema,
 });
 
 export const discoveryRankingWeightsViewSchema = z.object({
@@ -135,6 +143,7 @@ export const discoveryPolicyPatchSchema = z
     distanceBucketStepsMeters: z.array(z.number().int().positive()).min(1).optional(),
     activityHalfLifeHours: z.number().positive().optional(),
     professionalMatch: z.enum(["service_area", "presence", "either"]).optional(),
+    searchDebounceMs: z.number().int().nonnegative().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" });
 

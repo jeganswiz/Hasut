@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HASUT — Installation, scripts, ports, and environment</title>
+    <style>
+      :root {
+        --bg: #f4f1ea;
+        --paper: #fffcf7;
+        --ink: #1b2430;
+        --muted: #5c6570;
+        --line: #d9d0c3;
+        --accent: #0f6e56;
+        --accent-soft: #d7efe6;
+        --warn: #8a4b12;
+        --warn-bg: #f8ead6;
+        --danger: #8b1e2d;
+        --danger-bg: #f8e4e6;
+        --code-bg: #1b2430;
+        --code-ink: #e8efe9;
+        --shadow: 0 18px 40px rgba(27, 36, 48, 0.08);
+        --radius: 16px;
+        --nav: 280px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(1200px 600px at 10% -10%, #e7f4ee 0%, transparent 55%), var(--bg);
+        line-height: 1.55;
+      }
+      a {
+        color: var(--accent);
+      }
+      .skip {
+        position: absolute;
+        left: -999px;
+        top: 0;
+      }
+      .skip:focus {
+        left: 16px;
+        top: 16px;
+        background: var(--paper);
+        padding: 8px 12px;
+        z-index: 20;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: var(--nav) minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      nav {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow: auto;
+        padding: 28px 20px;
+        background: #1b2430;
+        color: #dce5df;
+      }
+      nav h1 {
+        margin: 0 0 6px;
+        font-size: 1.05rem;
+        letter-spacing: 0.04em;
+        color: #fff;
+      }
+      nav p {
+        margin: 0 0 22px;
+        color: #9aa7a0;
+        font-size: 0.82rem;
+      }
+      nav a {
+        display: block;
+        color: #dce5df;
+        text-decoration: none;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+      nav a:hover,
+      nav a:focus {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      main {
+        padding: 36px 48px 80px;
+        max-width: 1080px;
+      }
+      header.hero {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 32px;
+        margin-bottom: 36px;
+      }
+      header.hero h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 16px 0 0;
+      }
+      .chip {
+        display: inline-block;
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      h2 {
+        margin-top: 48px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        margin-top: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        font-size: 0.92rem;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        background: #efe8dc;
+        font-weight: 650;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      code,
+      kbd {
+        font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+        font-size: 0.86em;
+      }
+      p code,
+      li code,
+      td code,
+      kbd {
+        background: #efe8dc;
+        padding: 1px 6px;
+        border-radius: 6px;
+      }
+      .cmd {
+        position: relative;
+        background: var(--code-bg);
+        color: var(--code-ink);
+        border-radius: 12px;
+        padding: 14px 16px;
+        overflow: auto;
+      }
+      .cmd code {
+        color: var(--code-ink);
+        background: transparent;
+        padding: 0;
+        white-space: pre;
+      }
+      .cmd button {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        border: 0;
+        border-radius: 8px;
+        padding: 4px 8px;
+        cursor: pointer;
+        background: #314153;
+        color: #fff;
+      }
+      .note,
+      .warn,
+      .danger {
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin: 16px 0;
+      }
+      .note {
+        background: var(--accent-soft);
+      }
+      .warn {
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .danger {
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .flow {
+        background: var(--paper);
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 0.82rem;
+        white-space: pre;
+        overflow: auto;
+      }
+      footer {
+        margin-top: 56px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        nav {
+          position: relative;
+          height: auto;
+        }
+        main {
+          padding: 24px 18px 64px;
+        }
+      }
+      @media print {
+        nav,
+        .cmd button {
+          display: none;
+        }
+        .layout {
+          display: block;
+        }
+        main {
+          max-width: none;
+          padding: 0;
+        }
+        a {
+          color: inherit;
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <div class="layout">
+      <nav aria-label="Guide">
+        <h1>HASUT setup</h1>
+        <p>Installation, scripts, ports, and environment. Phase 1 local discovery network.</p>
+        <a href="#prerequisites">Prerequisites</a>
+        <a href="#quick-start">Quick start</a>
+        <a href="#scripts">Scripts</a>
+        <a href="#ports">Ports</a>
+        <a href="#env">Environment</a>
+        <a href="#manual">Manual path</a>
+        <a href="#login">Demo login</a>
+        <a href="#quality">Quality gates</a>
+        <a href="#production">Production rules</a>
+        <a href="#troubleshoot">Troubleshooting</a>
+      </nav>
+      <main id="content">
+        <header class="hero">
+          <p class="chip">Local development</p>
+          <h1>Installation and setup</h1>
+          <p>
+            HASUT is a pnpm monorepo. Redis, Postgres/PostGIS, and MinIO run in Docker. The API,
+            member web, and admin apps run on the host. Use <code>pnpm</code>, not npm, for
+            workspace scripts.
+          </p>
+          <div class="meta">
+            <span class="chip">Node 22.14+</span>
+            <span class="chip">pnpm 10.15+</span>
+            <span class="chip">Docker Compose v2</span>
+            <span class="chip">Generated 11 Sep 2026</span>
+          </div>
+        </header>
+
+        <section id="prerequisites">
+          <h2>Prerequisites</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Version</th>
+                <th>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Node.js</td>
+                <td>
+                  <code>22.14.0</code> (<code>.nvmrc</code>), engines <code>&gt;=22.14.0</code>
+                </td>
+                <td>API, Next.js, scripts, Prisma</td>
+              </tr>
+              <tr>
+                <td>pnpm</td>
+                <td><code>10.15.1</code> (<code>packageManager</code>)</td>
+                <td>Workspace installs and filters</td>
+              </tr>
+              <tr>
+                <td>Docker Desktop / Engine</td>
+                <td>Compose v2</td>
+                <td>Postgres 16 + PostGIS, Redis 7, MinIO</td>
+              </tr>
+              <tr>
+                <td>Git</td>
+                <td>any recent</td>
+                <td>Clone and Husky hooks</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>Enable pnpm through Corepack:</p>
+          <div class="cmd">
+            <button type="button" data-copy>Copy</button>
+            <code>corepack enable corepack prepare pnpm@10.15.1 --activate</code>
+          </div>
+        </section>
+
+        <section id="quick-start">
+          <h2>Quick start</h2>
+          <p>From the repository root:</p>
+          <div class="cmd">
+            <button type="button" data-copy>Copy</button>
+            <code>pnpm install pnpm dev:up</code>
+          </div>
+          <p>Platform wrappers if you prefer not to type pnpm:</p>
+          <table>
+            <thead>
+              <tr>
+                <th>OS</th>
+                <th>Command</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Windows PowerShell</td>
+                <td><code>.\scripts\dev-up.ps1</code></td>
+              </tr>
+              <tr>
+                <td>macOS / Linux</td>
+                <td><code>./scripts/dev-up.sh</code></td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            <code>pnpm install</code> generates the Prisma client (<code>apps/api</code>
+            postinstall) and installs Husky hooks. <code>pnpm dev:up</code> copies
+            <code>.env.example</code> to <code>.env</code> if missing, starts Docker data stores,
+            migrates, seeds when needed, then starts API / web / admin.
+          </p>
+          <div class="warn">
+            Redis is Docker-only. Do not run a second Redis on the host port <code>6379</code>.
+          </div>
+        </section>
+
+        <section id="scripts">
+          <h2>Scripts</h2>
+          <h3>Root npm scripts (<code>package.json</code>)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Script</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>pnpm dev:up</code></td>
+                <td>One-command local stack. Entry: <code>scripts/dev-up.mjs</code>.</td>
+              </tr>
+              <tr>
+                <td><code>pnpm dev:down</code></td>
+                <td>Stop API / web / admin on ports 3001 / 3000 / 3002.</td>
+              </tr>
+              <tr>
+                <td><code>pnpm dev:down --infra</code></td>
+                <td>Also stop Docker Postgres, Redis, and MinIO.</td>
+              </tr>
+              <tr>
+                <td><code>pnpm infra:up</code></td>
+                <td>
+                  Start Compose services <code>postgres</code>, <code>redis</code>,
+                  <code>minio</code>, <code>minio-init</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>pnpm infra:up:api</code></td>
+                <td>Build and start the full Compose file, including the API container on 3001.</td>
+              </tr>
+              <tr>
+                <td><code>pnpm infra:down</code></td>
+                <td>
+                  <code>docker compose down</code> for
+                  <code>infra/compose/docker-compose.yml</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>pnpm db:generate</code></td>
+                <td>Prisma client generate.</td>
+              </tr>
+              <tr>
+                <td><code>pnpm db:migrate</code></td>
+                <td>
+                  Create/apply migrations during later sprints (<code>prisma migrate dev</code>).
+                </td>
+              </tr>
+              <tr>
+                <td><code>pnpm db:migrate:deploy</code></td>
+                <td>Apply existing migrations (what <code>dev:up</code> uses).</td>
+              </tr>
+              <tr>
+                <td><code>pnpm db:seed</code></td>
+                <td>Load configuration and demo neighborhood data.</td>
+              </tr>
+              <tr>
+                <td><code>pnpm test:scripts</code></td>
+                <td>Node test runner on <code>scripts/dev-stack.spec.mjs</code>.</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>pnpm lint</code> / <code>typecheck</code> / <code>test</code> /
+                  <code>build</code>
+                </td>
+                <td>Turborepo quality gates.</td>
+              </tr>
+              <tr>
+                <td><code>pnpm format</code></td>
+                <td>Prettier write across the repo.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3><code>pnpm dev:up</code> flags</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Flag</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>--skip-seed</code></td>
+                <td>Do not seed demo data.</td>
+              </tr>
+              <tr>
+                <td><code>--seed</code></td>
+                <td>Re-run seed even if the bootstrap row already exists.</td>
+              </tr>
+              <tr>
+                <td><code>--infra-only</code></td>
+                <td>Start Docker stores, migrate, seed; do not start host apps.</td>
+              </tr>
+              <tr>
+                <td><code>--skip-install</code></td>
+                <td>
+                  Skip <code>pnpm install</code> even if <code>node_modules</code> is missing.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Files in <code>scripts/</code></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>dev-up.mjs</code></td>
+                <td>
+                  Kickoff orchestrator: env, install, Docker, migrate, seed, start apps, wait for
+                  health.
+                </td>
+              </tr>
+              <tr>
+                <td><code>dev-down.mjs</code></td>
+                <td>Stop host listeners. With <code>--infra</code>, stop Compose data stores.</td>
+              </tr>
+              <tr>
+                <td><code>dev-stack.mjs</code></td>
+                <td>
+                  Shared helpers: ports, Compose, pnpm-on-Windows, health waits, process stop.
+                </td>
+              </tr>
+              <tr>
+                <td><code>dev-stack.spec.mjs</code></td>
+                <td>Flag parsing tests.</td>
+              </tr>
+              <tr>
+                <td><code>dev-up.ps1</code></td>
+                <td>Windows wrapper that requires pnpm, then runs <code>pnpm dev:up</code>.</td>
+              </tr>
+              <tr>
+                <td><code>dev-up.sh</code></td>
+                <td>Unix wrapper for <code>pnpm dev:up</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p>What <code>dev:up</code> does, in order:</p>
+          <div class="flow">
+            .env from .env.example (if missing) → load env pnpm install (if node_modules missing)
+            Start Docker Desktop if the daemon is down (Windows/macOS) Compose up: postgres, redis,
+            minio, minio-init Wait until redis-cli PONG and pg_isready pnpm db:migrate:deploy Seed
+            unless bootstrap row exists (or --skip-seed / --seed) If not --infra-only: start missing
+            @hasut/api, @hasut/web, @hasut/admin wait http://127.0.0.1:3001/health/ready wait
+            http://127.0.0.1:3000 and :3002 Ctrl+C stops host apps. Docker Redis stays up.
+          </div>
+          <div class="note">
+            On Windows the stack invokes pnpm through Node + <code>pnpm.cjs</code> so spawn does not
+            hit <code>pnpm.cmd</code> EINVAL issues.
+          </div>
+        </section>
+
+        <section id="ports">
+          <h2>Ports</h2>
+          <p>
+            Host apps and Docker publish these ports. Keep them free before
+            <code>pnpm dev:up</code>.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Port</th>
+                <th>Service</th>
+                <th>URL / bind</th>
+                <th>Started by</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>3000</code></td>
+                <td>Member web (Next.js)</td>
+                <td><a href="http://localhost:3000">http://localhost:3000</a></td>
+                <td><code>dev:up</code> / <code>pnpm --filter @hasut/web dev</code></td>
+              </tr>
+              <tr>
+                <td><code>3001</code></td>
+                <td>HASUT API (NestJS)</td>
+                <td><a href="http://localhost:3001">http://localhost:3001</a></td>
+                <td><code>dev:up</code> / <code>PORT</code> env / Compose <code>api</code></td>
+              </tr>
+              <tr>
+                <td><code>3002</code></td>
+                <td>Admin (Next.js)</td>
+                <td><a href="http://localhost:3002">http://localhost:3002</a></td>
+                <td><code>dev:up</code> / <code>pnpm --filter @hasut/admin dev</code></td>
+              </tr>
+              <tr>
+                <td><code>5432</code></td>
+                <td>PostgreSQL 16 + PostGIS</td>
+                <td><code>localhost:5432</code> db <code>hasut</code></td>
+                <td>Compose <code>postgres</code></td>
+              </tr>
+              <tr>
+                <td><code>6379</code></td>
+                <td>Redis 7</td>
+                <td><code>localhost:6379</code></td>
+                <td>Compose <code>redis</code> only</td>
+              </tr>
+              <tr>
+                <td><code>9000</code></td>
+                <td>MinIO S3 API</td>
+                <td><a href="http://localhost:9000">http://localhost:9000</a></td>
+                <td>Compose <code>minio</code></td>
+              </tr>
+              <tr>
+                <td><code>9001</code></td>
+                <td>MinIO console</td>
+                <td><a href="http://localhost:9001">http://localhost:9001</a></td>
+                <td>Compose <code>minio</code></td>
+              </tr>
+              <tr>
+                <td>Expo default</td>
+                <td>Mobile (Expo)</td>
+                <td>Metro, typically <code>8081</code></td>
+                <td>
+                  Not started by <code>dev:up</code>. Use
+                  <code>pnpm --filter @hasut/mobile dev</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>API paths on port 3001</h3>
+          <div class="grid">
+            <div class="card">
+              <strong>Health (k8s alias)</strong>
+              <a href="http://localhost:3001/health/ready">/health/ready</a><br />
+              <a href="http://localhost:3001/health/live">/health/live</a>
+            </div>
+            <div class="card">
+              <strong>Versioned health</strong>
+              <a href="http://localhost:3001/api/v1/health/ready">/api/v1/health/ready</a>
+            </div>
+            <div class="card">
+              <strong>OpenAPI</strong>
+              <a href="http://localhost:3001/api/docs">/api/docs</a>
+            </div>
+            <div class="card">
+              <strong>REST prefix</strong>
+              <code>API_PREFIX=api/v1</code>
+            </div>
+          </div>
+          <p>
+            Web and admin rewrite browser <code>/api/*</code> to the API origin (default
+            <code>http://127.0.0.1:3001</code>). Socket.io cannot use that rewrite; realtime uses
+            the API host that matches the page. Prefer <code>127.0.0.1</code> on Windows so Node
+            does not hit IPv6 <code>localhost</code>.
+          </p>
+        </section>
+
+        <section id="env">
+          <h2>Environment</h2>
+          <p>
+            Copy <code>.env.example</code> to a root <code>.env</code>. Never commit
+            <code>.env</code>. <code>pnpm dev:up</code> creates it automatically. The API loads
+            <code>.env</code> from <code>apps/api</code> and the repo root. Next.js loads the root
+            <code>.env</code> in <code>next.config.ts</code>. Prisma needs
+            <code>DATABASE_URL</code> in the process environment.
+          </p>
+
+          <h3>Required for the API</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Local example</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>DATABASE_URL</code></td>
+                <td><code>postgresql://hasut:hasut@localhost:5432/hasut?schema=public</code></td>
+                <td>Required. Compose user/db <code>hasut</code>.</td>
+              </tr>
+              <tr>
+                <td><code>REDIS_URL</code></td>
+                <td><code>redis://localhost:6379</code></td>
+                <td>Required. Docker Redis only.</td>
+              </tr>
+              <tr>
+                <td><code>JWT_ACCESS_SECRET</code></td>
+                <td>32+ character local placeholder</td>
+                <td>Required. Replace in any shared environment.</td>
+              </tr>
+              <tr>
+                <td><code>JWT_REFRESH_SECRET</code></td>
+                <td>32+ character local placeholder</td>
+                <td>Required. Separate from the access secret.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Runtime and HTTP</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Default</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>NODE_ENV</code></td>
+                <td><code>development</code></td>
+                <td>
+                  <code>development</code> | <code>staging</code> | <code>production</code> |
+                  <code>test</code>
+                </td>
+              </tr>
+              <tr>
+                <td><code>APP_NAME</code></td>
+                <td><code>hasut-api</code></td>
+                <td>Sentry release prefix.</td>
+              </tr>
+              <tr>
+                <td><code>APP_VERSION</code></td>
+                <td><code>0.0.0</code></td>
+                <td>OpenAPI version and Sentry release.</td>
+              </tr>
+              <tr>
+                <td><code>PORT</code></td>
+                <td><code>3001</code></td>
+                <td>API listen port.</td>
+              </tr>
+              <tr>
+                <td><code>API_PREFIX</code></td>
+                <td><code>api/v1</code></td>
+                <td>Nest global prefix. Health aliases stay at <code>/health/*</code>.</td>
+              </tr>
+              <tr>
+                <td><code>LOG_LEVEL</code></td>
+                <td><code>info</code></td>
+                <td>Pino: fatal, error, warn, info, debug, trace, silent.</td>
+              </tr>
+              <tr>
+                <td><code>CORS_ORIGINS</code></td>
+                <td><code>http://localhost:3000,http://localhost:3002</code></td>
+                <td>
+                  Comma-separated allowlist. Loopback and private LAN origins are also accepted in
+                  code.
+                </td>
+              </tr>
+              <tr>
+                <td><code>SENTRY_DSN</code></td>
+                <td>empty</td>
+                <td>Empty disables Sentry. Set via a secret manager in production.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Auth and OTP</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Default</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>OTP_PROVIDER</code></td>
+                <td><code>console</code></td>
+                <td>
+                  <code>console</code> | <code>msg91</code> | <code>twilio</code>. Console is local
+                  only.
+                </td>
+              </tr>
+              <tr>
+                <td><code>DEV_OTP_CODE</code></td>
+                <td><code>123456</code> in the example file</td>
+                <td>
+                  4–8 digits or empty. After Send code, enter this value. Forbidden in production.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ADMIN_BOOTSTRAP_PHONE</code></td>
+                <td><code>+917010358490</code></td>
+                <td>Seed grants ADMIN to this phone. 10-digit Indian numbers are accepted.</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>MSG91_AUTH_KEY</code> / <code>MSG91_TEMPLATE_ID</code> /
+                  <code>MSG91_SENDER</code>
+                </td>
+                <td>empty</td>
+                <td>Required only when <code>OTP_PROVIDER=msg91</code>.</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>TWILIO_ACCOUNT_SID</code> / <code>TWILIO_AUTH_TOKEN</code> /
+                  <code>TWILIO_VERIFY_SERVICE_SID</code>
+                </td>
+                <td>empty</td>
+                <td>Required only when <code>OTP_PROVIDER=twilio</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Media, geo, clients</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Default</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>MEDIA_STORAGE</code></td>
+                <td><code>memory</code></td>
+                <td><code>memory</code> for local/test. Production must use <code>s3</code>.</td>
+              </tr>
+              <tr>
+                <td><code>S3_ENDPOINT</code></td>
+                <td><code>http://localhost:9000</code></td>
+                <td>MinIO locally.</td>
+              </tr>
+              <tr>
+                <td><code>S3_REGION</code></td>
+                <td><code>us-east-1</code></td>
+                <td>AWS region or MinIO placeholder.</td>
+              </tr>
+              <tr>
+                <td><code>S3_BUCKET</code></td>
+                <td><code>hasut-media</code></td>
+                <td>Created by Compose <code>minio-init</code>.</td>
+              </tr>
+              <tr>
+                <td><code>S3_ACCESS_KEY</code> / <code>S3_SECRET_KEY</code></td>
+                <td><code>hasut</code> / <code>hasutsecret</code></td>
+                <td>Local MinIO root. Not for production.</td>
+              </tr>
+              <tr>
+                <td><code>S3_FORCE_PATH_STYLE</code></td>
+                <td><code>true</code></td>
+                <td>Required for MinIO path-style URLs.</td>
+              </tr>
+              <tr>
+                <td><code>GEOCODER_PROVIDER</code></td>
+                <td><code>console</code></td>
+                <td>
+                  <code>console</code> (nearest-city approximation) or <code>nominatim</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>NEXT_PUBLIC_API_URL</code></td>
+                <td><code>http://127.0.0.1:3001</code></td>
+                <td>Browser REST / WebSocket target for web and admin.</td>
+              </tr>
+              <tr>
+                <td><code>HASUT_API_INTERNAL_URL</code></td>
+                <td>unset</td>
+                <td>
+                  Optional Next rewrite/SSR override. Falls back to
+                  <code>NEXT_PUBLIC_API_URL</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>EXPO_PUBLIC_API_URL</code></td>
+                <td><code>http://localhost:3001</code></td>
+                <td>Mobile API origin. On a device, use your LAN IP and port 3001.</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="danger">
+            Never commit secrets. Never log OTP values, refresh tokens, or exact member coordinates.
+            Public APIs return approximate labels and distance buckets only.
+          </div>
+        </section>
+
+        <section id="manual">
+          <h2>Manual path</h2>
+          <p>If you do not want the one-command script:</p>
+          <div class="cmd">
+            <button type="button" data-copy>Copy</button>
+            <code
+              >pnpm install cp .env.example .env pnpm infra:up pnpm db:migrate:deploy pnpm db:seed
+              pnpm --filter @hasut/api dev pnpm --filter @hasut/web dev pnpm --filter @hasut/admin
+              dev</code
+            >
+          </div>
+          <p>Mobile is separate:</p>
+          <div class="cmd">
+            <button type="button" data-copy>Copy</button>
+            <code>pnpm --filter @hasut/mobile dev</code>
+          </div>
+          <p>
+            Compose file: <code>infra/compose/docker-compose.yml</code> (project name
+            <code>hasut</code>). Full API in Docker after the lockfile exists:
+            <code>pnpm infra:up:api</code>.
+          </p>
+        </section>
+
+        <section id="login">
+          <h2>Demo login</h2>
+          <p>
+            Seed loads configuration plus a demo neighborhood (members, professionals, businesses,
+            connections, chats, notifications). Local admin sign-in uses the bootstrap phone and
+            console OTP.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <strong>Phone</strong>
+              <code>7010358490</code>
+            </div>
+            <div class="card">
+              <strong>OTP</strong>
+              Enter <code>123456</code> after Send code / Continue
+            </div>
+            <div class="card">
+              <strong>Web</strong>
+              <a href="http://localhost:3000">http://localhost:3000</a>
+            </div>
+            <div class="card">
+              <strong>Admin</strong>
+              <a href="http://localhost:3002">http://localhost:3002</a>
+            </div>
+          </div>
+          <p>
+            OTP is stored hashed in Postgres (<code>otp_challenges</code>) and verified through
+            <code>OtpProvider</code>. Identity verification is not skill verification.
+          </p>
+        </section>
+
+        <section id="quality">
+          <h2>Quality gates</h2>
+          <div class="cmd">
+            <button type="button" data-copy>Copy</button>
+            <code
+              >pnpm lint pnpm format:check pnpm typecheck pnpm test pnpm test:scripts pnpm
+              build</code
+            >
+          </div>
+          <p>
+            CI (<code>.github/workflows/ci.yml</code>) starts PostGIS 16 and Redis 7, applies
+            migrations, and runs the same gates with
+            <code>NODE_ENV=test</code>. Pre-commit runs lint-staged (Prettier + ESLint) via Husky.
+          </p>
+          <p>
+            Workspace apps: <code>apps/api</code>, <code>apps/web</code>, <code>apps/admin</code>,
+            <code>apps/mobile</code>. Shared contracts live in <code>packages/types</code>,
+            <code>packages/validation</code>, and <code>packages/api-client</code> (Axios). Do not
+            add a second HTTP client in the apps.
+          </p>
+        </section>
+
+        <section id="production">
+          <h2>Production rules</h2>
+          <ul>
+            <li>
+              <code>OTP_PROVIDER=console</code> is forbidden when <code>NODE_ENV=production</code>.
+            </li>
+            <li><code>MEDIA_STORAGE=memory</code> is forbidden in production.</li>
+            <li><code>DEV_OTP_CODE</code> must be empty in production.</li>
+            <li>
+              Put JWT secrets, S3 keys, OTP vendor keys, and <code>SENTRY_DSN</code> in a secret
+              manager — not in git.
+            </li>
+            <li>
+              Phase 1 is a modular monolith. Do not add microservices, billing, bookings, or
+              marketplace checkout unless that phase is requested.
+            </li>
+          </ul>
+        </section>
+
+        <section id="troubleshoot">
+          <h2>Troubleshooting</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Symptom</th>
+                <th>What to check</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Unable to reach the HASUT API</td>
+                <td>
+                  API on 3001, <code>NEXT_PUBLIC_API_URL=http://127.0.0.1:3001</code>, Docker
+                  Redis/Postgres healthy, CORS origin allowed.
+                </td>
+              </tr>
+              <tr>
+                <td>Docker daemon not ready</td>
+                <td>Start Docker Desktop. The script waits up to 120s on Windows/macOS.</td>
+              </tr>
+              <tr>
+                <td>Timed out waiting for Redis/Postgres</td>
+                <td>
+                  <code>docker compose -f infra/compose/docker-compose.yml ps</code>. Port 5432 or
+                  6379 already taken.
+                </td>
+              </tr>
+              <tr>
+                <td>Prisma / migrate fails</td>
+                <td>
+                  Root <code>.env</code> has <code>DATABASE_URL</code>. Use <code>pnpm</code> so the
+                  workspace filter runs.
+                </td>
+              </tr>
+              <tr>
+                <td>Port already in use</td>
+                <td>
+                  <code>pnpm dev:down</code> then retry. <code>dev:down</code> kills listeners on
+                  3000, 3001, 3002.
+                </td>
+              </tr>
+              <tr>
+                <td><code>npm run dev:up</code> confusion</td>
+                <td>
+                  Prefer <code>pnpm dev:up</code>. npm may run the root script but will not manage
+                  workspace filters correctly elsewhere.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            Markdown twin: <code>docs/development/setup.md</code>. Architecture and sprint order
+            live under <code>docs/</code>.
+          </p>
+        </section>
+
+        <footer>
+          HASUT Phase 1 — Local Discovery Network. This page is generated from repository scripts,
+          <code>.env.example</code>, Compose, and <code>packages/config</code> env schema. Open it
+          in a browser from <code>docs/development/setup.html</code>.
+        </footer>
+      </main>
+    </div>
+    <script>
+      document.querySelectorAll("[data-copy]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const code = button.parentElement?.querySelector("code")?.textContent ?? "";
+          try {
+            await navigator.clipboard.writeText(code);
+            button.textContent = "Copied";
+            setTimeout(() => {
+              button.textContent = "Copy";
+            }, 1500);
+          } catch {
+            button.textContent = "Select text";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

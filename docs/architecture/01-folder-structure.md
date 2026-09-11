@@ -22,7 +22,7 @@ Hasut/
     database/
     api/
     security/
-    development/
+    development/              # setup.md + setup.html (install, scripts, ports, env)
     product/
   infra/
     docker/

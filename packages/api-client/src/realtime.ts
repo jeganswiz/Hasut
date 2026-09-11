@@ -1,10 +1,12 @@
 import type { TokenStorage } from "@hasut/auth";
+import { DISCOVERY_REALTIME_NAMESPACE } from "@hasut/types";
 import { io, type Socket } from "socket.io-client";
 
 export interface HasutRealtimeOptions {
   baseUrl: string;
   tokenStorage: TokenStorage;
   reconnectMs?: number;
+  namespace?: string;
 }
 
 export class HasutRealtimeClient {
@@ -21,7 +23,8 @@ export class HasutRealtimeClient {
       return this.socket;
     }
     const reconnectMs = this.options.reconnectMs ?? 2_000;
-    const socket = io(`${this.options.baseUrl.replace(/\/$/, "")}/ws/v1/messaging`, {
+    const namespace = this.options.namespace ?? "/ws/v1/messaging";
+    const socket = io(`${this.options.baseUrl.replace(/\/$/, "")}${namespace}`, {
       auth: { token: (await this.options.tokenStorage.getAccessToken()) ?? "" },
       transports: ["websocket"],
       reconnection: true,
@@ -45,6 +48,14 @@ export class HasutRealtimeClient {
     this.socket?.on(event, handler);
   }
 
+  emit(event: string, payload?: unknown): void {
+    if (payload === undefined) {
+      this.socket?.emit(event);
+      return;
+    }
+    this.socket?.emit(event, payload);
+  }
+
   disconnect(): void {
     this.socket?.removeAllListeners();
     this.socket?.disconnect();
@@ -59,4 +70,13 @@ export class HasutRealtimeClient {
 
 export function createHasutRealtimeClient(options: HasutRealtimeOptions): HasutRealtimeClient {
   return new HasutRealtimeClient(options);
+}
+
+export function createHasutDiscoveryRealtimeClient(
+  options: Omit<HasutRealtimeOptions, "namespace">,
+): HasutRealtimeClient {
+  return new HasutRealtimeClient({
+    ...options,
+    namespace: DISCOVERY_REALTIME_NAMESPACE,
+  });
 }

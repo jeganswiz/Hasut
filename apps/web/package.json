@@ -16,6 +16,7 @@
     "@hasut/config": "workspace:*",
     "@hasut/types": "workspace:*",
     "@hasut/ui": "workspace:*",
+    "@hasut/utils": "workspace:*",
     "leaflet": "^1.9.4",
     "next": "^15.5.2",
     "react": "19.0.0",

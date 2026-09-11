@@ -1,10 +1,18 @@
-import type { ApproximateLocation, LocationPermission, OwnerLocation } from "@hasut/types";
-import { isValidWgs84, snapToGrid } from "@hasut/utils";
+import type {
+  ApproximateLocation,
+  DiscoveryPresenceUpdated,
+  LocationPermission,
+  OwnerLocation,
+} from "@hasut/types";
+import { DISCOVERY_PRESENCE_EVENT } from "@hasut/types";
+import { cellNeighborhood, haversineMeters, isValidWgs84, snapToGrid } from "@hasut/utils";
 import { HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { AuditService } from "../audit/audit.service";
 import { ConfigurationService } from "../configuration/configuration.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { RealtimeEvents } from "../realtime/realtime.events";
+import { buildMemberPresenceMarker } from "../discovery/presence-payload";
 import { REVERSE_GEOCODER, type ReverseGeocoder } from "./geocoder/reverse-geocoder";
 import { LocationsRepository } from "./locations.repository";
 
@@ -15,6 +23,7 @@ export class LocationsService {
     private readonly repository: LocationsRepository,
     private readonly configuration: ConfigurationService,
     private readonly audit: AuditService,
+    private readonly realtime: RealtimeEvents,
     @Inject(REVERSE_GEOCODER) private readonly geocoder: ReverseGeocoder,
   ) {}
 
@@ -99,13 +108,22 @@ export class LocationsService {
     }
 
     const previousExact = await this.repository.readExactPoint(memberId);
-    const elapsedMs = Date.now() - existing.updatedAt.getTime();
-    if (previousExact !== null && elapsedMs < policy.minUpdateIntervalSeconds * 1000) {
-      throw new HasutHttpException(
-        "RATE_LIMITED",
-        "Location was updated too recently",
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+    if (previousExact !== null) {
+      const movedMeters = haversineMeters(previousExact, {
+        latitude: input.latitude,
+        longitude: input.longitude,
+      });
+      if (movedMeters < policy.significantMoveMeters) {
+        return this.getOwnerLocation(memberId);
+      }
+      const elapsedMs = Date.now() - existing.updatedAt.getTime();
+      if (elapsedMs < policy.minUpdateIntervalSeconds * 1000) {
+        throw new HasutHttpException(
+          "RATE_LIMITED",
+          "Location was updated too recently",
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
     }
 
     await this.prisma.memberLocation.update({
@@ -167,7 +185,48 @@ export class LocationsService {
       },
     });
 
+    await this.publishPresence(memberId, previousExact, {
+      latitude: input.latitude,
+      longitude: input.longitude,
+    });
+
     return this.getOwnerLocation(memberId);
+  }
+
+  private async publishPresence(
+    memberId: string,
+    previousExact: { latitude: number; longitude: number } | null,
+    next: { latitude: number; longitude: number },
+  ): Promise<void> {
+    const locationPolicy = await this.configuration.getLocationPolicy();
+    const discoveryPolicy = await this.configuration.getDiscoveryPolicy();
+    const snapped = snapToGrid(next, locationPolicy.cellSizeMeters);
+    const profile = await this.prisma.profile.findUnique({
+      where: { memberId },
+      select: { displayName: true },
+    });
+    const payload: DiscoveryPresenceUpdated = {
+      marker: buildMemberPresenceMarker({
+        memberId,
+        displayName: profile?.displayName ?? "",
+        pinLat: snapped.latitude,
+        pinLng: snapped.longitude,
+        rating: null,
+      }),
+    };
+    const cellIds = new Set(
+      cellNeighborhood(next, locationPolicy.cellSizeMeters, discoveryPolicy.defaultRadiusMeters),
+    );
+    if (previousExact !== null) {
+      for (const id of cellNeighborhood(
+        previousExact,
+        locationPolicy.cellSizeMeters,
+        discoveryPolicy.defaultRadiusMeters,
+      )) {
+        cellIds.add(id);
+      }
+    }
+    this.realtime.publishCells([...cellIds], DISCOVERY_PRESENCE_EVENT, payload);
   }
 
   hasStoredLocation(memberId: string): Promise<boolean> {

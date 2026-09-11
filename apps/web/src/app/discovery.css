@@ -102,3 +102,12 @@
   background: var(--hasut-color-background);
   font-family: inherit;
 }
+
+.discovery-self {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--hasut-color-primary);
+  border: 3px solid var(--hasut-color-surface);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--hasut-color-primary) 28%, transparent);
+}

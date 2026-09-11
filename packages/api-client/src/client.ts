@@ -89,6 +89,7 @@ import {
   unreadCountViewSchema,
 } from "@hasut/validation";
 import { z, type ZodType } from "zod";
+import { createAxiosHttpAdapter, HASUT_UPLOAD_TIMEOUT_MS, type HasutHttpAdapter } from "./http";
 
 export class HasutApiError extends Error {
   public readonly envelope: ApiFailure;
@@ -103,12 +104,40 @@ export class HasutApiError extends Error {
 export interface HasutApiClientOptions {
   baseUrl: string;
   tokenStorage?: TokenStorage;
-  fetchImpl?: typeof fetch;
+  http?: HasutHttpAdapter;
   getRequestId?: () => string;
 }
 
+function headersToRecord(headers: Headers): Record<string, string> {
+  const record: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    record[key] = value;
+  });
+  return record;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseJsonBody(body: BodyInit | null | undefined): unknown {
+  if (body === undefined || body === null) {
+    return undefined;
+  }
+  if (typeof body === "string") {
+    return body.length === 0 ? undefined : (JSON.parse(body) as unknown);
+  }
+  return body;
+}
+
+function normalizeResponseData(data: unknown): unknown {
+  if (data === undefined || data === null || data === "") {
+    return {};
+  }
+  if (typeof data === "string") {
+    return JSON.parse(data) as unknown;
+  }
+  return data;
 }
 
 function browserDocumentOrigin(): string | undefined {
@@ -140,13 +169,13 @@ function toQuery(query: Record<string, unknown>): string {
 export class HasutApiClient {
   private readonly baseUrl: string;
   private readonly tokenStorage: TokenStorage | undefined;
-  private readonly fetchImpl: typeof fetch;
+  private readonly http: HasutHttpAdapter;
   private readonly getRequestId: () => string;
 
   constructor(options: HasutApiClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.tokenStorage = options.tokenStorage;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.http = options.http ?? createAxiosHttpAdapter();
     this.getRequestId = options.getRequestId ?? createRequestId;
   }
 
@@ -348,6 +377,30 @@ export class HasutApiClient {
       body: JSON.stringify(body),
     });
     return result.data;
+  }
+
+  async uploadPresigned(
+    uploadUrl: string,
+    body: Blob | ArrayBuffer | Uint8Array,
+    headers: Record<string, string>,
+  ): Promise<void> {
+    const requestId = normalizeRequestId(this.getRequestId());
+    let status: number;
+    try {
+      const response = await this.http.request({
+        url: uploadUrl,
+        method: "PUT",
+        headers,
+        data: body,
+        timeoutMs: HASUT_UPLOAD_TIMEOUT_MS,
+      });
+      status = response.status;
+    } catch {
+      throw new HasutApiError(fail("SERVICE_UNAVAILABLE", "Unable to upload media", requestId));
+    }
+    if (status < 200 || status >= 300) {
+      throw new HasutApiError(fail("SERVICE_UNAVAILABLE", "Unable to upload media", requestId));
+    }
   }
 
   async listCategories(
@@ -846,23 +899,24 @@ export class HasutApiClient {
       headers.set("Authorization", `Bearer ${accessToken}`);
     }
 
-    let response: Response;
+    let raw: unknown;
     try {
-      response = await this.fetchImpl(this.buildUrl(path), {
-        ...init,
-        cache: "no-store",
-        headers,
+      const response = await this.http.request({
+        url: this.buildUrl(path),
+        method: init.method ?? "GET",
+        headers: headersToRecord(headers),
+        data: parseJsonBody(init.body),
       });
+      raw = response.data;
     } catch {
       throw new HasutApiError(
         fail("SERVICE_UNAVAILABLE", "Unable to reach the HASUT API", requestId),
       );
     }
 
-    const text = await response.text();
     let json: unknown;
     try {
-      json = text.length === 0 ? {} : (JSON.parse(text) as unknown);
+      json = normalizeResponseData(raw);
     } catch {
       throw new HasutApiError(
         fail("SERVICE_UNAVAILABLE", "The API did not return a valid response", requestId),
@@ -926,4 +980,12 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
     return envelope.error.message;
   }
   return fallback;
+}
+
+export function hasutErrorCode(error: unknown): string | null {
+  const envelope = getEnvelopeFromUnknown(error);
+  if (envelope !== null && envelope.success === false) {
+    return envelope.error.code;
+  }
+  return null;
 }

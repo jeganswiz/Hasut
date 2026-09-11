@@ -12,6 +12,7 @@
 | Playwright                   | Web + admin E2E                                                                   |
 | React Native Testing Library | Mobile unit                                                                       |
 | Docker Compose               | Postgres+PostGIS, MinIO, Redis, API                                               |
+| `pnpm dev:up`                | One-command local stack; see [setup.html](./setup.html)                           |
 
 ## Environments
 

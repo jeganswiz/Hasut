@@ -45,6 +45,21 @@ Clients must not send “display coordinates” that override server policy.
 
 Origin for “near me” is the **requesting member’s exact stored point**, used only inside the database. It is not echoed in the response.
 
+## Movement gate and live presence
+
+Clients watch GPS locally. They **accept** a new origin only when:
+
+1. Distance from the last accepted fix is at least `location.policy.significantMoveMeters` (default equals the snap cell, 400 m), and
+2. At least `location.policy.minUpdateIntervalSeconds` has elapsed (default 120 seconds).
+
+The first fix is always accepted. GPS jitter updates only the viewer’s own overlay; it does not `PUT /me/location` or refetch nearby.
+
+Signed-in `PUT /me/location` uses the same rules on the server. A move below the threshold is a no-op. A real move inside the interval returns `RATE_LIMITED`. After a successful write, the API publishes `presence.updated` to snapped **cell rooms** (plus neighbors covering the default discovery radius). The payload is a `DiscoveryMarker` (`pinLat` / `pinLng` only). Exact coordinates are never broadcast.
+
+Guests stay REST-only. Nearby list ranking refreshes on origin-cell change, filter change, or the same TTL as `minUpdateIntervalSeconds`.
+
+WebSocket: authenticated `/ws/v1/discovery`. Clients emit `presence.sync` after a location write so they join the new cell neighborhood.
+
 ## Service area
 
 A professional sets:

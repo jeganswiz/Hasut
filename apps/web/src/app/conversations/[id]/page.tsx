@@ -94,11 +94,7 @@ export default function ConversationPage() {
         mimeType: file.type,
         byteSize: file.size,
       });
-      await fetch(presign.uploadUrl, {
-        method: "PUT",
-        headers: presign.headers,
-        body: file,
-      });
+      await client.uploadPresigned(presign.uploadUrl, file, presign.headers);
       const ready = await client.completeMedia({ mediaId: presign.mediaId });
       const created = await client.sendMessage(conversationId, {
         type: "IMAGE",

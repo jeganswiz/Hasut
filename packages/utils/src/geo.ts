@@ -33,6 +33,32 @@ export function snapToGrid(point: GeoPoint, cellSizeMeters: number): SnappedCell
   };
 }
 
+export function cellNeighborhood(
+  point: GeoPoint,
+  cellSizeMeters: number,
+  radiusMeters: number,
+): string[] {
+  const origin = snapToGrid(point, cellSizeMeters);
+  const latStep = cellSizeMeters / METERS_PER_DEGREE_LAT;
+  const lngMeters = METERS_PER_DEGREE_LAT * Math.cos((origin.latitude * Math.PI) / 180);
+  const lngStep = cellSizeMeters / Math.max(lngMeters, 1);
+  const steps = Math.max(1, Math.ceil(radiusMeters / cellSizeMeters));
+  const ids = new Set<string>();
+  for (let dLat = -steps; dLat <= steps; dLat += 1) {
+    for (let dLng = -steps; dLng <= steps; dLng += 1) {
+      const neighbor = snapToGrid(
+        {
+          latitude: origin.latitude + dLat * latStep,
+          longitude: origin.longitude + dLng * lngStep,
+        },
+        cellSizeMeters,
+      );
+      ids.add(neighbor.cellId);
+    }
+  }
+  return [...ids];
+}
+
 export function haversineMeters(a: GeoPoint, b: GeoPoint): number {
   const earth = 6_371_000;
   const dLat = toRadians(b.latitude - a.latitude);

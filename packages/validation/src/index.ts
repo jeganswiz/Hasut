@@ -45,6 +45,7 @@ export {
   businessWriteSchema,
   discoveryPolicyPatchSchema,
   discoveryPolicyViewSchema,
+  discoveryPresenceUpdatedSchema,
   discoveryPreviewSchema,
   discoveryQuerySchema,
   discoveryRankingPatchSchema,

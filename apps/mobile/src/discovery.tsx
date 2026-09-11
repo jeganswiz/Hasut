@@ -1,15 +1,24 @@
-import { HasutApiError } from "@hasut/api-client";
+import {
+  HasutApiError,
+  createHasutDiscoveryRealtimeClient,
+  hasutErrorCode,
+  parseDiscoveryPresenceUpdated,
+  type HasutRealtimeClient,
+} from "@hasut/api-client";
 import { DEFAULT_THEME_TOKENS } from "@hasut/config";
-import type {
-  DiscoveryCard,
-  DiscoveryPolicyView,
-  DiscoveryResult,
-  ThemeTokens,
+import {
+  DISCOVERY_PRESENCE_EVENT,
+  type DiscoveryCard,
+  type DiscoveryPolicyView,
+  type DiscoveryResult,
+  type ThemeTokens,
 } from "@hasut/types";
-import { useCallback, useEffect, useState } from "react";
+import { mergePresenceMarker, shouldAcceptLocationFix } from "@hasut/utils";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { createMobileApiClient } from "./api";
+import { mobileTokenStorage } from "./token-storage";
 
 type GpsState = "prompt" | "granted" | "denied" | "unavailable";
 
@@ -18,25 +27,32 @@ interface DeviceCoords {
   longitude: number;
 }
 
-function readDeviceGeolocation(): {
-  getCurrentPosition: (ok: (position: { coords: DeviceCoords }) => void, err: () => void) => void;
-} | null {
+interface DeviceGeolocation {
+  getCurrentPosition: (
+    ok: (position: { coords: DeviceCoords }) => void,
+    err: () => void,
+    options?: { enableHighAccuracy?: boolean; timeout?: number; maximumAge?: number },
+  ) => void;
+  watchPosition?: (
+    ok: (position: { coords: DeviceCoords }) => void,
+    err: () => void,
+    options?: { enableHighAccuracy?: boolean; timeout?: number; maximumAge?: number },
+  ) => number;
+  clearWatch?: (id: number) => void;
+}
+
+function readDeviceGeolocation(): DeviceGeolocation | null {
   const candidate = (
     globalThis as {
       navigator?: {
-        geolocation?: {
-          getCurrentPosition?: (
-            ok: (position: { coords: DeviceCoords }) => void,
-            err: () => void,
-          ) => void;
-        };
+        geolocation?: DeviceGeolocation;
       };
     }
   ).navigator?.geolocation;
   if (candidate?.getCurrentPosition === undefined) {
     return null;
   }
-  return { getCurrentPosition: candidate.getCurrentPosition };
+  return candidate;
 }
 
 export function DiscoveryScreen() {
@@ -49,73 +65,191 @@ export function DiscoveryScreen() {
   const [selected, setSelected] = useState<DiscoveryCard | null>(null);
   const [gps, setGps] = useState<GpsState>("prompt");
   const [message, setMessage] = useState("Finding what’s nearby…");
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [coords, setCoords] = useState<DeviceCoords | null>(null);
+  const acceptedRef = useRef<DeviceCoords | null>(null);
+  const acceptedAtRef = useRef<number | null>(null);
+  const resultRef = useRef<DiscoveryResult | null>(null);
+  const permissionGrantedRef = useRef(false);
   const styles = makeStyles(tokens);
+  resultRef.current = result;
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const client = createMobileApiClient();
+        const [theme, nextPolicy] = await Promise.all([
+          client.theme(),
+          client.getDiscoveryPolicy(),
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setTokens(theme.tokens);
+        setPolicy(nextPolicy);
+      } catch {
+        if (!cancelled) {
+          setMessage("Unable to load discovery configuration.");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const persistLocation = useCallback(async (next: DeviceCoords) => {
+    const token = await mobileTokenStorage.getAccessToken();
+    if (token === null) {
+      return;
+    }
     const client = createMobileApiClient();
     try {
-      const [theme, nextPolicy] = await Promise.all([client.theme(), client.getDiscoveryPolicy()]);
-      setTokens(theme.tokens);
-      setPolicy(nextPolicy);
-    } catch {
-      setMessage("Unable to load discovery configuration.");
+      if (!permissionGrantedRef.current) {
+        await client.patchLocationPermission({ status: "GRANTED" });
+        permissionGrantedRef.current = true;
+      }
+      await client.putMyLocation(next);
+    } catch (error) {
+      if (hasutErrorCode(error) === "RATE_LIMITED") {
+        return;
+      }
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    if (policy === null) {
+      return;
+    }
     const geolocation = readDeviceGeolocation();
     if (geolocation === null) {
       setGps("unavailable");
+      const demo = { latitude: policy.demoLatitude, longitude: policy.demoLongitude };
+      acceptedRef.current = demo;
+      acceptedAtRef.current = Date.now();
+      setCoords(demo);
+      setMessage("Showing the seeded demo neighborhood.");
       return;
     }
-    geolocation.getCurrentPosition(
-      (position) => {
-        setGps("granted");
-        setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-      },
-      () => {
-        setGps("denied");
-      },
-    );
-  }, [load]);
+
+    const onFix = (position: { coords: DeviceCoords }) => {
+      const next = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      setGps("granted");
+      const accept = shouldAcceptLocationFix({
+        previous: acceptedRef.current,
+        next,
+        lastAcceptedAtMs: acceptedAtRef.current,
+        nowMs: Date.now(),
+        significantMoveMeters: policy.significantMoveMeters,
+        minUpdateIntervalSeconds: policy.minUpdateIntervalSeconds,
+      });
+      if (!accept) {
+        return;
+      }
+      acceptedRef.current = next;
+      acceptedAtRef.current = Date.now();
+      setCoords(next);
+      void persistLocation(next);
+    };
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: policy.geolocationTimeoutMs,
+      maximumAge: policy.minUpdateIntervalSeconds * 1000,
+    };
+
+    if (geolocation.watchPosition !== undefined) {
+      const watchId = geolocation.watchPosition(onFix, () => setGps("denied"), options);
+      return () => geolocation.clearWatch?.(watchId);
+    }
+
+    geolocation.getCurrentPosition(onFix, () => setGps("denied"), options);
+    return undefined;
+  }, [persistLocation, policy]);
 
   useEffect(() => {
     if (coords !== null || policy === null) {
       return;
     }
     if (gps === "denied" || gps === "unavailable") {
-      setCoords({ latitude: policy.demoLatitude, longitude: policy.demoLongitude });
+      const demo = { latitude: policy.demoLatitude, longitude: policy.demoLongitude };
+      acceptedRef.current = demo;
+      setCoords(demo);
       setMessage("Showing the seeded demo neighborhood.");
     }
   }, [coords, gps, policy]);
 
   useEffect(() => {
-    if (coords === null) {
+    if (coords === null || policy === null) {
       return;
     }
-    void createMobileApiClient()
-      .nearby({
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        radiusMeters: policy?.defaultRadiusMeters,
-        verified: verified ? true : undefined,
-        available: available ? true : undefined,
-        q: query.trim().length === 0 ? undefined : query.trim(),
-      })
-      .then((data) => {
-        setResult(data);
-        setMessage(
-          data.items.length === 0
-            ? "No nearby results in this area."
-            : `${data.items.length} nearby results`,
-        );
-      })
-      .catch((error: unknown) => {
-        setMessage(error instanceof HasutApiError ? error.message : "Network failure. Try again.");
+    const timer = setTimeout(() => {
+      void createMobileApiClient()
+        .nearby({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          radiusMeters: policy.defaultRadiusMeters,
+          verified: verified ? true : undefined,
+          available: available ? true : undefined,
+          q: query.trim().length === 0 ? undefined : query.trim(),
+        })
+        .then((data) => {
+          setResult(data);
+          setMessage(
+            data.items.length === 0
+              ? "No nearby results in this area."
+              : `${data.items.length} nearby results`,
+          );
+        })
+        .catch((error: unknown) => {
+          if (resultRef.current !== null) {
+            return;
+          }
+          setMessage(
+            error instanceof HasutApiError ? error.message : "Network failure. Try again.",
+          );
+        });
+    }, policy.searchDebounceMs);
+    return () => clearTimeout(timer);
+  }, [available, coords, policy, query, verified]);
+
+  useEffect(() => {
+    if (policy === null) {
+      return;
+    }
+    let cancelled = false;
+    let realtime: HasutRealtimeClient | null = null;
+    void mobileTokenStorage.getAccessToken().then((token) => {
+      if (cancelled || token === null) {
+        return;
+      }
+      realtime = createHasutDiscoveryRealtimeClient({
+        baseUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001",
+        tokenStorage: mobileTokenStorage,
       });
-  }, [available, coords, policy?.defaultRadiusMeters, query, verified]);
+      void realtime.connect().then((socket) => {
+        socket.on(DISCOVERY_PRESENCE_EVENT, (payload: unknown) => {
+          const parsed = parseDiscoveryPresenceUpdated(payload);
+          if (parsed === null) {
+            return;
+          }
+          setResult((current) =>
+            current === null
+              ? current
+              : { ...current, markers: mergePresenceMarker(current.markers, parsed.marker) },
+          );
+        });
+        realtime?.emit("presence.sync");
+      });
+    });
+    return () => {
+      cancelled = true;
+      realtime?.disconnect();
+    };
+  }, [policy]);
 
   return (
     <View style={styles.screen}>
@@ -157,7 +291,10 @@ export function DiscoveryScreen() {
           {policy !== null ? (
             <Pressable
               onPress={() => {
-                setCoords({ latitude: policy.demoLatitude, longitude: policy.demoLongitude });
+                const demo = { latitude: policy.demoLatitude, longitude: policy.demoLongitude };
+                acceptedRef.current = demo;
+                acceptedAtRef.current = Date.now();
+                setCoords(demo);
                 setMessage("Showing the seeded demo neighborhood.");
               }}
             >

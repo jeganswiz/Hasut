@@ -1,6 +1,9 @@
 export const DISCOVERY_KINDS = ["MEMBER", "PROFESSIONAL", "BUSINESS"] as const;
 export type DiscoveryKind = (typeof DISCOVERY_KINDS)[number];
 
+export const DISCOVERY_PRESENCE_EVENT = "presence.updated" as const;
+export const DISCOVERY_REALTIME_NAMESPACE = "/ws/v1/discovery";
+
 export interface DiscoveryPin {
   pinLat: number;
   pinLng: number;
@@ -78,6 +81,14 @@ export interface DiscoveryPolicyView {
   mapTileUrl: string;
   demoLatitude: number;
   demoLongitude: number;
+  minUpdateIntervalSeconds: number;
+  significantMoveMeters: number;
+  geolocationTimeoutMs: number;
+  searchDebounceMs: number;
+}
+
+export interface DiscoveryPresenceUpdated {
+  marker: DiscoveryMarker;
 }
 
 export interface DiscoveryRankingWeightsView {

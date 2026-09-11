@@ -87,19 +87,9 @@ export class DiscoveryController {
   patchPolicy(
     @Body(new ZodValidationPipe(discoveryPolicyPatchSchema)) body: PolicyPatch,
   ): Promise<DiscoveryPolicyView> {
-    return this.configuration.updateDiscoveryPolicy(body).then((policy) => ({
-      defaultRadiusMeters: policy.defaultRadiusMeters,
-      minRadiusMeters: policy.minRadiusMeters,
-      maxRadiusMeters: policy.maxRadiusMeters,
-      radiusOptionsMeters: policy.radiusOptionsMeters,
-      clusterCellMeters: policy.clusterCellMeters,
-      includeMembers: policy.includeMembers,
-      availableCodes: policy.availableCodes,
-      availableModeCodes: policy.availableModeCodes,
-      mapTileUrl: policy.mapTileUrl,
-      demoLatitude: policy.demoLatitude,
-      demoLongitude: policy.demoLongitude,
-    }));
+    return this.configuration
+      .updateDiscoveryPolicy(body)
+      .then(() => this.configuration.getPublicDiscoveryPolicy());
   }
 
   @ApiBearerAuth()

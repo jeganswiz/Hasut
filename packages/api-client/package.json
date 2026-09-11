@@ -24,6 +24,7 @@
     "@hasut/types": "workspace:*",
     "@hasut/utils": "workspace:*",
     "@hasut/validation": "workspace:*",
+    "axios": "^1.20.0",
     "socket.io-client": "^4.8.1",
     "zod": "^3.25.76"
   },

@@ -4,6 +4,7 @@ import { join } from "node:path";
 const FRONTEND_FILES = [
   "src/components/discovery-experience.tsx",
   "src/components/discovery-map.tsx",
+  "src/lib/use-discovery-map.ts",
   "src/app/discovery.css",
 ];
 

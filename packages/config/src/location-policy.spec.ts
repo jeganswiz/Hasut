@@ -13,6 +13,9 @@ describe("readLocationPolicy", () => {
       maxAccuracyMeters: 250,
       minUpdateIntervalSeconds: 15,
     });
+    expect(policy.minUpdateIntervalSeconds).toBe(15);
+    expect(policy.significantMoveMeters).toBe(LOCATION_POLICY_DEFAULTS.significantMoveMeters);
+    expect(policy.geolocationTimeoutMs).toBe(LOCATION_POLICY_DEFAULTS.geolocationTimeoutMs);
     expect(policy.serviceAreaMinRadiusMeters).toBe(
       LOCATION_POLICY_DEFAULTS.serviceAreaMinRadiusMeters,
     );

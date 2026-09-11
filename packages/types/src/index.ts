@@ -48,7 +48,11 @@ export type {
   VerificationType,
 } from "./catalog";
 export type { PublicFlagsConfig, PublicThemeConfig } from "./config";
-export { DISCOVERY_KINDS } from "./discovery";
+export {
+  DISCOVERY_KINDS,
+  DISCOVERY_PRESENCE_EVENT,
+  DISCOVERY_REALTIME_NAMESPACE,
+} from "./discovery";
 export type {
   DiscoveryCard,
   DiscoveryCluster,
@@ -56,6 +60,7 @@ export type {
   DiscoveryMarker,
   DiscoveryPin,
   DiscoveryPolicyView,
+  DiscoveryPresenceUpdated,
   DiscoveryPreview,
   DiscoveryRankingWeightsView,
   DiscoveryResult,

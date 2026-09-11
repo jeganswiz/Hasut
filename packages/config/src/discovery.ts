@@ -13,6 +13,7 @@ export interface DiscoveryPolicy {
   professionalMatch: "service_area" | "presence" | "either";
   demoLatitude: number;
   demoLongitude: number;
+  searchDebounceMs: number;
 }
 
 export const DISCOVERY_POLICY_CONFIG_KEY = "discovery.policy";
@@ -33,6 +34,7 @@ export const DISCOVERY_POLICY_DEFAULTS: DiscoveryPolicy = {
   professionalMatch: "either",
   demoLatitude: 13.0418,
   demoLongitude: 80.2341,
+  searchDebounceMs: 400,
 };
 
 export function isDiscoveryPolicy(value: unknown): value is DiscoveryPolicy {
@@ -73,6 +75,10 @@ export function readDiscoveryPolicy(value: unknown): DiscoveryPolicy {
       Array.isArray(record.distanceBucketStepsMeters) && record.distanceBucketStepsMeters.length > 0
         ? record.distanceBucketStepsMeters
         : DISCOVERY_POLICY_DEFAULTS.distanceBucketStepsMeters,
+    searchDebounceMs:
+      typeof record.searchDebounceMs === "number"
+        ? record.searchDebounceMs
+        : DISCOVERY_POLICY_DEFAULTS.searchDebounceMs,
   };
 }
 

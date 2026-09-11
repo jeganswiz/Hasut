@@ -54,7 +54,7 @@ async function seed(): Promise<void> {
       valueJson: LOCATION_POLICY_DEFAULTS,
       environment: "all",
     },
-    update: {},
+    update: { valueJson: LOCATION_POLICY_DEFAULTS },
   });
 
   await prisma.remoteConfig.upsert({

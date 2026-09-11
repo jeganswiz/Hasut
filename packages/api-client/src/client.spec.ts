@@ -1,5 +1,21 @@
 import { fail, ok } from "@hasut/types";
-import { HasutApiClient, HasutApiError, apiErrorMessage, isHasutApiError } from "./client";
+import {
+  HasutApiClient,
+  HasutApiError,
+  apiErrorMessage,
+  hasutErrorCode,
+  isHasutApiError,
+} from "./client";
+import type { HasutHttpAdapter, HasutHttpRequest } from "./http";
+
+function jsonHttp(payload: unknown, inspect?: (input: HasutHttpRequest) => void): HasutHttpAdapter {
+  return {
+    async request(input) {
+      inspect?.(input);
+      return { status: 200, data: payload };
+    },
+  };
+}
 
 describe("HasutApiClient", () => {
   it("parses a healthy ready payload", async () => {
@@ -17,11 +33,7 @@ describe("HasutApiClient", () => {
 
     const client = new HasutApiClient({
       baseUrl: "http://localhost:3001",
-      fetchImpl: async () =>
-        new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
+      http: jsonHttp(payload),
     });
 
     const health = await client.health("ready");
@@ -32,15 +44,18 @@ describe("HasutApiClient", () => {
   it("throws HasutApiError for a structured failure", async () => {
     const client = new HasutApiClient({
       baseUrl: "http://localhost:3001",
-      fetchImpl: async () =>
-        new Response(
-          JSON.stringify({
-            success: false,
-            error: { code: "SERVICE_UNAVAILABLE", message: "Redis down" },
-            meta: { requestId: "req-down" },
-          }),
-          { status: 503, headers: { "Content-Type": "application/json" } },
-        ),
+      http: {
+        async request() {
+          return {
+            status: 503,
+            data: {
+              success: false,
+              error: { code: "SERVICE_UNAVAILABLE", message: "Redis down" },
+              meta: { requestId: "req-down" },
+            },
+          };
+        },
+      },
     });
 
     await expect(client.health("ready")).rejects.toBeInstanceOf(HasutApiError);
@@ -57,14 +72,10 @@ describe("HasutApiClient", () => {
     );
     const client = new HasutApiClient({
       baseUrl: "http://127.0.0.1:3001",
-      fetchImpl: async (url, init) => {
-        expect(String(url)).toBe("http://127.0.0.1:3001/api/v1/auth/otp/request");
-        expect(init?.method).toBe("POST");
-        return new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      },
+      http: jsonHttp(payload, (input) => {
+        expect(input.url).toBe("http://127.0.0.1:3001/api/v1/auth/otp/request");
+        expect(input.method).toBe("POST");
+      }),
     });
     const receipt = await client.requestOtp({ phone: "+919876543210" });
     expect(receipt.challengeId).toBe("challenge-1");
@@ -91,11 +102,7 @@ describe("HasutApiClient", () => {
     );
     const client = new HasutApiClient({
       baseUrl: "http://localhost:3001",
-      fetchImpl: async () =>
-        new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
+      http: jsonHttp(payload),
     });
     const profile = await client.getMember("member-1");
     expect(profile.approximateLocation?.city).toBe("Bengaluru");
@@ -131,13 +138,9 @@ describe("HasutApiClient", () => {
     );
     const client = new HasutApiClient({
       baseUrl: "http://localhost:3001",
-      fetchImpl: async (url) => {
-        expect(String(url)).toContain("/api/v1/categories?appliesTo=PROFESSIONAL");
-        return new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      },
+      http: jsonHttp(payload, (input) => {
+        expect(input.url).toContain("/api/v1/categories?appliesTo=PROFESSIONAL");
+      }),
     });
     const tree = await client.listCategories("PROFESSIONAL");
     expect(tree[0]?.children[0]?.name).toBe("Plumbing");
@@ -169,11 +172,7 @@ describe("HasutApiClient", () => {
     );
     const client = new HasutApiClient({
       baseUrl: "http://localhost:3001",
-      fetchImpl: async () =>
-        new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
+      http: jsonHttp(payload),
     });
     const professional = await client.getProfessional("pro-1");
     expect(professional.serviceArea?.city).toBe("Bengaluru");
@@ -218,14 +217,10 @@ describe("HasutApiClient", () => {
     );
     const client = new HasutApiClient({
       baseUrl: "http://localhost:3001",
-      fetchImpl: async (url) => {
-        expect(String(url)).toContain("/api/v1/discovery/nearby");
-        expect(String(url)).toContain("verified=true");
-        return new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      },
+      http: jsonHttp(payload, (input) => {
+        expect(input.url).toContain("/api/v1/discovery/nearby");
+        expect(input.url).toContain("verified=true");
+      }),
     });
     const result = await client.nearby({
       latitude: 12.97,
@@ -247,5 +242,40 @@ describe("HasutApiClient", () => {
     expect(isHasutApiError(foreign)).toBe(true);
     expect(apiErrorMessage(foreign, "fallback")).toBe("Unable to reach the HASUT API");
     expect(apiErrorMessage(new Error("boom"), "Start the API")).toBe("Start the API");
+    expect(hasutErrorCode(foreign)).toBe("SERVICE_UNAVAILABLE");
+    expect(hasutErrorCode(new Error("boom"))).toBeNull();
+  });
+
+  it("maps HTTP adapter failures to SERVICE_UNAVAILABLE", async () => {
+    const client = new HasutApiClient({
+      baseUrl: "http://127.0.0.1:3001",
+      http: {
+        async request() {
+          throw new Error("ECONNREFUSED");
+        },
+      },
+    });
+
+    await expect(client.health("ready")).rejects.toMatchObject({
+      name: "HasutApiError",
+      message: "Unable to reach the HASUT API",
+    });
+  });
+
+  it("uploads presigned media through the HTTP adapter", async () => {
+    const calls: Array<{ url: string; method: string }> = [];
+    const client = new HasutApiClient({
+      baseUrl: "http://127.0.0.1:3001",
+      http: {
+        async request(input) {
+          calls.push({ url: input.url, method: input.method });
+          return { status: 200, data: {} };
+        },
+      },
+    });
+    await client.uploadPresigned("https://s3.example/upload", new Uint8Array([1, 2]), {
+      "Content-Type": "image/png",
+    });
+    expect(calls).toEqual([{ url: "https://s3.example/upload", method: "PUT" }]);
   });
 });

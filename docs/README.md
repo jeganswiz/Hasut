@@ -21,6 +21,7 @@ The GitHub repository now contains the Sprint 0 monorepo (apps, packages, Compos
 11. [Security](./security/overview.md)
 12. [Development workflow](./development/workflow.md)
 13. [Sprint breakdown and development order](./product/sprint-breakdown.md)
+14. [Installation, scripts, ports, and env (HTML)](./development/setup.html)
 
 ## Architecture decision records
 

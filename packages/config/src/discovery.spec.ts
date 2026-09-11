@@ -19,6 +19,13 @@ describe("readDiscoveryPolicy", () => {
     expect(policy.defaultRadiusMeters).toBe(10_000);
     expect(policy.radiusOptionsMeters).toEqual([2_000, 10_000]);
   });
+
+  it("fills search debounce from defaults when older rows omit it", () => {
+    const { searchDebounceMs: _ignored, ...legacy } = DISCOVERY_POLICY_DEFAULTS;
+    expect(readDiscoveryPolicy(legacy).searchDebounceMs).toBe(
+      DISCOVERY_POLICY_DEFAULTS.searchDebounceMs,
+    );
+  });
 });
 
 describe("normalizeRankingWeights", () => {

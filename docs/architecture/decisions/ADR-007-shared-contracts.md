@@ -9,7 +9,7 @@ Three clients plus one API will otherwise drift (duplicate types, ad-hoc fetch, 
 
 ## Decision
 
-`packages/types`, `packages/validation`, and `packages/api-client` are the only contract layer. Apps do not define parallel DTOs or API modules. Auth storage differs by platform inside `packages/auth` adapters.
+`packages/types`, `packages/validation`, and `packages/api-client` are the only contract layer. Apps do not define parallel DTOs or API modules. Auth storage differs by platform inside `packages/auth` adapters. The API client uses Axios as the single HTTP implementation for web, admin, and mobile.
 
 ## Consequences
 

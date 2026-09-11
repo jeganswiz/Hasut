@@ -1,5 +1,7 @@
 # Local development setup
 
+Open the generated HTML guide in a browser: [setup.html](./setup.html) (installation, scripts, ports, and environment in one page).
+
 ## Prerequisites
 
 - Node.js 22.14+ (see `.nvmrc`)
@@ -133,6 +135,6 @@ Set `OTP_PROVIDER` (`console` locally; never in production) plus `JWT_ACCESS_SEC
 | @sentry/node                                | Error reporting when DSN is configured                    |
 | helmet                                      | Security headers                                          |
 | zod                                         | Shared validation (`packages/validation`, env parsing)    |
-| next / expo                                 | Web, admin, and mobile shells                             |
+| axios                                       | Shared HASUT API HTTP client (`@hasut/api-client`)        |
 
-Do not add a second HTTP client, type package, or ORM.
+Do not add a second HTTP client, type package, or ORM. Apps call `@hasut/api-client` (Axios). Nest vendor adapters (MSG91, Nominatim) may use platform `fetch`.
