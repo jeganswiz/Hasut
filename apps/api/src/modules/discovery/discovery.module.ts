@@ -2,13 +2,14 @@ import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { LocationsModule } from "../locations/locations.module";
 import { MediaModule } from "../media/media.module";
+import { StoriesModule } from "../stories/stories.module";
 import { DiscoveryController } from "./discovery.controller";
 import { DiscoveryGateway } from "./discovery.gateway";
 import { DiscoveryRepository } from "./discovery.repository";
 import { DiscoveryService } from "./discovery.service";
 
 @Module({
-  imports: [LocationsModule, MediaModule, AuthModule],
+  imports: [LocationsModule, MediaModule, AuthModule, StoriesModule],
   controllers: [DiscoveryController],
   providers: [DiscoveryService, DiscoveryRepository, DiscoveryGateway],
   exports: [DiscoveryService],

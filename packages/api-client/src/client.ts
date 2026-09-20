@@ -42,6 +42,29 @@ import {
   type ReportView,
   type ReportsPolicyView,
   type UnreadCountView,
+  type AdminReportView,
+  type AdminVerificationRequest,
+  type NotificationTemplateView,
+  type OpsSummaryView,
+  type StaffMemberView,
+  type SupportCategoryView,
+  type SupportEscalationView,
+  type SupportMessageView,
+  type SupportNoteView,
+  type SupportTicketDetail,
+  type SupportTicketView,
+  type AdminBusinessView,
+  type AdminMemberDetail,
+  type AdminMemberView,
+  type AdminProfessionalView,
+  type AuditLogView,
+  type FeatureFlagAdminView,
+  type ThemeEditorView,
+  type ReviewView,
+  type ServiceOfferingView,
+  type StoryView,
+  type LiveSessionView,
+  type ThemeTokens,
 } from "@hasut/types";
 import { createRequestId, normalizeRequestId } from "@hasut/utils";
 import {
@@ -88,6 +111,38 @@ import {
   reportViewSchema,
   reportsPolicyViewSchema,
   unreadCountViewSchema,
+  adminReportListSchema,
+  adminReportViewSchema,
+  adminVerificationListSchema,
+  adminVerificationRequestSchema,
+  notificationTemplateListSchema,
+  notificationTemplateViewSchema,
+  opsSummaryViewSchema,
+  staffMemberListSchema,
+  supportCategoryListSchema,
+  supportEscalationViewSchema,
+  supportMessageViewSchema,
+  supportNoteViewSchema,
+  supportTicketDetailSchema,
+  supportTicketListSchema,
+  supportTicketViewSchema,
+  adminMemberDetailSchema,
+  adminMemberListSchema,
+  adminBusinessListSchema,
+  adminProfessionalListSchema,
+  auditLogListSchema,
+  featureFlagAdminListSchema,
+  featureFlagAdminViewSchema,
+  themeEditorViewSchema,
+  serviceOfferingListSchema,
+  serviceOfferingViewSchema,
+  reviewListSchema,
+  reviewViewSchema,
+  reviewAggregateViewSchema,
+  storyListSchema,
+  storyViewSchema,
+  liveSessionListSchema,
+  liveSessionViewSchema,
 } from "@hasut/validation";
 import { z, type ZodType } from "zod";
 import { createAxiosHttpAdapter, HASUT_UPLOAD_TIMEOUT_MS, type HasutHttpAdapter } from "./http";
@@ -361,7 +416,16 @@ export class HasutApiClient {
   }
 
   async presignMedia(body: {
-    purpose: "AVATAR" | "PORTFOLIO" | "CHAT" | "BUSINESS" | "VERIFICATION" | "THEME_LOGO";
+    purpose:
+      | "AVATAR"
+      | "PORTFOLIO"
+      | "CHAT"
+      | "BUSINESS"
+      | "VERIFICATION"
+      | "THEME_LOGO"
+      | "STORY_IMAGE"
+      | "STORY_VIDEO"
+      | "STORY_AUDIO";
     mimeType: string;
     byteSize: number;
   }): Promise<MediaPresignResult> {
@@ -882,6 +946,430 @@ export class HasutApiClient {
         method: "POST",
       },
     );
+    return result.data;
+  }
+
+  async listAdminVerification(): Promise<AdminVerificationRequest[]> {
+    const result = await this.request(adminVerificationListSchema, "/api/v1/admin/verification", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async decideVerification(
+    requestId: string,
+    body: { decision: "APPROVE" | "REJECT"; reviewNote?: string },
+  ): Promise<AdminVerificationRequest> {
+    const result = await this.request(
+      adminVerificationRequestSchema,
+      `/api/v1/admin/verification/${requestId}/decide`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+    return result.data;
+  }
+
+  async listAdminReports(): Promise<AdminReportView[]> {
+    const result = await this.request(adminReportListSchema, "/api/v1/admin/reports", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async moderateReport(reportId: string, action: "HIDE" | "DISMISS"): Promise<AdminReportView> {
+    const result = await this.request(
+      adminReportViewSchema,
+      `/api/v1/admin/reports/${reportId}/moderate`,
+      { method: "POST", body: JSON.stringify({ action }) },
+    );
+    return result.data;
+  }
+
+  async listNotificationTemplates(): Promise<NotificationTemplateView[]> {
+    const result = await this.request(
+      notificationTemplateListSchema,
+      "/api/v1/admin/notification-templates",
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async updateNotificationTemplate(
+    templateId: string,
+    body: { titleTemplate: string; bodyTemplate: string; isActive?: boolean },
+  ): Promise<NotificationTemplateView> {
+    const result = await this.request(
+      notificationTemplateViewSchema,
+      `/api/v1/admin/notification-templates/${templateId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+    return result.data;
+  }
+
+  async getOpsSummary(): Promise<OpsSummaryView> {
+    const result = await this.request(opsSummaryViewSchema, "/api/v1/admin/ops/summary", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listStaff(): Promise<StaffMemberView[]> {
+    const result = await this.request(staffMemberListSchema, "/api/v1/admin/staff", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listSupportCategories(): Promise<SupportCategoryView[]> {
+    const result = await this.request(supportCategoryListSchema, "/api/v1/support/categories", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async createSupportTicket(body: {
+    categoryId: string;
+    subject: string;
+    body: string;
+  }): Promise<SupportTicketDetail> {
+    const result = await this.request(supportTicketDetailSchema, "/api/v1/support/tickets", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async listSupportTickets(): Promise<SupportTicketView[]> {
+    const result = await this.request(supportTicketListSchema, "/api/v1/support/tickets", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async getSupportTicket(ticketId: string): Promise<SupportTicketDetail> {
+    const result = await this.request(
+      supportTicketDetailSchema,
+      `/api/v1/support/tickets/${ticketId}`,
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async replySupportTicket(ticketId: string, body: string): Promise<SupportMessageView> {
+    const result = await this.request(
+      supportMessageViewSchema,
+      `/api/v1/support/tickets/${ticketId}/messages`,
+      { method: "POST", body: JSON.stringify({ body }) },
+    );
+    return result.data;
+  }
+
+  async listAdminSupportTickets(): Promise<SupportTicketView[]> {
+    const result = await this.request(supportTicketListSchema, "/api/v1/admin/support/tickets", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async assignSupportTicket(ticketId: string, assigneeId: string): Promise<SupportTicketView> {
+    const result = await this.request(
+      supportTicketViewSchema,
+      `/api/v1/admin/support/tickets/${ticketId}/assign`,
+      { method: "POST", body: JSON.stringify({ assigneeId }) },
+    );
+    return result.data;
+  }
+
+  async addSupportNote(ticketId: string, body: string): Promise<SupportNoteView> {
+    const result = await this.request(
+      supportNoteViewSchema,
+      `/api/v1/admin/support/tickets/${ticketId}/notes`,
+      { method: "POST", body: JSON.stringify({ body }) },
+    );
+    return result.data;
+  }
+
+  async escalateSupportTicket(
+    ticketId: string,
+    body: { toAssigneeId: string; reason: string },
+  ): Promise<SupportEscalationView> {
+    const result = await this.request(
+      supportEscalationViewSchema,
+      `/api/v1/admin/support/tickets/${ticketId}/escalate`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+    return result.data;
+  }
+
+  async patchSupportTicket(
+    ticketId: string,
+    body: {
+      status?: "OPEN" | "PENDING" | "RESOLVED" | "CLOSED";
+      priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+    },
+  ): Promise<SupportTicketView> {
+    const result = await this.request(
+      supportTicketViewSchema,
+      `/api/v1/admin/support/tickets/${ticketId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+    return result.data;
+  }
+
+  async searchMembers(query: string): Promise<AdminMemberView[]> {
+    const result = await this.request(
+      adminMemberListSchema,
+      `/api/v1/admin/members${toQuery({ q: query })}`,
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async getAdminMember(memberId: string): Promise<AdminMemberDetail> {
+    const result = await this.request(
+      adminMemberDetailSchema,
+      `/api/v1/admin/members/${memberId}`,
+      {
+        method: "GET",
+      },
+    );
+    return result.data;
+  }
+
+  async suspendMember(memberId: string): Promise<AdminMemberDetail> {
+    const result = await this.request(
+      adminMemberDetailSchema,
+      `/api/v1/admin/members/${memberId}/suspend`,
+      { method: "POST" },
+    );
+    return result.data;
+  }
+
+  async restoreMember(memberId: string): Promise<AdminMemberDetail> {
+    const result = await this.request(
+      adminMemberDetailSchema,
+      `/api/v1/admin/members/${memberId}/restore`,
+      { method: "POST" },
+    );
+    return result.data;
+  }
+
+  async revokeMemberSessions(memberId: string): Promise<AdminMemberDetail> {
+    const result = await this.request(
+      adminMemberDetailSchema,
+      `/api/v1/admin/members/${memberId}/sessions/revoke`,
+      { method: "POST" },
+    );
+    return result.data;
+  }
+
+  async setMemberRoles(
+    memberId: string,
+    roles: Array<"MEMBER" | "ADMIN" | "SUPPORT_AGENT" | "MODERATOR">,
+  ): Promise<AdminMemberDetail> {
+    const result = await this.request(
+      adminMemberDetailSchema,
+      `/api/v1/admin/members/${memberId}/roles`,
+      { method: "PATCH", body: JSON.stringify({ roles }) },
+    );
+    return result.data;
+  }
+
+  async listAdminProfessionals(): Promise<AdminProfessionalView[]> {
+    const result = await this.request(adminProfessionalListSchema, "/api/v1/admin/professionals", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listAdminBusinesses(): Promise<AdminBusinessView[]> {
+    const result = await this.request(adminBusinessListSchema, "/api/v1/admin/businesses", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listAudit(query: {
+    entity?: string;
+    actorId?: string;
+    requestId?: string;
+  }): Promise<AuditLogView[]> {
+    const result = await this.request(auditLogListSchema, `/api/v1/admin/audit${toQuery(query)}`, {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async getThemeEditor(): Promise<ThemeEditorView> {
+    const result = await this.request(themeEditorViewSchema, "/api/v1/admin/theme", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async saveThemeDraft(tokens: ThemeTokens): Promise<ThemeEditorView> {
+    const result = await this.request(themeEditorViewSchema, "/api/v1/admin/theme/draft", {
+      method: "POST",
+      body: JSON.stringify({ tokens }),
+    });
+    return result.data;
+  }
+
+  async publishTheme(): Promise<ThemeEditorView> {
+    const result = await this.request(themeEditorViewSchema, "/api/v1/admin/theme/publish", {
+      method: "POST",
+    });
+    return result.data;
+  }
+
+  async listAdminFlags(): Promise<FeatureFlagAdminView[]> {
+    const result = await this.request(featureFlagAdminListSchema, "/api/v1/admin/flags", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async updateAdminFlag(key: string, enabled: boolean): Promise<FeatureFlagAdminView> {
+    const result = await this.request(
+      featureFlagAdminViewSchema,
+      `/api/v1/admin/flags/${encodeURIComponent(key)}`,
+      { method: "PATCH", body: JSON.stringify({ enabled }) },
+    );
+    return result.data;
+  }
+
+  async listMyServices(): Promise<ServiceOfferingView[]> {
+    const result = await this.request(serviceOfferingListSchema, "/api/v1/me/services", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async createService(body: {
+    categoryId: string;
+    title: string;
+    description?: string;
+    displayPriceAmount?: number | null;
+    displayCurrency?: string | null;
+  }): Promise<ServiceOfferingView> {
+    const result = await this.request(serviceOfferingViewSchema, "/api/v1/me/services", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async listProfessionalServices(professionalId: string): Promise<ServiceOfferingView[]> {
+    const result = await this.request(
+      serviceOfferingListSchema,
+      `/api/v1/professionals/${professionalId}/services`,
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async listReviews(
+    subjectType: "PROFESSIONAL" | "BUSINESS",
+    subjectId: string,
+  ): Promise<ReviewView[]> {
+    const result = await this.request(
+      reviewListSchema,
+      `/api/v1/reviews${toQuery({ subjectType, subjectId })}`,
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async createReview(body: {
+    subjectType: "PROFESSIONAL" | "BUSINESS";
+    subjectId: string;
+    rating: number;
+    body?: string;
+  }): Promise<ReviewView> {
+    const result = await this.request(reviewViewSchema, "/api/v1/reviews", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async getReviewAggregate(
+    subjectType: "PROFESSIONAL" | "BUSINESS",
+    subjectId: string,
+  ): Promise<{ avgRating: number; count: number }> {
+    const result = await this.request(
+      reviewAggregateViewSchema,
+      `/api/v1/reviews/aggregate${toQuery({ subjectType, subjectId })}`,
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async createStory(body: {
+    kind: "IMAGE" | "VIDEO";
+    imageMediaId?: string;
+    videoMediaId?: string;
+    audioMediaId?: string | null;
+    trimStartSeconds?: number;
+    trimEndSeconds?: number;
+  }): Promise<StoryView> {
+    const result = await this.request(storyViewSchema, "/api/v1/me/stories", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async listMyStories(): Promise<StoryView[]> {
+    const result = await this.request(storyListSchema, "/api/v1/me/stories", { method: "GET" });
+    return result.data;
+  }
+
+  async listMemberStories(memberId: string): Promise<StoryView[]> {
+    const result = await this.request(storyListSchema, `/api/v1/stories/${memberId}`, {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async startLive(): Promise<LiveSessionView> {
+    const result = await this.request(liveSessionViewSchema, "/api/v1/me/live", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    return result.data;
+  }
+
+  async endLive(): Promise<LiveSessionView> {
+    const result = await this.request(liveSessionViewSchema, "/api/v1/me/live/end", {
+      method: "POST",
+    });
+    return result.data;
+  }
+
+  async listAdminStories(): Promise<StoryView[]> {
+    const result = await this.request(storyListSchema, "/api/v1/admin/stories", { method: "GET" });
+    return result.data;
+  }
+
+  async hideStory(storyId: string): Promise<StoryView> {
+    const result = await this.request(storyViewSchema, `/api/v1/admin/stories/${storyId}/hide`, {
+      method: "POST",
+      body: JSON.stringify({ hidden: true }),
+    });
+    return result.data;
+  }
+
+  async listAdminLive(): Promise<LiveSessionView[]> {
+    const result = await this.request(liveSessionListSchema, "/api/v1/admin/live", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async endAdminLive(liveId: string): Promise<LiveSessionView> {
+    const result = await this.request(liveSessionViewSchema, `/api/v1/admin/live/${liveId}/end`, {
+      method: "POST",
+    });
     return result.data;
   }
 

@@ -1,4 +1,6 @@
 import type {
+  AdminProfessionalView,
+  MemberRole,
   OnboardingStatus,
   OnboardingSteps,
   OwnerProfessional,
@@ -18,6 +20,7 @@ import type {
   ServiceArea,
 } from "@prisma/client";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
+import { assertAdminRole } from "../../common/auth/staff-auth";
 import { AuditService } from "../audit/audit.service";
 import { CategoriesService } from "../categories/categories.service";
 import { ConfigurationService } from "../configuration/configuration.service";
@@ -303,6 +306,23 @@ export class ProfessionalsService {
       afterJson: { status },
     });
     return this.getMine(memberId);
+  }
+
+  async listAdmin(roles: readonly MemberRole[]): Promise<AdminProfessionalView[]> {
+    assertAdminRole(roles);
+    const rows = await this.prisma.professionalProfile.findMany({
+      include: { member: { include: { profile: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      memberId: row.memberId,
+      displayName: row.member.profile?.displayName || "Member",
+      headline: row.headline,
+      status: row.status,
+      identityVerificationStatus: row.identityVerificationStatus,
+    }));
   }
 
   async getPublic(professionalId: string): Promise<PublicProfessional> {

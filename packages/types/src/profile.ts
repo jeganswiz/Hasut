@@ -8,6 +8,9 @@ export const MEDIA_PURPOSES = [
   "BUSINESS",
   "VERIFICATION",
   "THEME_LOGO",
+  "STORY_IMAGE",
+  "STORY_VIDEO",
+  "STORY_AUDIO",
 ] as const;
 export type MediaPurpose = (typeof MEDIA_PURPOSES)[number];
 

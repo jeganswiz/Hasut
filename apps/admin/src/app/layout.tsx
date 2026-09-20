@@ -1,5 +1,6 @@
 import { themeToCssText } from "@hasut/config";
 import type { ReactNode } from "react";
+import { ThemeBoot } from "../components/theme-boot";
 import "./globals.css";
 
 export const metadata = {
@@ -11,9 +12,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <style>{themeToCssText()}</style>
+        <style id="hasut-theme">{themeToCssText()}</style>
       </head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <ThemeBoot />
+        {children}
+      </body>
     </html>
   );
 }

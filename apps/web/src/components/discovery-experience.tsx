@@ -173,6 +173,12 @@ function PreviewCard({ item, preview }: { item: DiscoveryCard; preview: Discover
       </p>
       <p>
         <a href={preview?.href ?? item.href}>Open full profile</a>
+        {item.kind === "MEMBER" ? (
+          <>
+            {" · "}
+            <a href={`/stories/${item.id}`}>Watch presence</a>
+          </>
+        ) : null}
       </p>
     </div>
   );

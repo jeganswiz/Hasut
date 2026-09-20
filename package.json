@@ -23,6 +23,7 @@
     "dev:up": "node scripts/dev-up.mjs",
     "dev:down": "node scripts/dev-down.mjs",
     "test:scripts": "node --test scripts/dev-stack.spec.mjs",
+    "test:e2e": "pnpm --filter @hasut/e2e test:e2e",
     "infra:up": "docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio minio-init",
     "infra:up:api": "docker compose -f infra/compose/docker-compose.yml up --build -d",
     "infra:down": "docker compose -f infra/compose/docker-compose.yml down",

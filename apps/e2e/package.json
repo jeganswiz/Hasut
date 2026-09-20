@@ -1,0 +1,15 @@
+{
+  "name": "@hasut/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "echo skip",
+    "typecheck": "echo skip",
+    "test": "echo skip",
+    "test:e2e": "playwright test",
+    "build": "echo skip"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

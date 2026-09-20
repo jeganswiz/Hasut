@@ -52,6 +52,13 @@ services:
         "sleep 3 && mc alias set local http://minio:9000 hasut hasutsecret && mc mb --ignore-existing local/hasut-media",
       ]
 
+  mediamtx:
+    image: bluenviron/mediamtx:1.11.3
+    ports:
+      - "8888:8888"
+      - "8889:8889"
+    profiles: ["live"]
+
   api:
     build:
       context: ../..

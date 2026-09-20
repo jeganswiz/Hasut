@@ -1,10 +1,10 @@
 # HASUT documentation
 
-HASUT is a location-intelligent professional and business network. Phase 1 delivers the **Local Discovery Network** MVP. Future capabilities (marketplace, billing, CRM, live, creator economy) are anticipated in architecture and explicitly out of scope for implementation.
+HASUT is a location-intelligent professional and business network. Phase 1 delivers the **Local Discovery Network** MVP. Stories and live streaming are Phase 2. Marketplace, billing, CRM, and the creator economy stay deferred after that.
 
 ## Current repository state
 
-The GitHub repository now contains the Sprint 0 monorepo (apps, packages, Compose, CI). Domain features start at Sprint 1.
+Sprints 0–9 are implemented (Phase 1). Phase 2 stories/live: [phase-2-scope.md](./product/phase-2-scope.md).
 
 ## Read in this order
 
@@ -20,8 +20,10 @@ The GitHub repository now contains the Sprint 0 monorepo (apps, packages, Compos
 10. [Database ERD](./database/erd.md)
 11. [Security](./security/overview.md)
 12. [Development workflow](./development/workflow.md)
-13. [Sprint breakdown and development order](./product/sprint-breakdown.md)
-14. [Installation, scripts, ports, and env (HTML)](./development/setup.html)
+13. [Nearby discovery performance](./development/discovery-performance.md)
+14. [Sprint breakdown and development order](./product/sprint-breakdown.md)
+15. [Phase 2 — Presence stories and live](./product/phase-2-scope.md)
+16. [Installation, scripts, ports, and env (HTML)](./development/setup.html)
 
 ## Architecture decision records
 

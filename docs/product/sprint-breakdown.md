@@ -51,6 +51,8 @@ Admin **theme/flags** can land with configuration in step 2–3 so apps boot on 
 
 **Exit:** Member can obtain tokens in development via console OTP; production config refuses console provider.
 
+**Status:** Implemented.
+
 ## Sprint 2 — Members, media, profiles, location
 
 - `users`, `media`, `profiles`, `locations`
@@ -59,6 +61,8 @@ Admin **theme/flags** can land with configuration in step 2–3 so apps boot on 
 - Presigned uploads
 
 **Exit:** Authenticated member sets profile + location; public profile hides phone and exact coordinates.
+
+**Status:** Implemented. Public profiles omit phone and exact coordinates. Web/mobile profile editors remain a Sprint 8 gap.
 
 ## Sprint 3 — Catalog: categories, professionals, businesses, services
 
@@ -94,46 +98,63 @@ Admin **theme/flags** can land with configuration in step 2–3 so apps boot on 
 
 ## Sprint 6 — Trust, notify, support
 
-- Identity verification request + admin decide
-- Reports, blocks, basic content hide
-- Notification templates + in-app feed
+Member identity request already existed; this sprint completed operator decide, hide, templates, and support.
+
+- Identity verification request + admin decide (`APPROVE` / `REJECT`); never label identity as skill verification
+- Reports, blocks, basic content hide / dismiss
+- Notification templates CRUD (config-driven) + existing in-app feed
 - Support tickets, messages, assignment, internal notes, escalation
-- Configurable support categories
+- Configurable support categories (seeded; not hardcoded in UI)
+- Thin admin queues so the Sprint 6 E2E path works before the Sprint 7 chrome rewrite
 
-**Exit:** Member requests verification and opens a ticket; admin can act; events audited.
+**Exit:** Member requests verification and opens a ticket; admin/moderator/support can act; events audited.
 
-## Sprint 7 — Admin console completeness
+**Status:** Implemented. Identity request already existed. Admin decide, content hide/dismiss, notification template updates, support tickets (messages, assign, notes, escalate), seeded support categories, and ops summary counts are live. Thin admin queues and member support/verification screens exist; Admindek chrome is Sprint 7.
 
-- All admin capabilities in `apps/admin`
-- Theme editor + publish + cache bust
+## Sprint 7 — Admin console completeness + operations chrome
+
+- All admin capabilities in `apps/admin` from [admin architecture](../architecture/06-admin.md)
+- **Admindek-inspired chrome** (not a clone): collapsible left sidebar with grouped, role-filtered nav; top bar with search, appearance toggle, notifications, role badge, logout; dense tables
+- Dashboard KPI cards from **real counts only**: pending verifications, open reports, open tickets, suspended members — no fake revenue, conversion, device pie, world map, or sentiment
+- Theme editor + publish + contrast warnings + cache bust + HASUT `logoUrl` (`THEME_LOGO`)
 - Feature flags, remote config, discovery config
 - Audit log viewer
-- Suspend/restore
+- Members search/detail: suspend/restore, roles, session revoke
+- HASUT logo + wordmark in the sidebar
 
-**Exit:** Admin E2E path works: login → user search → verification approve → audit entry visible.
+**Exit:** Admin E2E path works: login → user search → verification approve → audit entry visible. Every screen has loading/empty/error/success.
 
-## Sprint 8 — Design system and member UX
+**Status:** Implemented. Sidebar + top bar + KPI cards from `/admin/ops/summary`. Members, professionals, businesses, verification, reports, support, theme (draft/publish + contrast warnings), flags, templates, and audit tables. Role-filtered nav. HASUT logo in the sidebar. Phase 2 adds a Stories queue under Trust.
 
-- `packages/ui` primitives on tokens
-- Web + mobile discovery map, sheet, nearby cards, search
-- Profile, professional, business screens
-- Loading/empty/error/success everywhere touched
+## Sprint 8 — Design system and native-like member UX
 
-**Exit:** Member E2E path works on at least one client (mobile preferred) plus web.
+- `packages/ui` primitives on tokens, including `Avatar`, logo mark, and circular **map avatar pins**
+- Web + mobile discovery map, sheet, nearby cards, search — polished empty/error/GPS-denied states
+- HASUT logo (SVG default; overridable by published `logoUrl`); remote theme on web (not boot defaults only)
+- Native-like responsive chrome: bottom tabs on small viewports (Map, Connections, Inbox, Notifications, Me); safe-area; 44px targets; PWA manifest
+- Profile / location editor (“Me”) on web and mobile
+- Map pins are rounded profile circles (photo or initials). Ring encodes current mode / availability / Socket.IO presence — **not** stories or live video
+- Close Phase 1 catalog gaps if still open: service offerings (no booking) and review write path for connected members
+
+**Exit:** Member E2E path works on mobile-width web and Expo: OTP → profile → location → map avatars → connect → chat.
+
+**Status:** Implemented. `Avatar` + `HasutLogo` in `@hasut/ui`. Web bottom tabs, PWA manifest, remote theme boot, `/me` profile + location editor, circular map avatar pins. Service offerings and connected-member review write path. Expo tabs + Me screen + circular pin chips.
 
 ## Sprint 9 — Hardening
 
-- Playwright critical flows
+- Playwright critical flows (member + admin)
 - Security review (headers, PII, uploads, OTP abuse)
 - Performance pass on nearby query (explain analyze)
 - Documentation sync
 
 **Exit:** CI E2E green; security notes updated; no known PII leaks on public endpoints.
 
+**Status:** Implemented. Playwright member chrome smoke (`pnpm test:e2e`). Helmet headers already on the API. Public member/admin payloads omit phone and exact coordinates. Nearby query notes in [discovery performance](../development/discovery-performance.md).
+
 ## What each sprint must not do
 
-Pull in payments, booking, subscriptions, live, CRM, or a second deployable service.
+Pull in payments, booking, subscriptions, CRM, or a second deployable HASUT service during Phase 1. Stories, video trim, music, and live HLS belong to Phase 2 after Sprint 9.
 
 ## After Phase 1
 
-Only then: Protected Service design, marketplace, billing, multi-city operations, skill verification productization.
+[Phase 2 presence stories and live](./phase-2-scope.md) is implemented behind `stories.live`: map pin priority LIVE → video → image → profile; HLS viewer buffering; optional MediaMTX compose profile. After that: Protected Service design, marketplace, billing, multi-city operations, skill verification productization.

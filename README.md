@@ -6,7 +6,7 @@ HASUT is inspired by Hebrew **חסות** (patronage, support, sponsorship, mutua
 
 ## Status
 
-**Sprint 5 complete:** connection requests (accept/reject/cancel), 1:1 text and image chat with read receipts, blocks, reports, in-app notifications, and unread counts. WebSocket live updates reconnect with a refreshed token; REST remains the source of truth for history. Peer and chat payloads never include phone numbers. Paid subscriptions are not implemented.
+**Sprints 0–9 complete (Phase 1).** Phase 2 stories and live HLS are implemented behind the `stories.live` flag. See [sprint breakdown](./docs/product/sprint-breakdown.md). Peer and chat payloads never include phone numbers. Paid subscriptions are not implemented.
 
 ## Quick start
 

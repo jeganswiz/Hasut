@@ -1,9 +1,13 @@
-import type { BlockView, ReportView } from "@hasut/types";
-import { blockCreateSchema, reportCreateSchema } from "@hasut/validation";
-import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
+import type { AdminReportView, BlockView, ReportView } from "@hasut/types";
+import { blockCreateSchema, reportCreateSchema, reportModerateSchema } from "@hasut/validation";
+import { Body, Controller, Delete, Get, Param, Post, Req } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
 import { z } from "zod";
+import type { RequestAuthContext } from "../../common/auth/request-auth";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { getRequestId } from "../../common/middleware/request-id.middleware";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { ReportsService } from "./reports.service";
 
@@ -47,5 +51,30 @@ export class ReportsController {
     @Body(new ZodValidationPipe(reportCreateSchema)) body: ReportCreate,
   ): Promise<ReportView> {
     return this.reports.createReport(memberId, body);
+  }
+
+  @Roles("ADMIN", "MODERATOR")
+  @Get("admin/reports")
+  @ApiOperation({ summary: "Open reports queue" })
+  listQueue(@CurrentUser() user: RequestAuthContext): Promise<AdminReportView[]> {
+    return this.reports.listQueue(user.roles);
+  }
+
+  @Roles("ADMIN", "MODERATOR")
+  @Post("admin/reports/:id/moderate")
+  @ApiOperation({ summary: "Hide reported content or dismiss the report" })
+  moderate(
+    @CurrentUser() user: RequestAuthContext,
+    @Param("id") reportId: string,
+    @Body(new ZodValidationPipe(reportModerateSchema)) body: z.infer<typeof reportModerateSchema>,
+    @Req() req: Request,
+  ): Promise<AdminReportView> {
+    return this.reports.moderate(
+      user.memberId,
+      user.roles,
+      reportId,
+      body.action,
+      getRequestId(req),
+    );
   }
 }

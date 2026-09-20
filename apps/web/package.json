@@ -18,6 +18,7 @@
     "@hasut/ui": "workspace:*",
     "@hasut/utils": "workspace:*",
     "leaflet": "^1.9.4",
+    "hls.js": "^1.6.2",
     "next": "^15.5.2",
     "react": "19.0.0",
     "react-dom": "19.0.0"

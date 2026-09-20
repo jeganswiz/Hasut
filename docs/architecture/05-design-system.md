@@ -2,7 +2,9 @@
 
 ## Visual direction
 
-Inspired by map-first local discovery: light surfaces, strong purple primary, gold rating accent, large radii, bottom-sheet discovery, horizontal nearby cards, map rating pills. **Do not clone the reference screenshot.** HASUT should feel like patronage and support (חסות), not a copy of another product.
+Inspired by map-first local discovery: light surfaces, strong purple primary, gold rating accent, large radii, bottom-sheet discovery, horizontal nearby cards. **Do not clone** third-party admin templates or Instagram. HASUT should feel like patronage and support (חסות).
+
+**Logo:** bundled HASUT mark (SVG) in web, admin, and mobile chrome. Admin theme publish may override with `logoUrl` from `THEME_LOGO` media. Feature components consume the token/config, not a hardcoded asset path per screen.
 
 ## Token contract
 
@@ -53,7 +55,9 @@ Reusable primitives (web implementation first with React; mobile maps the same n
 - `BottomSheet`
 - `SearchBar`, `LocationBar`, `FilterChip`
 - `Rating`, `CategoryTag`, `Price`
-- `Avatar`, `MapRatingMarker`, `SelectedMapMarker`
+- `Avatar`, `MapAvatarMarker`, `SelectedMapMarker`, `HasutLogo`
+- `DataTable`, `KpiCard`, `AdminSidebar`, `PageHeader` (admin density)
+- `TabBar` (member native-like chrome)
 - `Text`, `Stack`, `Row` as needed
 
 Empty, loading, error, and success states are first-class variants of list/sheet components.
@@ -65,10 +69,14 @@ Web and Admin import from `@hasut/ui`. Mobile uses `@hasut/ui-native` only if RN
 - Map is the canvas.
 - Floating search + location + category chip.
 - Bottom sheet: horizontal nearby professionals/businesses; service cards below.
+- **Map pins are circular avatars** (photo or initials), not rating pills. A ring encodes availability or live presence. When `stories.live` is on, pin media priority is LIVE → video → image → profile.
+- Self pin links to the presence composer (`/story`) and `/me` profile editor.
 - Selected entity uses primary surface (active card) and a distinct map marker.
-- Ratings use `accent` only.
+- Ratings use `accent` only, typically on cards rather than the pin itself.
+- Small viewports: bottom tab bar (Map, Connections, Inbox, Notifications, Me), `100dvh`, safe-area, 44px targets, reduced-motion for pulses. Desktop keeps a refined top chrome + logo.
+- Admin chrome: collapsible sidebar, KPI cards, dense tables (`KpiCard`, `HasutLogo`, `Avatar` in `@hasut/ui`).
 
-Admin chrome is denser (tables, filters) but the same tokens.
+Admin chrome is denser (tables, filters, sidebar) but the same tokens.
 
 ## Accessibility
 

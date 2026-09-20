@@ -81,6 +81,10 @@ export const NOTIFICATION_TEMPLATE_KEYS = [
   "connection.requested",
   "connection.accepted",
   "message.received",
+  "verification.approved",
+  "verification.rejected",
+  "support.ticket.replied",
+  "support.ticket.resolved",
 ] as const;
 
 export type NotificationTemplateKey = (typeof NOTIFICATION_TEMPLATE_KEYS)[number];

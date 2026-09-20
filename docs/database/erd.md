@@ -144,9 +144,11 @@ Bytes stay in S3. Verification media is not publicly readable.
 `id`, `member_id`, `type` (`IDENTITY|BUSINESS|SKILL`), `status` (`NOT_STARTED` is absence of row or explicit), `status` values: `PENDING|UNDER_REVIEW|VERIFIED|REJECTED|EXPIRED`, `business_id` nullable, `payload_json` (document media ids), `reviewer_id`, `review_note`, `decided_at`  
 Phase 1 product flow: IDENTITY only. SKILL/BUSINESS types exist so we do not migrate later; APIs for SKILL are not exposed.
 
-**reviews**  
-`id`, `author_id`, `subject_type` (`PROFESSIONAL|BUSINESS`), `subject_id`, `rating` 1–5, `body`, unique author+subject  
-Phase 1 may limit create to accepted connections.
+**stories**  
+`id`, `member_id`, `kind` (`IMAGE|VIDEO|LIVE`), media ids, `hls_url`, `preview_hls_url`, `expires_at` (~24h), `moderation_status`
+
+**live_sessions**  
+`id`, `member_id`, `status` (`LIVE|ENDED`), `hls_url`, `preview_hls_url`, `ingest_url`
 
 **review_aggregates**  
 `subject_type`, `subject_id`, `avg_rating`, `count` — maintained in service transaction
@@ -227,4 +229,4 @@ Append-only. Indexes on `actor_id`, `entity+entity_id`, `created_at`, `request_i
 
 `subscriptions`, `invoices`, `payment_methods`, `bookings`, `invoices_line_items`, `crm_pipelines`, `streams`, `wallets`, `token_ledger`, `team_memberships`.
 
-Nullable `locality_id` on location tables is allowed as a forward-compatible column without a cities admin product.
+`stories` and `live_sessions` are Phase 2 (flag `stories.live`). Nullable `locality_id` on location tables is allowed as a forward-compatible column without a cities admin product.

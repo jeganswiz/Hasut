@@ -16,3 +16,19 @@ export function splitCsv(value: string): string[] {
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 }
+
+export function initialsFromName(name: string): string {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) {
+    return "?";
+  }
+  const first = parts[0] ?? "?";
+  if (parts.length === 1) {
+    return first.slice(0, 2).toUpperCase();
+  }
+  const second = parts[1] ?? "";
+  return `${first.slice(0, 1)}${second.slice(0, 1)}`.toUpperCase();
+}

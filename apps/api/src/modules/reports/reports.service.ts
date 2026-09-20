@@ -1,6 +1,8 @@
-import type { BlockView, ReportView } from "@hasut/types";
+import type { AdminReportView, BlockView, MemberRole, ReportView } from "@hasut/types";
 import { HttpStatus, Injectable } from "@nestjs/common";
+import { assertModerationAccess } from "../../common/auth/staff-auth";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
+import { AuditService } from "../audit/audit.service";
 import { ConfigurationService } from "../configuration/configuration.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProfilesService } from "../profiles/profiles.service";
@@ -11,6 +13,7 @@ export class ReportsService {
     private readonly prisma: PrismaService,
     private readonly configuration: ConfigurationService,
     private readonly profiles: ProfilesService,
+    private readonly audit: AuditService,
   ) {}
 
   async isBlockedEitherWay(memberA: string, memberB: string): Promise<boolean> {
@@ -116,14 +119,142 @@ export class ReportsService {
         details: input.details,
       },
     });
+    return this.toMemberReport(created);
+  }
+
+  async countOpen(): Promise<number> {
+    return this.prisma.report.count({ where: { status: "OPEN" } });
+  }
+
+  async listQueue(roles: readonly MemberRole[]): Promise<AdminReportView[]> {
+    assertModerationAccess(roles);
+    const rows = await this.prisma.report.findMany({
+      where: { status: "OPEN" },
+      orderBy: { createdAt: "asc" },
+      take: 100,
+    });
+    return Promise.all(rows.map((row) => this.toAdminReport(row)));
+  }
+
+  async moderate(
+    actorId: string,
+    roles: readonly MemberRole[],
+    reportId: string,
+    action: "HIDE" | "DISMISS",
+    requestId: string,
+  ): Promise<AdminReportView> {
+    assertModerationAccess(roles);
+    const row = await this.prisma.report.findUnique({ where: { id: reportId } });
+    if (row === null) {
+      throw new HasutHttpException("NOT_FOUND", "Report not found", HttpStatus.NOT_FOUND);
+    }
+    if (row.status !== "OPEN") {
+      throw new HasutHttpException(
+        "CONFLICT",
+        "This report is already resolved",
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    let hidden = false;
+    if (action === "HIDE") {
+      hidden = await this.hideTarget(row.targetType, row.targetId);
+    }
+
+    const updated = await this.prisma.report.update({
+      where: { id: row.id },
+      data: { status: action === "HIDE" ? "ACTIONED" : "DISMISSED" },
+    });
+    await this.prisma.moderationAction.create({
+      data: {
+        reportId: row.id,
+        actorId,
+        action: action === "HIDE" ? "HIDE" : "DISMISS",
+        entityType: row.targetType,
+        entityId: row.targetId,
+      },
+    });
+    await this.audit.record({
+      actorId,
+      action: action === "HIDE" ? "REPORT_CONTENT_HIDDEN" : "REPORT_DISMISSED",
+      entity: "report",
+      entityId: row.id,
+      requestId,
+      afterJson: { targetType: row.targetType, hidden },
+    });
+    return this.toAdminReport(updated, hidden);
+  }
+
+  private async hideTarget(
+    targetType: ReportView["targetType"],
+    targetId: string,
+  ): Promise<boolean> {
+    if (targetType === "MEMBER" || targetType === "PROFILE") {
+      await this.prisma.profile.updateMany({
+        where: { memberId: targetId },
+        data: { isDiscoverable: false },
+      });
+      return true;
+    }
+    if (targetType === "MESSAGE") {
+      const result = await this.prisma.message.updateMany({
+        where: { id: targetId, hiddenAt: null },
+        data: { hiddenAt: new Date() },
+      });
+      return result.count > 0;
+    }
+    if (targetType === "BUSINESS") {
+      const result = await this.prisma.business.updateMany({
+        where: { id: targetId },
+        data: { status: "PAUSED" },
+      });
+      return result.count > 0;
+    }
+    return false;
+  }
+
+  private toMemberReport(row: {
+    id: string;
+    targetType: ReportView["targetType"];
+    targetId: string;
+    reasonCode: string;
+    details: string;
+    status: ReportView["status"];
+    createdAt: Date;
+  }): ReportView {
     return {
-      id: created.id,
-      targetType: created.targetType,
-      targetId: created.targetId,
-      reasonCode: created.reasonCode,
-      details: created.details,
-      status: created.status,
-      createdAt: created.createdAt.toISOString(),
+      id: row.id,
+      targetType: row.targetType,
+      targetId: row.targetId,
+      reasonCode: row.reasonCode,
+      details: row.details,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  private async toAdminReport(
+    row: {
+      id: string;
+      reporterId: string;
+      targetType: ReportView["targetType"];
+      targetId: string;
+      reasonCode: string;
+      details: string;
+      status: ReportView["status"];
+      createdAt: Date;
+    },
+    hidden?: boolean,
+  ): Promise<AdminReportView> {
+    const hideRow =
+      hidden ??
+      (await this.prisma.moderationAction.findFirst({
+        where: { reportId: row.id, action: "HIDE" },
+      }));
+    return {
+      ...this.toMemberReport(row),
+      reporter: await this.profiles.getPreview(row.reporterId),
+      hidden: typeof hideRow === "boolean" ? hideRow : hideRow !== null,
     };
   }
 

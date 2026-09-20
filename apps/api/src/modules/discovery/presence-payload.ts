@@ -1,4 +1,5 @@
 import type { DiscoveryMarker } from "@hasut/types";
+import { initialsFromName } from "@hasut/utils";
 
 export function cellRoom(cellId: string): string {
   return `cell:${cellId}`;
@@ -10,6 +11,8 @@ export function buildMemberPresenceMarker(input: {
   pinLat: number;
   pinLng: number;
   rating: number | null;
+  photoUrl?: string | null;
+  available?: boolean;
 }): DiscoveryMarker {
   return {
     id: input.memberId,
@@ -19,5 +22,11 @@ export function buildMemberPresenceMarker(input: {
     selected: false,
     pinLat: input.pinLat,
     pinLng: input.pinLng,
+    photoUrl: input.photoUrl ?? null,
+    initials: initialsFromName(input.displayName),
+    available: input.available ?? false,
+    ring: input.available ? "available" : "idle",
+    pinMediaKind: "PROFILE",
+    previewHlsUrl: null,
   };
 }

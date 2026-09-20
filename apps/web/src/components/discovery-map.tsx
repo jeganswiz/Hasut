@@ -5,10 +5,49 @@ import type { DiscoveryCluster, DiscoveryMarker } from "@hasut/types";
 import { diffDiscoveryMarkers } from "@hasut/utils";
 import { useEffect, useRef, useState } from "react";
 
+function allowPinAutoplay(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return false;
+  }
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; type?: string; effectiveType?: string };
+    }
+  ).connection;
+  if (connection?.saveData === true) {
+    return false;
+  }
+  if (connection?.type === "cellular") {
+    return false;
+  }
+  if (
+    connection?.effectiveType === "slow-2g" ||
+    connection?.effectiveType === "2g" ||
+    connection?.effectiveType === "3g"
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function markerHtml(marker: DiscoveryMarker, selected: boolean): string {
-  return `<button class="discovery-marker" type="button"><span>★</span> ${
-    marker.rating === null ? "New" : marker.rating.toFixed(1)
-  }${selected ? ` ${marker.label}` : ""}</button>`;
+  const ring =
+    marker.ring === "live" ? "is-live" : marker.ring === "available" ? "is-available" : "";
+  const photo =
+    marker.photoUrl !== null
+      ? `<img alt="" src="${marker.photoUrl.replace(/"/g, "")}" />`
+      : `<span>${marker.initials}</span>`;
+  const preview =
+    marker.previewHlsUrl !== null &&
+    (marker.pinMediaKind === "LIVE" || marker.pinMediaKind === "VIDEO")
+      ? `<video muted playsinline loop data-hls="${marker.previewHlsUrl.replace(/"/g, "")}" data-kind="${marker.pinMediaKind}"></video>`
+      : "";
+  const live = marker.pinMediaKind === "LIVE" ? `<em>LIVE</em>` : "";
+  const label = selected ? `<strong>${marker.label}</strong>` : "";
+  return `<button class="map-avatar-pin ${ring}" type="button">${photo}${preview}${live}${label}</button>`;
 }
 
 function uniqueTileChain(tileUrl: string, fallbackTileUrls: string[]): string[] {
@@ -52,6 +91,7 @@ export function DiscoveryMap({
   const markerLayers = useRef(new Map<string, import("leaflet").Marker>());
   const clusterLayers = useRef(new Map<string, import("leaflet").Marker>());
   const selfLayer = useRef<import("leaflet").Marker | null>(null);
+  const pinPlayers = useRef<Array<{ destroy: () => void }>>([]);
   const onSelectRef = useRef(onSelect);
   const [mapReady, setMapReady] = useState(false);
   const ready = tileUrl.length > 0 && center !== null;
@@ -142,8 +182,8 @@ export function DiscoveryMap({
           .marker([overlay.latitude, overlay.longitude], {
             icon: leaflet.divIcon({
               className: "",
-              html: `<div class="discovery-self"></div>`,
-              iconSize: [18, 18],
+              html: `<a class="discovery-self" href="/story" aria-label="Add presence or edit profile"></a>`,
+              iconSize: [44, 44],
             }),
             zIndexOffset: 800,
           })
@@ -179,7 +219,7 @@ export function DiscoveryMap({
         const icon = leaflet.divIcon({
           className: "",
           html: markerHtml(marker, selected),
-          iconSize: [selected ? 140 : 72, 32],
+          iconSize: [selected ? 72 : 48, selected ? 88 : 48],
         });
         const existing = markerLayers.current.get(marker.id);
         if (existing === undefined) {
@@ -219,6 +259,61 @@ export function DiscoveryMap({
         }
       }
     });
+  }, [clusters, mapReady, markers, selectedId]);
+
+  useEffect(() => {
+    function destroyPlayers(): void {
+      for (const player of pinPlayers.current) {
+        player.destroy();
+      }
+      pinPlayers.current = [];
+    }
+
+    function attach(): void {
+      destroyPlayers();
+      if (
+        document.hidden ||
+        selectedId !== null ||
+        !allowPinAutoplay() ||
+        mapNode.current === null
+      ) {
+        return;
+      }
+      const videos = [...mapNode.current.querySelectorAll<HTMLVideoElement>("video[data-hls]")];
+      videos.sort((a, b) => Number(b.dataset.kind === "LIVE") - Number(a.dataset.kind === "LIVE"));
+      void import("hls.js").then((mod) => {
+        const Hls = mod.default;
+        let attached = 0;
+        for (const video of videos) {
+          if (attached >= 3) {
+            break;
+          }
+          const url = video.dataset.hls;
+          if (url === undefined || url.length === 0) {
+            continue;
+          }
+          video.muted = true;
+          if (Hls.isSupported()) {
+            const hls = new Hls({ maxBufferLength: 4, capLevelToPlayerSize: true });
+            hls.loadSource(url);
+            hls.attachMedia(video);
+            pinPlayers.current.push({ destroy: () => hls.destroy() });
+          } else {
+            video.src = url;
+          }
+          void video.play().catch(() => undefined);
+          attached += 1;
+        }
+      });
+    }
+
+    const timer = window.setTimeout(attach, 80);
+    document.addEventListener("visibilitychange", attach);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", attach);
+      destroyPlayers();
+    };
   }, [clusters, mapReady, markers, selectedId]);
 
   return <div ref={mapNode} className="discovery-map" />;

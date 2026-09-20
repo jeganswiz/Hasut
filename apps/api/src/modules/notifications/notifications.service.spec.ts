@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
-import { PrismaService } from "../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { NotificationWriter } from "../realtime/notification-writer";
+import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "./notifications.service";
 
 const MEMBER = "11111111-1111-4111-8111-111111111111";
@@ -24,6 +25,7 @@ describe("NotificationsService", () => {
         NotificationsService,
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationWriter, useValue: writer },
+        { provide: AuditService, useValue: { record: jest.fn() } },
       ],
     }).compile();
     return moduleRef.get(NotificationsService);

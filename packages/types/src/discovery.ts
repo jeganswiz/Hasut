@@ -27,12 +27,21 @@ export interface DiscoveryCard {
   href: string;
 }
 
+export const PIN_MEDIA_KINDS = ["LIVE", "VIDEO", "IMAGE", "PROFILE"] as const;
+export type PinMediaKind = (typeof PIN_MEDIA_KINDS)[number];
+
 export interface DiscoveryMarker extends DiscoveryPin {
   id: string;
   kind: DiscoveryKind;
   label: string;
   rating: number | null;
   selected: boolean;
+  photoUrl: string | null;
+  initials: string;
+  available: boolean;
+  ring: "idle" | "available" | "live";
+  pinMediaKind: PinMediaKind;
+  previewHlsUrl: string | null;
 }
 
 export interface DiscoveryCluster extends DiscoveryPin {

@@ -16,6 +16,7 @@ import {
   PROFESSIONAL_AVAILABILITY_DEFAULTS,
   REPORTS_POLICY_CONFIG_KEY,
   REPORTS_POLICY_DEFAULTS,
+  SUPPORT_CATEGORY_SEEDS,
 } from "@hasut/config";
 import { PrismaClient, type CategoryAppliesTo } from "@prisma/client";
 import { seedDemoCatalog } from "./seed-demo";
@@ -177,7 +178,18 @@ async function seed(): Promise<void> {
     update: {},
   });
 
+  await prisma.featureFlag.upsert({
+    where: { key: "stories.live" },
+    create: {
+      key: "stories.live",
+      enabled: true,
+      description: "Phase 2 map presence stories and live HLS",
+    },
+    update: {},
+  });
+
   await seedNotificationTemplates();
+  await seedSupportCategories();
   await seedCategories();
 
   for (const mode of CURRENT_MODE_SEEDS) {
@@ -224,6 +236,21 @@ interface CategorySeed {
   appliesTo: CategoryAppliesTo;
   sortOrder: number;
   children?: CategorySeed[];
+}
+
+async function seedSupportCategories(): Promise<void> {
+  for (const category of SUPPORT_CATEGORY_SEEDS) {
+    await prisma.supportCategory.upsert({
+      where: { slug: category.slug },
+      create: {
+        slug: category.slug,
+        name: category.name,
+        sortOrder: category.sortOrder,
+        isActive: true,
+      },
+      update: { name: category.name, sortOrder: category.sortOrder },
+    });
+  }
 }
 
 async function seedCategories(): Promise<void> {
@@ -315,6 +342,26 @@ async function seedNotificationTemplates(): Promise<void> {
       key: "message.received",
       titleTemplate: "New message",
       bodyTemplate: "{{actorName}} sent you a message",
+    },
+    {
+      key: "verification.approved",
+      titleTemplate: "Identity review complete",
+      bodyTemplate: "Your identity verification was approved",
+    },
+    {
+      key: "verification.rejected",
+      titleTemplate: "Identity review complete",
+      bodyTemplate: "Your identity verification was not approved",
+    },
+    {
+      key: "support.ticket.replied",
+      titleTemplate: "Support replied",
+      bodyTemplate: "HASUT support replied to your ticket",
+    },
+    {
+      key: "support.ticket.resolved",
+      titleTemplate: "Ticket updated",
+      bodyTemplate: "Your support ticket was resolved",
     },
   ];
   for (const template of templates) {

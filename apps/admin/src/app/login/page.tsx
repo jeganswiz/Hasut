@@ -12,7 +12,7 @@ export default function LoginPage() {
         </>
       }
     >
-      <OtpLoginForm nextPath="/categories" />
+      <OtpLoginForm nextPath="/" />
     </AdminShell>
   );
 }

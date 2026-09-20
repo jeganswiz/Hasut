@@ -1,4 +1,9 @@
-import type { OwnerProfessional, ProfessionalOnboarding, PublicProfessional } from "@hasut/types";
+import type {
+  AdminProfessionalView,
+  OwnerProfessional,
+  ProfessionalOnboarding,
+  PublicProfessional,
+} from "@hasut/types";
 import {
   onboardingCategoriesSchema,
   onboardingProfileSchema,
@@ -9,8 +14,10 @@ import { Body, Controller, Get, Param, Patch, Post, Put, Req } from "@nestjs/com
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { z } from "zod";
+import type { RequestAuthContext } from "../../common/auth/request-auth";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Public } from "../../common/decorators/public.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
 import { getRequestId } from "../../common/middleware/request-id.middleware";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { ProfessionalsService } from "./professionals.service";
@@ -108,5 +115,13 @@ export class ProfessionalsController {
   @ApiOperation({ summary: "Public professional profile without exact coordinates" })
   getPublic(@Param("id") professionalId: string): Promise<PublicProfessional> {
     return this.professionals.getPublic(professionalId);
+  }
+
+  @ApiBearerAuth()
+  @Roles("ADMIN")
+  @Get("admin/professionals")
+  @ApiOperation({ summary: "Admin professional list without phone numbers" })
+  listAdmin(@CurrentUser() user: RequestAuthContext): Promise<AdminProfessionalView[]> {
+    return this.professionals.listAdmin(user.roles);
   }
 }

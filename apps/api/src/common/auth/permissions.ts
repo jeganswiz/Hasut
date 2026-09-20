@@ -2,7 +2,7 @@ import type { MemberRole } from "@hasut/types";
 
 export const ROLE_PERMISSIONS: Record<MemberRole, readonly string[]> = {
   MEMBER: ["me:read"],
-  SUPPORT_AGENT: ["me:read", "admin:read"],
+  SUPPORT_AGENT: ["me:read", "admin:read", "admin:support"],
   MODERATOR: ["me:read", "admin:read", "admin:moderate"],
   ADMIN: ["*"],
 };

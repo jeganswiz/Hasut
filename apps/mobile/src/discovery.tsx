@@ -16,7 +16,7 @@ import {
 import { mergePresenceMarker, shouldAcceptLocationFix } from "@hasut/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { createMobileApiClient } from "./api";
 import { mobileTokenStorage } from "./token-storage";
 
@@ -255,10 +255,22 @@ export function DiscoveryScreen() {
     <View style={styles.screen}>
       <View style={styles.map}>
         {(result?.markers ?? []).map((marker) => (
-          <View key={marker.id} style={styles.pin}>
-            <Text style={styles.pinText}>
-              ★ {marker.rating === null ? "New" : marker.rating.toFixed(1)}
-            </Text>
+          <View
+            key={marker.id}
+            style={[
+              styles.pin,
+              marker.ring === "available" ? styles.pinAvailable : null,
+              marker.ring === "live" ? styles.pinLive : null,
+            ]}
+          >
+            {marker.photoUrl ? (
+              <Image source={{ uri: marker.photoUrl }} style={styles.pinImage} />
+            ) : (
+              <Text style={styles.pinText}>
+                {marker.initials}
+                {marker.pinMediaKind === "LIVE" ? " LIVE" : ""}
+              </Text>
+            )}
           </View>
         ))}
         {(result?.clusters ?? []).map((cluster) => (
@@ -285,8 +297,14 @@ export function DiscoveryScreen() {
           <Link href="/notifications">
             <Text style={styles.chipLabel}>Notifications</Text>
           </Link>
-          <Link href="/login">
-            <Text style={styles.chipLabel}>Sign in</Text>
+          <Link href="/verification">
+            <Text style={styles.chipLabel}>Verification</Text>
+          </Link>
+          <Link href="/support">
+            <Text style={styles.chipLabel}>Support</Text>
+          </Link>
+          <Link href="/me">
+            <Text style={styles.chipLabel}>Me</Text>
           </Link>
           {policy !== null ? (
             <Pressable
@@ -400,14 +418,20 @@ function makeStyles(tokens: ThemeTokens) {
     cardActiveTitle: { fontWeight: "700", color: tokens.textOnPrimary },
     accent: { color: tokens.accent, fontWeight: "700" },
     pin: {
+      width: 44,
+      height: 44,
       backgroundColor: tokens.surface,
       borderColor: tokens.primary,
       borderWidth: 3,
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
       margin: 6,
+      overflow: "hidden",
     },
+    pinImage: { width: 44, height: 44, borderRadius: 22 },
+    pinAvailable: { borderColor: tokens.success },
+    pinLive: { borderColor: tokens.danger },
     pinText: { fontWeight: "700", color: tokens.text },
     cluster: {
       width: 36,

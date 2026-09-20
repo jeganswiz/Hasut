@@ -43,6 +43,7 @@ export const apiEnvSchema = z
     MEDIA_STORAGE: z.enum(MEDIA_STORAGE_PROVIDERS).default("memory"),
     MAPTILER_API_KEY: z.string().optional().default(""),
     STADIA_API_KEY: z.string().optional().default(""),
+    LIVE_HLS_BASE_URL: z.string().optional().default(""),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === "production" && value.OTP_PROVIDER === "console") {

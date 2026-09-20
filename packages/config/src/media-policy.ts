@@ -9,7 +9,16 @@ export const MEDIA_POLICY_CONFIG_KEY = "media.policy";
 /** Seed / fallback values owned by configuration, not media use-cases. */
 export const MEDIA_POLICY_DEFAULTS: MediaPolicy = {
   avatarMaxBytes: 5_242_880,
-  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  allowedMimeTypes: [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "video/mp4",
+    "video/webm",
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/webm",
+  ],
   presignTtlSeconds: 300,
 };
 

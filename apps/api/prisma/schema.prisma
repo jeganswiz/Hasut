@@ -66,6 +66,16 @@ model Member {
   reportsFiled          Report[]
   notifications         Notification[]
   notificationPreferences NotificationPreference[]
+  supportTickets        SupportTicket[]
+  supportMessages       SupportMessage[]
+  supportAssignments    SupportAssignment[]
+  supportNotes          SupportInternalNote[] @relation("SupportNoteAuthor")
+  supportEscalationsFrom SupportEscalation[]  @relation("SupportEscalationFrom")
+  supportEscalationsTo   SupportEscalation[]  @relation("SupportEscalationTo")
+  moderationActions     ModerationAction[]
+  reviewsWritten        Review[]
+  stories               Story[]
+  liveSessions          LiveSession[]
 
   @@map("members")
 }
@@ -195,6 +205,9 @@ enum MediaPurpose {
   BUSINESS
   VERIFICATION
   THEME_LOGO
+  STORY_IMAGE
+  STORY_VIDEO
+  STORY_AUDIO
 }
 
 enum MediaStatus {
@@ -251,6 +264,7 @@ model MediaAsset {
   categoryIcons   Category[]
   businessCovers  Business[]
   chatMessages    Message[]
+  supportMessages SupportMessage[]
 
   @@index([ownerMemberId, purpose, status])
   @@map("media_assets")
@@ -330,6 +344,7 @@ model Category {
   professionalCategories ProfessionalCategory[]
   businessCategories     BusinessCategory[]
   skills                 ProfessionalSkill[]
+  offerings              ServiceOffering[]
 
   @@index([parentId, isActive, sortOrder])
   @@map("categories")
@@ -352,6 +367,7 @@ model ProfessionalProfile {
   categories ProfessionalCategory[]
   skills     ProfessionalSkill[]
   serviceArea ServiceArea?
+  offerings  ServiceOffering[]
 
   @@map("professional_profiles")
 }
@@ -487,6 +503,94 @@ model ReviewAggregate {
   @@map("review_aggregates")
 }
 
+model ServiceOffering {
+  id                    String   @id @default(uuid()) @db.Uuid
+  professionalProfileId String   @map("professional_profile_id") @db.Uuid
+  categoryId            String   @map("category_id") @db.Uuid
+  title                 String
+  description           String   @default("")
+  displayPriceAmount    Decimal? @map("display_price_amount") @db.Decimal(12, 2)
+  displayCurrency       String?  @map("display_currency")
+  coverMediaId          String?  @map("cover_media_id") @db.Uuid
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  professional ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+  category     Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([professionalProfileId, isActive])
+  @@map("service_offerings")
+}
+
+model Review {
+  id          String            @id @default(uuid()) @db.Uuid
+  authorId    String            @map("author_id") @db.Uuid
+  subjectType ReviewSubjectType @map("subject_type")
+  subjectId   String            @map("subject_id") @db.Uuid
+  rating      Int
+  body        String            @default("")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  author Member @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([authorId, subjectType, subjectId])
+  @@index([subjectType, subjectId])
+  @@map("reviews")
+}
+
+enum StoryKind {
+  IMAGE
+  VIDEO
+  LIVE
+}
+
+enum StoryModerationStatus {
+  ACTIVE
+  HIDDEN
+}
+
+enum LiveSessionStatus {
+  LIVE
+  ENDED
+}
+
+model Story {
+  id                String                 @id @default(uuid()) @db.Uuid
+  memberId          String                 @map("member_id") @db.Uuid
+  kind              StoryKind
+  imageMediaId      String?                @map("image_media_id") @db.Uuid
+  videoMediaId      String?                @map("video_media_id") @db.Uuid
+  audioMediaId      String?                @map("audio_media_id") @db.Uuid
+  hlsUrl            String?                @map("hls_url")
+  previewHlsUrl     String?                @map("preview_hls_url")
+  expiresAt         DateTime               @map("expires_at") @db.Timestamptz(6)
+  moderationStatus  StoryModerationStatus  @default(ACTIVE) @map("moderation_status")
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, expiresAt])
+  @@index([moderationStatus, expiresAt])
+  @@map("stories")
+}
+
+model LiveSession {
+  id            String            @id @default(uuid()) @db.Uuid
+  memberId      String            @map("member_id") @db.Uuid
+  status        LiveSessionStatus @default(LIVE)
+  hlsUrl        String?           @map("hls_url")
+  previewHlsUrl String?           @map("preview_hls_url")
+  ingestUrl     String?           @map("ingest_url")
+  startedAt     DateTime          @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt       DateTime?         @map("ended_at") @db.Timestamptz(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, status])
+  @@map("live_sessions")
+}
+
 enum ConnectionStatus {
   PENDING
   ACCEPTED
@@ -572,6 +676,7 @@ model Message {
   type           MessageType
   body           String?
   mediaId        String?     @map("media_id") @db.Uuid
+  hiddenAt       DateTime?   @map("hidden_at") @db.Timestamptz(6)
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
 
   conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -620,6 +725,7 @@ model Report {
   createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
   reporter Member @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  moderationActions ModerationAction[]
 
   @@index([reporterId, createdAt])
   @@index([status, createdAt])
@@ -663,4 +769,138 @@ model NotificationPreference {
 
   @@id([memberId, key])
   @@map("notification_preferences")
+}
+
+enum SupportTicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ModerationActionType {
+  HIDE
+  WARN
+  SUSPEND
+  DISMISS
+}
+
+model SupportCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(100) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tickets SupportTicket[]
+
+  @@map("support_categories")
+}
+
+model SupportTicket {
+  id         String                @id @default(uuid()) @db.Uuid
+  memberId   String                @map("member_id") @db.Uuid
+  categoryId String                @map("category_id") @db.Uuid
+  subject    String
+  status     SupportTicketStatus   @default(OPEN)
+  priority   SupportTicketPriority @default(NORMAL)
+  createdAt  DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  member       Member                 @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  category     SupportCategory        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  messages     SupportMessage[]
+  assignments  SupportAssignment[]
+  notes        SupportInternalNote[]
+  escalations  SupportEscalation[]
+
+  @@index([memberId, createdAt])
+  @@index([status, createdAt])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  ticketId       String   @map("ticket_id") @db.Uuid
+  authorMemberId String   @map("author_member_id") @db.Uuid
+  body           String
+  mediaId        String?  @map("media_id") @db.Uuid
+  isInternal     Boolean  @default(false) @map("is_internal")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author Member        @relation(fields: [authorMemberId], references: [id], onDelete: Cascade)
+  media  MediaAsset?   @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
+}
+
+model SupportAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  assigneeId String   @map("assignee_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  assignee Member        @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, assignedAt])
+  @@map("support_assignments")
+}
+
+model SupportInternalNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author Member        @relation("SupportNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_internal_notes")
+}
+
+model SupportEscalation {
+  id             String   @id @default(uuid()) @db.Uuid
+  ticketId       String   @map("ticket_id") @db.Uuid
+  fromAssigneeId String?  @map("from_assignee_id") @db.Uuid
+  toAssigneeId   String   @map("to_assignee_id") @db.Uuid
+  reason         String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket       SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromAssignee Member?       @relation("SupportEscalationFrom", fields: [fromAssigneeId], references: [id], onDelete: SetNull)
+  toAssignee   Member        @relation("SupportEscalationTo", fields: [toAssigneeId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_escalations")
+}
+
+model ModerationAction {
+  id         String               @id @default(uuid()) @db.Uuid
+  reportId   String?              @map("report_id") @db.Uuid
+  actorId    String               @map("actor_id") @db.Uuid
+  action     ModerationActionType
+  entityType String               @map("entity_type")
+  entityId   String               @map("entity_id")
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor  Member  @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  report Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([reportId])
+  @@index([entityType, entityId])
+  @@map("moderation_actions")
 }

@@ -65,5 +65,7 @@ export type {
   ReportReason,
   ReportsPolicy,
 } from "./social";
+export { SUPPORT_CATEGORY_SEEDS } from "./support";
+export type { SupportCategorySeed } from "./support";
 export { DEFAULT_THEME_TOKENS, THEME_CSS_VARIABLES, isCacheFresh, themeToCssText } from "./theme";
 export type { CachedConfig } from "./theme";

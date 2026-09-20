@@ -12,6 +12,7 @@ import { MediaService } from "../media/media.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { DiscoveryRepository } from "./discovery.repository";
 import { DiscoveryService } from "./discovery.service";
+import { StoriesService } from "../stories/stories.service";
 
 const PRO_ID = "33333333-3333-4333-8333-333333333333";
 
@@ -28,6 +29,7 @@ describe("DiscoveryService", () => {
   };
   const locations = { readExactPoint: jest.fn() };
   const media = { photoUrl: jest.fn() };
+  const stories = { pinMediaForMembers: jest.fn() };
   const prisma = {
     memberPublicLocation: { findUnique: jest.fn() },
     category: { findMany: jest.fn() },
@@ -42,6 +44,7 @@ describe("DiscoveryService", () => {
         { provide: LocationsRepository, useValue: locations },
         { provide: MediaService, useValue: media },
         { provide: PrismaService, useValue: prisma },
+        { provide: StoriesService, useValue: stories },
       ],
     }).compile();
     return moduleRef.get(DiscoveryService);
@@ -56,6 +59,7 @@ describe("DiscoveryService", () => {
     repository.findNearbyProfessionals.mockResolvedValue([]);
     repository.findNearbyBusinesses.mockResolvedValue([]);
     media.photoUrl.mockResolvedValue(null);
+    stories.pinMediaForMembers.mockResolvedValue(new Map());
     locations.readExactPoint.mockResolvedValue(null);
   });
 
@@ -98,6 +102,8 @@ describe("DiscoveryService", () => {
     );
     expect(result.items[0]?.distanceBucket).toBe("200m");
     expect(result.items[0]?.href).toBe(`/professionals/${PRO_ID}`);
+    expect(result.markers[0]?.pinMediaKind).toBe("PROFILE");
+    expect(result.markers[0]?.initials).toBe("AS");
     expect(containsExactCoordinateKeys(result)).toBe(false);
     expect(JSON.stringify(result)).not.toMatch(/"latitude"|"longitude"|"exact"/);
   });

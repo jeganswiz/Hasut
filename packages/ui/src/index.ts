@@ -8,4 +8,7 @@ export { SearchBar } from "./search-bar";
 export { ServiceCard } from "./service-card";
 export { Surface } from "./surface";
 export type { SurfaceProps, SurfaceState } from "./surface";
+export { HasutLogo } from "./hasut-logo";
+export { KpiCard } from "./kpi-card";
+export { Avatar } from "./avatar";
 export { cssVar } from "./tokens";

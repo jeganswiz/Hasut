@@ -11,6 +11,12 @@ describe("parseDiscoveryPresenceUpdated", () => {
         selected: false,
         pinLat: 13.04,
         pinLng: 80.23,
+        photoUrl: null,
+        initials: "AS",
+        available: true,
+        ring: "available",
+        pinMediaKind: "PROFILE",
+        previewHlsUrl: null,
       },
     });
     expect(parsed?.marker.pinLat).toBe(13.04);

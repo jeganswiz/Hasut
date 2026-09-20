@@ -137,6 +137,56 @@ export const identityVerificationRequestSchema = z.object({
   type: z.literal("IDENTITY"),
   status: z.enum(["PENDING", "UNDER_REVIEW", "VERIFIED", "REJECTED", "EXPIRED"]),
   documentMediaIds: z.array(z.string()),
+  reviewNote: z.string().nullable(),
   createdAt: z.string().min(1),
   decidedAt: z.string().nullable(),
+});
+
+export const serviceOfferingWriteSchema = z.object({
+  categoryId: z.string().uuid(),
+  title: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(500).optional().default(""),
+  displayPriceAmount: z.number().nonnegative().nullable().optional(),
+  displayCurrency: z.string().trim().min(3).max(3).nullable().optional(),
+});
+
+export const serviceOfferingViewSchema = z.object({
+  id: z.string().min(1),
+  professionalId: z.string().min(1),
+  categoryId: z.string().min(1),
+  title: z.string(),
+  description: z.string(),
+  displayPriceAmount: z.number().nullable(),
+  displayCurrency: z.string().nullable(),
+  isActive: z.boolean(),
+});
+
+export const serviceOfferingListSchema = z.array(serviceOfferingViewSchema);
+
+export const reviewWriteSchema = z.object({
+  subjectType: z.enum(["PROFESSIONAL", "BUSINESS"]),
+  subjectId: z.string().uuid(),
+  rating: z.number().int().min(1).max(5),
+  body: z.string().trim().max(1_000).optional().default(""),
+});
+
+export const reviewViewSchema = z.object({
+  id: z.string().min(1),
+  subjectType: z.enum(["PROFESSIONAL", "BUSINESS"]),
+  subjectId: z.string().min(1),
+  rating: z.number().int().min(1).max(5),
+  body: z.string(),
+  author: z.object({
+    id: z.string().min(1),
+    displayName: z.string(),
+    photoUrl: z.string().nullable(),
+  }),
+  createdAt: z.string(),
+});
+
+export const reviewListSchema = z.array(reviewViewSchema);
+
+export const reviewAggregateViewSchema = z.object({
+  avgRating: z.number(),
+  count: z.number().int().nonnegative(),
 });

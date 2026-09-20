@@ -37,9 +37,10 @@ Phase 1 security baseline. Aligns with OWASP ASVS / API Top 10 at a practical Sa
 
 ## HTTP
 
-- CORS allowlist per environment.
-- Security headers (CSP for web/admin, HSTS in production, `X-Content-Type-Options`, frame deny).
-- Rate limits: auth, discovery, media, messaging, reports separately.
+- Helmet on the API (`contentSecurityPolicy` in production, `X-Content-Type-Options` via Helmet defaults).
+- Playwright smoke: member chrome on web and admin login chrome (`pnpm test:e2e`).
+- Public member, discovery, report, ticket, and admin member payloads omit phone and exact lat/lng.
+- Story/live URLs are playback pointers; they do not expose phone or exact coordinates.
 
 ## Secrets
 

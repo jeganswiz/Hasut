@@ -41,7 +41,7 @@ export class MessagingService {
   async getConversation(memberId: string, conversationId: string): Promise<ConversationView> {
     const row = await this.requireParticipant(memberId, conversationId);
     const last = await this.prisma.message.findFirst({
-      where: { conversationId },
+      where: { conversationId, hiddenAt: null },
       orderBy: { createdAt: "desc" },
       include: { reads: true },
     });
@@ -59,6 +59,7 @@ export class MessagingService {
     const rows = await this.prisma.message.findMany({
       where: {
         conversationId,
+        hiddenAt: null,
         ...(decoded === null
           ? {}
           : {
@@ -212,6 +213,7 @@ export class MessagingService {
     const unreadCount = await this.prisma.message.count({
       where: {
         conversationId: row.id,
+        hiddenAt: null,
         senderId: { not: viewerId },
         reads: { none: { memberId: viewerId } },
       },

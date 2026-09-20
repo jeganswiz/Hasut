@@ -1,7 +1,8 @@
-import type { PublicBusiness } from "@hasut/types";
+import type { AdminBusinessView, MemberRole, PublicBusiness } from "@hasut/types";
 import { isValidWgs84 } from "@hasut/utils";
 import { HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
+import { assertAdminRole } from "../../common/auth/staff-auth";
 import { AuditService } from "../audit/audit.service";
 import { REVERSE_GEOCODER, type ReverseGeocoder } from "../locations/geocoder/reverse-geocoder";
 import { LocationsRepository } from "../locations/locations.repository";
@@ -107,6 +108,21 @@ export class BusinessesService {
               countryCode: row.location.countryCode,
             },
     };
+  }
+
+  async listAdmin(roles: readonly MemberRole[]): Promise<AdminBusinessView[]> {
+    assertAdminRole(roles);
+    const rows = await this.prisma.business.findMany({
+      include: { owner: { include: { profile: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      ownerDisplayName: row.owner.profile?.displayName || "Member",
+    }));
   }
 
   private async requireBusinessCategories(categoryIds: string[]): Promise<void> {

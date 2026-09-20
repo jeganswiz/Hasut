@@ -7,7 +7,7 @@ import type {
   DiscoveryPreview,
   DiscoveryResult,
 } from "@hasut/types";
-import { isValidWgs84, snapToGrid } from "@hasut/utils";
+import { isValidWgs84, snapToGrid, initialsFromName } from "@hasut/utils";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { ConfigurationService } from "../configuration/configuration.service";
@@ -16,6 +16,7 @@ import { MediaService } from "../media/media.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { clusterRanked, rankNearbyRows, type RankedNearby } from "./discovery.ranking";
 import { DiscoveryRepository, type NearbyRow } from "./discovery.repository";
+import { StoriesService } from "../stories/stories.service";
 
 export interface DiscoveryQuery {
   latitude?: number;
@@ -36,6 +37,7 @@ export class DiscoveryService {
     private readonly locations: LocationsRepository,
     private readonly media: MediaService,
     private readonly prisma: PrismaService,
+    private readonly stories: StoriesService,
   ) {}
 
   async nearby(viewerId: string | null, query: DiscoveryQuery): Promise<DiscoveryResult> {
@@ -50,15 +52,29 @@ export class DiscoveryService {
         kinds: cluster.kinds,
       }),
     );
-    const markers = collected.display.map((row): DiscoveryMarker => ({
-      id: row.id,
-      kind: row.kind,
-      label: row.title,
-      rating: row.rating,
-      selected: false,
-      pinLat: row.pinLat,
-      pinLng: row.pinLng,
-    }));
+    const pinMedia = await this.stories.pinMediaForMembers(
+      collected.display.filter((row) => row.kind === "MEMBER").map((row) => row.id),
+    );
+    const markers = collected.display.map((row, index): DiscoveryMarker => {
+      const card = items[index];
+      const media = row.kind === "MEMBER" ? pinMedia.get(row.id) : undefined;
+      const pinMediaKind = media?.kind ?? "PROFILE";
+      return {
+        id: row.id,
+        kind: row.kind,
+        label: row.title,
+        rating: row.rating,
+        selected: false,
+        pinLat: row.pinLat,
+        pinLng: row.pinLng,
+        photoUrl: media?.imageUrl ?? card?.photoUrl ?? null,
+        initials: initialsFromName(row.title),
+        available: row.available,
+        ring: pinMediaKind === "LIVE" ? "live" : row.available ? "available" : "idle",
+        pinMediaKind,
+        previewHlsUrl: media?.previewHlsUrl ?? null,
+      };
+    });
 
     return {
       originLabel: collected.origin.label,

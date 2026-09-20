@@ -9,6 +9,7 @@ export const publicThemeConfigSchema = z.object({
       z.ZodString
     >,
   ),
+  logoUrl: z.string().nullable(),
 });
 
 export const publicFlagsConfigSchema = z.object({

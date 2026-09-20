@@ -61,16 +61,19 @@ Prefix `/api/v1`.
 | Members       | `/members/:id` (public projection)                                                                                               |
 | Professionals | `/professionals/:id`, `/me/professional`                                                                                         |
 | Businesses    | `/businesses/:id`, `/me/businesses`                                                                                              |
-| Services      | `/professionals/:id/services`                                                                                                    |
+| Services      | `/me/services`, `/professionals/:id/services`                                                                                    |
+| Reviews       | `/reviews`, `/reviews/aggregate`                                                                                                 |
+| Stories       | `/me/stories`, `/stories/:memberId`, `/me/live`; admin `/admin/stories`, `/admin/live` (flag `stories.live`)                     |
 | Connections   | `/connections`, `/connections/with/:memberId`, `/connections/:id/accept                                                          | reject | cancel` |
 | Messaging     | `/conversations`, `/conversations/:id/messages`, `/conversations/:id/read`                                                       |
-| Verification  | `/verification/identity`                                                                                                         |
-| Reports       | `/reports`, `/blocks`                                                                                                            |
-| Notifications | `/notifications`, `/notifications/unread-count`, `/notifications/:id/read`                                                       |
-| Support       | `/support/tickets`                                                                                                               |
+| Verification  | `/verification/identity`; admin `/admin/verification`, `/admin/verification/:id/decide`                                          |
+| Reports       | `/reports`, `/blocks`; admin `/admin/reports`, hide/dismiss                                                                      |
+| Notifications | `/notifications`, `/notifications/unread-count`, `/notifications/:id/read`; admin `/admin/notification-templates`                |
+| Support       | `/support/categories`, `/support/tickets`, messages; admin assign/notes/escalate                                                 |
+| Ops summary   | `/admin/ops/summary` (pending verifications, open reports, open tickets, suspended members)                                      |
 | Config        | `/config/theme`, `/config/flags`, `/config/messaging`, `/config/reports`, `/config/discovery` (includes resolved map tile chain) |
 | Discovery WS  | `/ws/v1/discovery` (`presence.updated`, `presence.sync`)                                                                         |
-| Admin         | `/admin/...` (role gated)                                                                                                        |
+| Admin         | `/admin/members`, `/admin/professionals`, `/admin/businesses`, `/admin/theme`, `/admin/flags`, `/admin/audit`, queues            |
 
 WebSocket: `/ws/v1/messaging` (chat) and `/ws/v1/discovery` (snapped presence). Both are authenticated; guests do not join discovery rooms. Presence payloads are snapped map pins, not exact tracks. Location writes still persist through `PUT /api/v1/me/location`.
 

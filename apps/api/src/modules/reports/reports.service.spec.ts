@@ -1,5 +1,6 @@
 import { REPORTS_POLICY_DEFAULTS } from "@hasut/config";
 import { Test } from "@nestjs/testing";
+import { AuditService } from "../audit/audit.service";
 import { ConfigurationService } from "../configuration/configuration.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProfilesService } from "../profiles/profiles.service";
@@ -12,11 +13,22 @@ describe("ReportsService", () => {
   const prisma = {
     block: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), findMany: jest.fn() },
     connection: { updateMany: jest.fn() },
-    report: { create: jest.fn() },
+    report: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+    },
+    profile: { updateMany: jest.fn() },
+    message: { updateMany: jest.fn() },
+    business: { updateMany: jest.fn() },
+    moderationAction: { create: jest.fn(), findFirst: jest.fn() },
     $transaction: jest.fn(),
   };
   const configuration = { getReportsPolicy: jest.fn() };
   const profiles = { getPreview: jest.fn() };
+  const audit = { record: jest.fn() };
 
   async function createService(): Promise<ReportsService> {
     const moduleRef = await Test.createTestingModule({
@@ -25,6 +37,7 @@ describe("ReportsService", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: ConfigurationService, useValue: configuration },
         { provide: ProfilesService, useValue: profiles },
+        { provide: AuditService, useValue: audit },
       ],
     }).compile();
     return moduleRef.get(ReportsService);
@@ -61,5 +74,38 @@ describe("ReportsService", () => {
     await expect(service.assertNotBlocked(ACTOR, PEER)).rejects.toMatchObject({
       errorCode: "FORBIDDEN",
     });
+  });
+
+  it("hides a reported profile and does not include a phone number", async () => {
+    const report = {
+      id: "rep-1",
+      reporterId: ACTOR,
+      targetType: "PROFILE" as const,
+      targetId: PEER,
+      reasonCode: "SPAM",
+      details: "",
+      status: "OPEN" as const,
+      createdAt: new Date(),
+    };
+    prisma.report.findUnique.mockResolvedValue(report);
+    prisma.profile.updateMany.mockResolvedValue({ count: 1 });
+    prisma.report.update.mockResolvedValue({ ...report, status: "ACTIONED" });
+    prisma.moderationAction.create.mockResolvedValue({});
+    const service = await createService();
+    const view = await service.moderate(ACTOR, ["MODERATOR"], "rep-1", "HIDE", "req-hide");
+    expect(view.status).toBe("ACTIONED");
+    expect(view.hidden).toBe(true);
+    expect(JSON.stringify(view)).not.toMatch(/phone/i);
+    expect(prisma.profile.updateMany).toHaveBeenCalledWith({
+      where: { memberId: PEER },
+      data: { isDiscoverable: false },
+    });
+  });
+
+  it("rejects a member from moderating reports", async () => {
+    const service = await createService();
+    await expect(
+      service.moderate(ACTOR, ["MEMBER"], "rep-1", "HIDE", "req-no"),
+    ).rejects.toMatchObject({ errorCode: "FORBIDDEN" });
   });
 });

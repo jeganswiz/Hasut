@@ -1,5 +1,6 @@
 import { AdminShell } from "../components/admin-shell";
 import { HealthPanel } from "../components/health-panel";
+import { OpsSummaryPanel } from "../components/ops-summary-panel";
 import { loadApiHealth } from "../lib/load-health";
 
 export default async function HomePage() {
@@ -9,8 +10,9 @@ export default async function HomePage() {
     <AdminShell
       section="overview"
       title="HASUT Admin"
-      lede="Operations console. Manage the live category tree and discovery defaults used by member apps."
+      lede="Operations console. Queue counts are live. Sign in to act on verification, reports, and tickets."
     >
+      <OpsSummaryPanel />
       <HealthPanel initialHealth={initialHealth} />
     </AdminShell>
   );

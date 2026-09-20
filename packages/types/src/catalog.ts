@@ -98,6 +98,36 @@ export interface IdentityVerificationRequest {
   type: "IDENTITY";
   status: Exclude<VerificationStatus, "NOT_STARTED">;
   documentMediaIds: string[];
+  reviewNote: string | null;
   createdAt: string;
   decidedAt: string | null;
+}
+
+export interface ServiceOfferingView {
+  id: string;
+  professionalId: string;
+  categoryId: string;
+  title: string;
+  description: string;
+  displayPriceAmount: number | null;
+  displayCurrency: string | null;
+  isActive: boolean;
+}
+
+export const REVIEW_SUBJECT_TYPES = ["PROFESSIONAL", "BUSINESS"] as const;
+export type ReviewSubjectType = (typeof REVIEW_SUBJECT_TYPES)[number];
+
+export interface ReviewView {
+  id: string;
+  subjectType: ReviewSubjectType;
+  subjectId: string;
+  rating: number;
+  body: string;
+  author: import("./social").MemberPreview;
+  createdAt: string;
+}
+
+export interface ReviewAggregateView {
+  avgRating: number;
+  count: number;
 }

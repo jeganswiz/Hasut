@@ -6,9 +6,20 @@
 
 - Authentication: same OTP (or a later email/password **not** in Phase 1 unless we add `purpose=ADMIN_LOGIN` on the same OTP flow). Phase 1: phone OTP; member must hold `ADMIN`, `SUPPORT_AGENT`, or `MODERATOR`.
 - UI routes check role. **Every mutation is authorized again in API services.**
-- Support Agent: tickets, limited user read.
-- Moderator: reports, content hide, blocks review.
+- Support Agent: tickets, limited user read. Sidebar hides theme, flags, ranking, categories.
+- Moderator: reports, content hide, blocks review. Sidebar hides theme/flags/ranking.
 - Admin: everything below plus theme, flags, remote config, ranking, categories.
+
+## Visual chrome (Sprint 7)
+
+Inspired by dense operations consoles (sidebar + top bar + KPI cards + tables). **Do not clone** third-party admin templates or their fake SaaS analytics.
+
+- **HASUT logo** + wordmark in the sidebar (published `logoUrl`, else bundled SVG)
+- **Left sidebar:** grouped nav — Operations, People, Catalog, Trust, Support, Configuration — collapsible, role-filtered
+- **Top bar:** global search, token-driven appearance toggle, in-app notifications, signed-in role, logout
+- **Dashboard KPIs:** pending verifications, open reports, open tickets, suspended members — queried from the API. Empty state when counts are zero. Never invent revenue, conversion, device share, world distribution, or sentiment charts (advanced analytics are out of Phase 1)
+- **Management UIs** are filterable tables with loading/empty/error/success, not one-column forms as the primary layout
+- Same design tokens as member apps (`packages/ui`). No hex in feature components
 
 ## Capability map
 
@@ -22,6 +33,7 @@
 | Verification queue              | `verification`                | yes       |
 | Reports / moderate              | `reports`                     | yes       |
 | Support tickets                 | `support`                     | yes       |
+| Stories / live (Phase 2)        | `stories`                     | yes       |
 | Theme / tokens                  | `configuration`               | yes       |
 | Remote config                   | `configuration`               | yes       |
 | Feature flags                   | `configuration`               | yes       |
@@ -62,6 +74,7 @@ Feature flags: boolean or percentage, optional role targeting. Evaluated in API 
 11. Notification templates
 12. Discovery config
 13. Audit logs (filter by actor, entity, request id)
+14. Stories / live moderation (Phase 2, flag `stories.live`)
 
 ## Audit
 
@@ -73,4 +86,6 @@ Every mutating admin endpoint writes:
 
 ## Out of scope for admin Phase 1
 
-Billing dashboards, CRM, invoice tools, live moderation of streams, creator payouts.
+Billing dashboards, CRM, invoice tools, live moderation of streams, creator payouts, fake analytics widgets.
+
+Phase 2 adds a story/live moderation queue after Sprint 9.

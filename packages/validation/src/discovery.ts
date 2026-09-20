@@ -57,6 +57,12 @@ export const discoveryMarkerSchema = discoveryPinSchema.extend({
   label: z.string(),
   rating: z.number().nullable(),
   selected: z.boolean(),
+  photoUrl: z.string().nullable(),
+  initials: z.string().min(1),
+  available: z.boolean(),
+  ring: z.enum(["idle", "available", "live"]),
+  pinMediaKind: z.enum(["LIVE", "VIDEO", "IMAGE", "PROFILE"]),
+  previewHlsUrl: z.string().nullable(),
 });
 
 export const discoveryClusterSchema = discoveryPinSchema.extend({

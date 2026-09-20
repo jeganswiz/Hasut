@@ -31,6 +31,8 @@ Never create a parallel `User` vs `Tasker` identity. Capability is `member_roles
 | `businesses`    | Business profile, hours, categories, media                                                  | Invoicing                                   |
 | `services`      | Professional-offered service listings (name, category, description, optional display price) | Checkout, calendar holds                    |
 | `reviews`       | Ratings and aggregates used by discovery                                                    | Skill verification claims                   |
+| `stories`       | 24h map presence stories (image/video) behind `stories.live`                                | Social feed, marketplace                    |
+| `live`          | Live session URLs / WHIP ingest pointers; HLS playback URLs                                 | A second product identity                   |
 | `discovery`     | Search + rank nearby people, professionals, businesses                                      | Bypass privacy rules                        |
 | `connections`   | Request, accept, reject                                                                     | Chat storage                                |
 | `messaging`     | 1:1 chat for accepted connections; text, image, read, timestamps                            | Groups, calls, disappearing messages        |
@@ -73,6 +75,6 @@ Arrows mean “depends on” (upward is toward foundations). `admin` is a façad
 - Events (in-process) may notify `notifications` and `audit`. No message broker in Phase 1.
 - Tests live beside the module (`*.spec.ts`) plus API e2e under `apps/api/test`.
 
-## Future module slots (names reserved, not implemented)
+## Future module slots (names reserved)
 
-`billing`, `subscriptions`, `invoices`, `crm`, `bookings`, `payments`, `live`, `tokens`, `analytics`. Do not create these folders until a later phase.
+`billing`, `subscriptions`, `invoices`, `crm`, `bookings`, `payments`, `tokens`, `analytics`. Do not create these folders until a later phase. `stories` and live session APIs live in `apps/api/src/modules/stories` (Phase 2).

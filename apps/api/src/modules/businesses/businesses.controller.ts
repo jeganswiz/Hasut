@@ -1,11 +1,13 @@
-import type { PublicBusiness } from "@hasut/types";
+import type { AdminBusinessView, PublicBusiness } from "@hasut/types";
 import { businessWriteSchema } from "@hasut/validation";
 import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { z } from "zod";
+import type { RequestAuthContext } from "../../common/auth/request-auth";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Public } from "../../common/decorators/public.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
 import { getRequestId } from "../../common/middleware/request-id.middleware";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { BusinessesService } from "./businesses.service";
@@ -33,5 +35,13 @@ export class BusinessesController {
   @ApiOperation({ summary: "Public business profile without owner phone or exact coordinates" })
   getPublic(@Param("id") businessId: string): Promise<PublicBusiness> {
     return this.businesses.getPublic(businessId);
+  }
+
+  @ApiBearerAuth()
+  @Roles("ADMIN")
+  @Get("admin/businesses")
+  @ApiOperation({ summary: "Admin business list without owner phone" })
+  listAdmin(@CurrentUser() user: RequestAuthContext): Promise<AdminBusinessView[]> {
+    return this.businesses.listAdmin(user.roles);
   }
 }

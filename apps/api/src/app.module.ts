@@ -17,6 +17,7 @@ import { BusinessesModule } from "./modules/businesses/businesses.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { DiscoveryModule } from "./modules/discovery/discovery.module";
 import { LocationsModule } from "./modules/locations/locations.module";
+import { VerificationModule } from "./modules/verification/verification.module";
 import { MediaModule } from "./modules/media/media.module";
 import { ProfessionalsModule } from "./modules/professionals/professionals.module";
 import { ProfilesModule } from "./modules/profiles/profiles.module";
@@ -26,7 +27,11 @@ import { MessagingModule } from "./modules/messaging/messaging.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { ReportsModule } from "./modules/reports/reports.module";
-import { VerificationModule } from "./modules/verification/verification.module";
+import { SupportModule } from "./modules/support/support.module";
+import { OpsModule } from "./modules/ops/ops.module";
+import { ServicesModule } from "./modules/services/services.module";
+import { ReviewsModule } from "./modules/reviews/reviews.module";
+import { StoriesModule } from "./modules/stories/stories.module";
 
 @Module({
   imports: [
@@ -77,6 +82,11 @@ import { VerificationModule } from "./modules/verification/verification.module";
     ReportsModule,
     NotificationsModule,
     MessagingModule,
+    SupportModule,
+    OpsModule,
+    ServicesModule,
+    ReviewsModule,
+    StoriesModule,
     HealthModule,
   ],
   providers: [
