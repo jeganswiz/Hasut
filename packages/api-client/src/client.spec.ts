@@ -65,6 +65,9 @@ describe("HasutApiClient", () => {
     const payload = ok(
       {
         challengeId: "challenge-1",
+        channel: "SMS",
+        destinationHint: "+91•••••43210",
+        codeLength: 6,
         expiresAt: "2026-01-01T00:05:00.000Z",
         resendAvailableAt: "2026-01-01T00:01:00.000Z",
       },

@@ -1,26 +1,26 @@
 "use client";
 
+import { AuthCard, HasutLogo } from "@hasut/ui";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { OtpLoginForm } from "../../components/otp-login-form";
+import { SignInForm } from "../../components/auth/sign-in-form";
 
-function LoginForm() {
+function SignIn() {
   const params = useSearchParams();
-  const nextPath = params.get("next") ?? "/connections";
-  return <OtpLoginForm nextPath={nextPath} />;
+  return <SignInForm nextPath={params.get("next") ?? "/connections"} />;
 }
 
 export default function LoginPage() {
   return (
-    <main>
-      <h1>Sign in</h1>
-      <p className="lede">
-        Use phone OTP to connect and chat. Local demo: <code>7010358490</code> / <code>123456</code>
-        . Phone numbers stay private.
-      </p>
+    <AuthCard
+      eyebrow={<HasutLogo size={20} />}
+      title="Welcome back"
+      lede="Sign in to see who is nearby, connect, and chat."
+      footer="Your phone number and exact location are never shown to other members."
+    >
       <Suspense>
-        <LoginForm />
+        <SignIn />
       </Suspense>
-    </main>
+    </AuthCard>
   );
 }

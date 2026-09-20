@@ -16,6 +16,7 @@ export type AdminSection =
   | "verification"
   | "reports"
   | "stories"
+  | "story-audio"
   | "support"
   | "theme"
   | "flags"
@@ -68,6 +69,13 @@ const NAV: NavItem[] = [
     href: "/stories",
     id: "stories",
     label: "Stories",
+    group: "Trust",
+    roles: ["ADMIN", "MODERATOR"],
+  },
+  {
+    href: "/stories/audio",
+    id: "story-audio",
+    label: "Story audio",
     group: "Trust",
     roles: ["ADMIN", "MODERATOR"],
   },

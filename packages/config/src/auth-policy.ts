@@ -8,6 +8,12 @@ export interface AuthPolicy {
   accessTtlSeconds: number;
   refreshTtlSeconds: number;
   maxDevices: number;
+  /** Never below the `PASSWORD_MIN_LENGTH` contract floor. */
+  passwordMinLength: number;
+  /** Life of the proof issued after a reset code is verified. */
+  resetTicketTtlSeconds: number;
+  /** Failed password attempts per email per hour before lockout. */
+  maxPasswordAttemptsPerHour: number;
 }
 
 export const AUTH_POLICY_CONFIG_KEY = "auth.policy";
@@ -23,6 +29,9 @@ export const AUTH_POLICY_DEFAULTS: AuthPolicy = {
   accessTtlSeconds: 900,
   refreshTtlSeconds: 2_592_000,
   maxDevices: 10,
+  passwordMinLength: 10,
+  resetTicketTtlSeconds: 600,
+  maxPasswordAttemptsPerHour: 10,
 };
 
 export function isAuthPolicy(value: unknown): value is AuthPolicy {
@@ -40,6 +49,9 @@ export function isAuthPolicy(value: unknown): value is AuthPolicy {
     "accessTtlSeconds",
     "refreshTtlSeconds",
     "maxDevices",
+    "passwordMinLength",
+    "resetTicketTtlSeconds",
+    "maxPasswordAttemptsPerHour",
   ];
   return keys.every((key) => typeof record[key] === "number" && Number.isFinite(record[key]));
 }

@@ -19,6 +19,8 @@ describe("parseApiEnv", () => {
     expect(env.MEDIA_STORAGE).toBe("memory");
     expect(env.MAPTILER_API_KEY).toBe("");
     expect(env.STADIA_API_KEY).toBe("");
+    expect(env.CAPTCHA_PROVIDER).toBe("none");
+    expect(env.EMAIL_PROVIDER).toBe("console");
   });
 
   it("rejects a missing database URL", () => {
@@ -49,6 +51,43 @@ describe("parseApiEnv", () => {
         ...secrets,
       }),
     ).toThrow(/forbidden in production/);
+  });
+
+  it("rejects an unprotected sign-in surface in production", () => {
+    expect(() =>
+      parseApiEnv({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://hasut:hasut@localhost:5432/hasut",
+        REDIS_URL: "redis://localhost:6379",
+        OTP_PROVIDER: "msg91",
+        MEDIA_STORAGE: "s3",
+        EMAIL_PROVIDER: "smtp",
+        SMTP_URL: "smtp://localhost:1025",
+        ...secrets,
+      }),
+    ).toThrow(/CAPTCHA_PROVIDER=none is forbidden in production/);
+  });
+
+  it("requires a reCAPTCHA secret whenever reCAPTCHA is selected", () => {
+    expect(() =>
+      parseApiEnv({
+        DATABASE_URL: "postgresql://hasut:hasut@localhost:5432/hasut",
+        REDIS_URL: "redis://localhost:6379",
+        CAPTCHA_PROVIDER: "recaptcha",
+        ...secrets,
+      }),
+    ).toThrow(/RECAPTCHA_SECRET_KEY is required/);
+  });
+
+  it("requires an SMTP URL whenever SMTP delivery is selected", () => {
+    expect(() =>
+      parseApiEnv({
+        DATABASE_URL: "postgresql://hasut:hasut@localhost:5432/hasut",
+        REDIS_URL: "redis://localhost:6379",
+        EMAIL_PROVIDER: "smtp",
+        ...secrets,
+      }),
+    ).toThrow(/SMTP_URL is required/);
   });
 });
 

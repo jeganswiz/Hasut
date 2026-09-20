@@ -12,6 +12,19 @@ main {
   padding: 24px 16px calc(88px + env(safe-area-inset-bottom));
 }
 
+@keyframes hasut-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .app-chrome {
   display: flex;
   align-items: center;

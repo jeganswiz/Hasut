@@ -8,5 +8,5 @@
     "declarationMap": false,
     "types": ["jest", "node"]
   },
-  "include": ["app", "src"]
+  "include": ["app", "src", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }

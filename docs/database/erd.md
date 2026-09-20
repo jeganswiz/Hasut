@@ -51,16 +51,21 @@ erDiagram
 
 ### Identity and auth
 
-**members**  
-`id`, `phone_e164` (unique), `status` (`ACTIVE|SUSPENDED|DELETED`), `created_at`  
-Phone is never in public serializers.
+**members**
+`id`, `phone_e164` (unique, nullable), `email` (unique, nullable), `email_verified_at`, `password_hash`, `password_updated_at`, `two_factor_enabled`, `status` (`ACTIVE|SUSPENDED|DELETED`), `created_at`
+Phone and email are never in public serializers. `password_hash` is Argon2id and never leaves the service layer. Phone is nullable because a member can start from email, password, or SSO; at least one identifier is always present.
 
-**member_roles**  
+**member_identities**
+`id`, `member_id`, `provider` (`GOOGLE|FACEBOOK`), `provider_account_id`, `email`, `last_login_at`, `created_at`
+Unique on (`provider`, `provider_account_id`). Links an SSO account to an existing member instead of duplicating identity.
+
+**member_roles**
 `member_id`, `role` (`MEMBER|ADMIN|SUPPORT_AGENT|MODERATOR`), unique pair.  
 `MEMBER` is implicit for all rows in `members`; optional to store explicitly. Professional is **not** a role; it is `professional_profiles`.
 
-**otp_challenges**  
-`id`, `phone_e164`, `code_hash`, `purpose`, `expires_at`, `attempt_count`, `max_attempts`, `last_sent_at`, `consumed_at`, `ip`, `device_id`
+**otp_challenges**
+`id`, `channel` (`SMS|EMAIL`), `phone_e164` (nullable), `email` (nullable), `member_id` (nullable), `code_hash`, `purpose` (`LOGIN|REAUTH|PASSWORD_RESET|TWO_FACTOR`), `expires_at`, `attempt_count`, `max_attempts`, `last_sent_at`, `consumed_at`, `ip`, `device_id`
+Exactly one of `phone_e164` / `email` is set, matching `channel`. `member_id` is set only when the challenge was raised for a known member (`PASSWORD_RESET`, `TWO_FACTOR`).
 
 **sessions**  
 `id`, `member_id`, `device_id`, `refresh_token_hash`, `expires_at`, `revoked_at`, `ip`, `user_agent`, `last_seen_at`, `token_family_id`
@@ -145,10 +150,14 @@ Bytes stay in S3. Verification media is not publicly readable.
 Phase 1 product flow: IDENTITY only. SKILL/BUSINESS types exist so we do not migrate later; APIs for SKILL are not exposed.
 
 **stories**  
-`id`, `member_id`, `kind` (`IMAGE|VIDEO|LIVE`), media ids, `hls_url`, `preview_hls_url`, `expires_at` (~24h), `moderation_status`
+`id`, `member_id`, `kind` (`IMAGE|VIDEO|LIVE`), media ids, `caption`, `caption_color` (a swatch from `story.policy`, not free-form), `trim_start_seconds`, `trim_end_seconds`, `audio_source` (`NONE|LIBRARY|UPLOAD`), `audio_track_id`, `audio_start_seconds`, `audio_end_seconds`, `original_audio_mode` (`KEEP|MUTE|OVERLAY`), `hls_url`, `preview_hls_url`, `expires_at` (~24h), `moderation_status`
+
+**audio_tracks**  
+`id`, `title`, `artist`, `media_id`, `duration_seconds`, `mood`, `is_active`  
+Admin-curated soundtrack catalogue for the story composer. `stories.audio_track_id` is `ON DELETE SET NULL`, so retiring or removing a track degrades a published story to silence rather than deleting it.
 
 **live_sessions**  
-`id`, `member_id`, `status` (`LIVE|ENDED`), `hls_url`, `preview_hls_url`, `ingest_url`
+`id`, `member_id`, `title`, `status` (`LIVE|ENDED`), `hls_url`, `preview_hls_url`, `ingest_url`
 
 **review_aggregates**  
 `subject_type`, `subject_id`, `avg_rating`, `count` — maintained in service transaction
@@ -217,7 +226,8 @@ Append-only. Indexes on `actor_id`, `entity+entity_id`, `created_at`, `request_i
 
 ## Indexes (non-exhaustive)
 
-- `members(phone_e164)` unique
+- `members(phone_e164)` unique, `members(email)` unique
+- `member_identities(provider, provider_account_id)` unique
 - GiST `member_locations(geog)`, `member_public_locations(approx_geog)`, `service_areas(center_geog)`, `business_locations(geog)`
 - `connections(requester_id, addressee_id)` unique
 - `messages(conversation_id, created_at)`
@@ -229,4 +239,4 @@ Append-only. Indexes on `actor_id`, `entity+entity_id`, `created_at`, `request_i
 
 `subscriptions`, `invoices`, `payment_methods`, `bookings`, `invoices_line_items`, `crm_pipelines`, `streams`, `wallets`, `token_ledger`, `team_memberships`.
 
-`stories` and `live_sessions` are Phase 2 (flag `stories.live`). Nullable `locality_id` on location tables is allowed as a forward-compatible column without a cities admin product.
+`stories`, `audio_tracks`, and `live_sessions` are Phase 2 (flag `stories.live`). Nullable `locality_id` on location tables is allowed as a forward-compatible column without a cities admin product.

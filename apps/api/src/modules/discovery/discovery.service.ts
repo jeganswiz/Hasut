@@ -54,6 +54,7 @@ export class DiscoveryService {
     );
     const pinMedia = await this.stories.pinMediaForMembers(
       collected.display.filter((row) => row.kind === "MEMBER").map((row) => row.id),
+      viewerId,
     );
     const markers = collected.display.map((row, index): DiscoveryMarker => {
       const card = items[index];

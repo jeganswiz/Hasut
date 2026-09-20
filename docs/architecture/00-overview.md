@@ -15,7 +15,7 @@ HASUT is **not** a marketplace, booking engine, CRM, billing system, or live pla
 ```
 ┌─────────────┐  ┌─────────────┐  ┌──────────────┐
 │  apps/web   │  │ apps/mobile │  │  apps/admin  │
-│  Next.js    │  │ Expo RN     │  │  Next.js     │
+│  Next.js    │  │ Expo SDK 57 │  │  Next.js     │
 └──────┬──────┘  └──────┬──────┘  └──────┬───────┘
        │                │                │
        │         packages/api-client     │
@@ -42,7 +42,7 @@ All product surfaces talk to **one API**. Admin is a separate Next.js app with a
 | App           | Role                                                                            |
 | ------------- | ------------------------------------------------------------------------------- |
 | `apps/web`    | Member web: discovery, profiles, connections, chat, support                     |
-| `apps/mobile` | Member mobile (primary experience): map-first discovery                         |
+| `apps/mobile` | Member mobile (Expo SDK 57 / Expo Go): map-first discovery                      |
 | `apps/admin`  | Operations: users, catalog, verification, reports, support, theme, flags, audit |
 | `apps/api`    | Single backend. NestJS modules with enforced dependency direction               |
 

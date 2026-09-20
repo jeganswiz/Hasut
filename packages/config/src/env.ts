@@ -1,4 +1,10 @@
-import { GEOCODER_PROVIDERS, MEDIA_STORAGE_PROVIDERS, OTP_PROVIDERS } from "@hasut/types";
+import {
+  CAPTCHA_PROVIDERS,
+  EMAIL_PROVIDERS,
+  GEOCODER_PROVIDERS,
+  MEDIA_STORAGE_PROVIDERS,
+  OTP_PROVIDERS,
+} from "@hasut/types";
 import { z } from "zod";
 
 export const apiEnvSchema = z
@@ -39,6 +45,16 @@ export const apiEnvSchema = z
     TWILIO_ACCOUNT_SID: z.string().optional().default(""),
     TWILIO_AUTH_TOKEN: z.string().optional().default(""),
     TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(""),
+    EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default("console"),
+    EMAIL_FROM: z.string().optional().default("HASUT <no-reply@hasut.local>"),
+    SMTP_URL: z.string().optional().default(""),
+    CAPTCHA_PROVIDER: z.enum(CAPTCHA_PROVIDERS).default("none"),
+    RECAPTCHA_SITE_KEY: z.string().optional().default(""),
+    RECAPTCHA_SECRET_KEY: z.string().optional().default(""),
+    RECAPTCHA_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.5),
+    GOOGLE_CLIENT_ID: z.string().optional().default(""),
+    FACEBOOK_APP_ID: z.string().optional().default(""),
+    FACEBOOK_APP_SECRET: z.string().optional().default(""),
     GEOCODER_PROVIDER: z.enum(GEOCODER_PROVIDERS).default("console"),
     MEDIA_STORAGE: z.enum(MEDIA_STORAGE_PROVIDERS).default("memory"),
     MAPTILER_API_KEY: z.string().optional().default(""),
@@ -65,6 +81,41 @@ export const apiEnvSchema = z
         code: z.ZodIssueCode.custom,
         path: ["DEV_OTP_CODE"],
         message: "DEV_OTP_CODE is forbidden in production",
+      });
+    }
+    if (value.NODE_ENV === "production" && value.CAPTCHA_PROVIDER === "none") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["CAPTCHA_PROVIDER"],
+        message: "CAPTCHA_PROVIDER=none is forbidden in production",
+      });
+    }
+    if (value.CAPTCHA_PROVIDER === "recaptcha" && value.RECAPTCHA_SECRET_KEY.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["RECAPTCHA_SECRET_KEY"],
+        message: "RECAPTCHA_SECRET_KEY is required when CAPTCHA_PROVIDER=recaptcha",
+      });
+    }
+    if (value.NODE_ENV === "production" && value.EMAIL_PROVIDER === "console") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["EMAIL_PROVIDER"],
+        message: "EMAIL_PROVIDER=console is forbidden in production",
+      });
+    }
+    if (value.EMAIL_PROVIDER === "smtp" && value.SMTP_URL.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["SMTP_URL"],
+        message: "SMTP_URL is required when EMAIL_PROVIDER=smtp",
+      });
+    }
+    if (value.FACEBOOK_APP_ID.length > 0 && value.FACEBOOK_APP_SECRET.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["FACEBOOK_APP_SECRET"],
+        message: "FACEBOOK_APP_SECRET is required when FACEBOOK_APP_ID is set",
       });
     }
   });

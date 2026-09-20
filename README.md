@@ -43,7 +43,7 @@ Full setup: [docs/development/setup.md](./docs/development/setup.md)
 | `apps/api`    | NestJS modular monolith                                               |
 | `apps/web`    | Next.js member web                                                    |
 | `apps/admin`  | Next.js admin                                                         |
-| `apps/mobile` | Expo member mobile                                                    |
+| `apps/mobile` | Expo SDK 57 member mobile (Expo Go)                                   |
 | `packages/*`  | Shared types, validation, API client, auth storage, config, UI, utils |
 
 ```bash

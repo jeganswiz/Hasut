@@ -4,6 +4,7 @@ import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveService } from "./live.service";
+import { PatronsService } from "./patrons.service";
 import { StoriesService } from "./stories.service";
 
 describe("LiveService", () => {
@@ -18,6 +19,7 @@ describe("LiveService", () => {
     },
   };
   const stories = { assertEnabled: jest.fn() };
+  const patrons = { isPatronOf: jest.fn() };
   const audit = { record: jest.fn() };
   const config = { get: jest.fn().mockReturnValue("") };
 
@@ -27,6 +29,7 @@ describe("LiveService", () => {
         LiveService,
         { provide: PrismaService, useValue: prisma },
         { provide: StoriesService, useValue: stories },
+        { provide: PatronsService, useValue: patrons },
         { provide: AuditService, useValue: audit },
         { provide: ConfigService, useValue: config },
       ],
@@ -37,26 +40,70 @@ describe("LiveService", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     stories.assertEnabled.mockResolvedValue(undefined);
+    patrons.isPatronOf.mockResolvedValue(false);
     audit.record.mockResolvedValue(undefined);
     config.get.mockReturnValue("");
   });
 
-  it("starts a live session with HLS playback URLs", async () => {
-    prisma.liveSession.updateMany.mockResolvedValue({ count: 0 });
-    prisma.liveSession.create.mockResolvedValue({
+  function startedRow(title = "", audience = "EVERYONE"): Record<string, unknown> {
+    return {
       id: "live-1",
       memberId: "m1",
+      title,
+      audience,
       status: "LIVE",
       hlsUrl: "/media/hls/live/live-1/index.m3u8",
       previewHlsUrl: "/media/hls/live/live-1/preview.m3u8",
       ingestUrl: "/media/hls/whip/live-1",
       startedAt: new Date("2026-09-20T00:00:00.000Z"),
       endedAt: null,
-    });
+    };
+  }
+
+  it("starts a live session with HLS playback URLs", async () => {
+    prisma.liveSession.updateMany.mockResolvedValue({ count: 0 });
+    prisma.liveSession.create.mockResolvedValue(startedRow());
     const live = await service();
-    const created = await live.start("m1", "req");
+    const created = await live.start("m1", {}, "req");
     expect(created.status).toBe("LIVE");
     expect(created.previewHlsUrl).toContain("preview.m3u8");
+    expect(created.title).toBe("");
+  });
+
+  it("stores the title the member typed instead of discarding it", async () => {
+    prisma.liveSession.updateMany.mockResolvedValue({ count: 0 });
+    prisma.liveSession.create.mockResolvedValue(startedRow("Rewiring a shop board"));
+    const live = await service();
+    const created = await live.start("m1", { title: "  Rewiring a shop board  " }, "req");
+    expect(prisma.liveSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: "Rewiring a shop board" }),
+      }),
+    );
+    expect(created.title).toBe("Rewiring a shop board");
+  });
+
+  it("keeps a live restricted to Patrons when that is what the member picked", async () => {
+    prisma.liveSession.updateMany.mockResolvedValue({ count: 0 });
+    prisma.liveSession.create.mockResolvedValue(startedRow("Shop board", "PATRONS"));
+    const live = await service();
+    const created = await live.start("m1", { title: "Shop board", audience: "PATRONS" }, "req");
+
+    expect(prisma.liveSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ audience: "PATRONS" }) }),
+    );
+    expect(created.audience).toBe("PATRONS");
+  });
+
+  it("defaults a live to everyone", async () => {
+    prisma.liveSession.updateMany.mockResolvedValue({ count: 0 });
+    prisma.liveSession.create.mockResolvedValue(startedRow("Open house"));
+    const live = await service();
+    await live.start("m1", { title: "Open house" }, "req");
+
+    expect(prisma.liveSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ audience: "EVERYONE" }) }),
+    );
   });
 
   it("rejects member-role moderation of someone else's live session", async () => {
@@ -68,29 +115,42 @@ describe("LiveService", () => {
   });
 
   it("lets a moderator end a live session", async () => {
-    prisma.liveSession.findUnique.mockResolvedValue({
-      id: "live-1",
-      memberId: "m1",
-      status: "LIVE",
-      hlsUrl: "/a.m3u8",
-      previewHlsUrl: "/p.m3u8",
-      ingestUrl: "/whip",
-      startedAt: new Date("2026-09-20T00:00:00.000Z"),
-      endedAt: null,
-    });
+    prisma.liveSession.findUnique.mockResolvedValue(startedRow("Live from the shop"));
     prisma.liveSession.update.mockResolvedValue({
-      id: "live-1",
-      memberId: "m1",
+      ...startedRow("Live from the shop"),
       status: "ENDED",
-      hlsUrl: "/a.m3u8",
-      previewHlsUrl: "/p.m3u8",
-      ingestUrl: "/whip",
-      startedAt: new Date("2026-09-20T00:00:00.000Z"),
       endedAt: new Date("2026-09-20T00:10:00.000Z"),
     });
     const live = await service();
     const ended = await live.endById("mod-1", ["MODERATOR"], "live-1", "req");
     expect(ended.status).toBe("ENDED");
     expect(audit.record).toHaveBeenCalled();
+  });
+
+  it("restores the owner's live session including the ingest URL", async () => {
+    prisma.liveSession.findFirst.mockResolvedValue(startedRow("Shop board"));
+    const live = await service();
+    const current = await live.current("m1");
+    expect(current?.title).toBe("Shop board");
+    expect(current?.ingestUrl).toContain("whip");
+  });
+
+  it("hides a Patrons-only live from a stranger and strips ingest from a Patron", async () => {
+    prisma.liveSession.findFirst.mockResolvedValue(startedRow("Shop board", "PATRONS"));
+    const live = await service();
+
+    await expect(live.forViewer("m1", "stranger")).resolves.toBeNull();
+
+    patrons.isPatronOf.mockResolvedValue(true);
+    const visible = await live.forViewer("m1", "patron");
+    expect(visible?.title).toBe("Shop board");
+    expect(visible?.ingestUrl).toBeNull();
+  });
+
+  it("returns nothing when the member is not live", async () => {
+    prisma.liveSession.findFirst.mockResolvedValue(null);
+    const live = await service();
+    await expect(live.current("m1")).resolves.toBeNull();
+    await expect(live.forViewer("m1", "viewer")).resolves.toBeNull();
   });
 });

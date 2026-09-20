@@ -4,7 +4,8 @@
 
 ## Access
 
-- Authentication: same OTP (or a later email/password **not** in Phase 1 unless we add `purpose=ADMIN_LOGIN` on the same OTP flow). Phase 1: phone OTP; member must hold `ADMIN`, `SUPPORT_AGENT`, or `MODERATOR`.
+- Authentication: email + password, then a phone code when the member has two-step verification on. Phone OTP alone still works for staff who have no password yet. The member must hold `ADMIN`, `SUPPORT_AGENT`, or `MODERATOR`. See [authentication](./03-authentication.md).
+- The login screen uses the shared `AuthCard` with the staff tone, so it reads as an operations console and is visibly not the member portal, without introducing hex colors outside the theme tokens.
 - UI routes check role. **Every mutation is authorized again in API services.**
 - Support Agent: tickets, limited user read. Sidebar hides theme, flags, ranking, categories.
 - Moderator: reports, content hide, blocks review. Sidebar hides theme/flags/ranking.

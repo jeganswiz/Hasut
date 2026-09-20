@@ -1,18 +1,21 @@
-import { AdminShell } from "../../components/admin-shell";
-import { OtpLoginForm } from "../../components/otp-login-form";
+import { AuthCard, HasutLogo } from "@hasut/ui";
+import { StaffLoginForm } from "../../components/staff-login-form";
 
 export default function LoginPage() {
   return (
-    <AdminShell
-      section="login"
-      title="Admin sign in"
-      lede={
+    <AuthCard
+      tone="staff"
+      eyebrow={
         <>
-          Local demo: request a code for <code>7010358490</code>, then enter <code>123456</code>.
+          <HasutLogo size={18} />
+          HASUT operations
         </>
       }
+      title="Staff sign in"
+      lede="Restricted console. Admin, support, and moderation only."
+      footer="Every sign-in and moderation action is recorded in the audit log."
     >
-      <OtpLoginForm nextPath="/" />
-    </AdminShell>
+      <StaffLoginForm nextPath="/" />
+    </AuthCard>
   );
 }

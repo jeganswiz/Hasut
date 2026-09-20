@@ -1,8 +1,12 @@
 import { LOCATION_POLICY_DEFAULTS } from "@hasut/config";
-import { normalizePhoneE164, snapToGrid } from "@hasut/utils";
+import { normalizeEmail, normalizePhoneE164, snapToGrid } from "@hasut/utils";
 import { Prisma, type CurrentMode, type PrismaClient } from "@prisma/client";
+import { hash } from "argon2";
 
 const ADMIN_PHONE = "+917010358490";
+/** Local demo staff credentials. Never seeded outside development. */
+const ADMIN_EMAIL = "admin@hasut.local";
+const ADMIN_PASSWORD = "Chennai-Patron-42";
 const DEMO_ORIGIN = { latitude: 13.0418, longitude: 80.2341 };
 
 interface DemoMember {
@@ -218,6 +222,8 @@ export async function seedDemoCatalog(prisma: PrismaClient): Promise<void> {
     }
   }
 
+  await seedStaffCredentials(prisma, requireId(ids, "admin"));
+
   const adminId = requireId(ids, "admin");
   const priyaId = requireId(ids, "priya");
   const arunId = requireId(ids, "arun");
@@ -256,6 +262,8 @@ export async function seedDemoCatalog(prisma: PrismaClient): Promise<void> {
     actorId: priyaId,
   });
 
+  await seedAudioLibrary(prisma);
+
   const kabirProfessional = await prisma.professionalProfile.findUnique({
     where: { memberId: kabirId },
   });
@@ -273,6 +281,48 @@ export async function seedDemoCatalog(prisma: PrismaClient): Promise<void> {
         },
       });
     }
+  }
+}
+
+/**
+ * Demo soundtracks for the story composer. The media ids are fixed so reseeding
+ * does not pile up duplicates; they point at no uploaded object, so playback is
+ * silent until a real file is attached from the admin console.
+ */
+async function seedAudioLibrary(prisma: PrismaClient): Promise<void> {
+  const tracks = [
+    {
+      id: "1f2c4a10-0000-4000-8000-000000000001",
+      title: "Marina Morning",
+      artist: "HASUT Sound",
+      mediaId: "1f2c4a10-0000-4000-8000-0000000000a1",
+      durationSeconds: 28,
+      mood: "Calm",
+    },
+    {
+      id: "1f2c4a10-0000-4000-8000-000000000002",
+      title: "Workshop Hum",
+      artist: "HASUT Sound",
+      mediaId: "1f2c4a10-0000-4000-8000-0000000000a2",
+      durationSeconds: 45,
+      mood: "Focus",
+    },
+    {
+      id: "1f2c4a10-0000-4000-8000-000000000003",
+      title: "Pongal Drums",
+      artist: "HASUT Sound",
+      mediaId: "1f2c4a10-0000-4000-8000-0000000000a3",
+      durationSeconds: 36,
+      mood: "Festive",
+    },
+  ];
+
+  for (const track of tracks) {
+    await prisma.audioTrack.upsert({
+      where: { id: track.id },
+      update: { title: track.title, artist: track.artist, mood: track.mood },
+      create: { ...track, isActive: true },
+    });
   }
 }
 
@@ -317,6 +367,26 @@ async function upsertDemoMember(
     await upsertBusiness(prisma, member.id, demo.business, categories);
   }
   return member.id;
+}
+
+/**
+ * Gives the demo admin an email + password so the staff console can be signed
+ * into, with two-step verification on to exercise the second factor locally.
+ */
+async function seedStaffCredentials(prisma: PrismaClient, memberId: string): Promise<void> {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+  await prisma.member.update({
+    where: { id: memberId },
+    data: {
+      email: normalizeEmail(ADMIN_EMAIL),
+      emailVerifiedAt: new Date(),
+      passwordHash: await hash(ADMIN_PASSWORD),
+      passwordUpdatedAt: new Date(),
+      twoFactorEnabled: true,
+    },
+  });
 }
 
 async function grantRoles(prisma: PrismaClient, memberId: string, admin: boolean): Promise<void> {

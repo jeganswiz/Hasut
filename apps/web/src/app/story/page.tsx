@@ -1,132 +1,87 @@
 "use client";
 
-import { HasutApiError } from "@hasut/api-client";
-import { Button, Surface, type SurfaceState } from "@hasut/ui";
-import { useState } from "react";
+import type { AudioTrackView, StoryComposerConfig, StoryView } from "@hasut/types";
+import { SegmentedTabs, Surface, cssVar, type SurfaceState } from "@hasut/ui";
+import { useEffect, useState } from "react";
 import { AppNav } from "../../components/app-nav";
+import { LiveComposer } from "../../components/story/live-composer";
+import { StoryComposer } from "../../components/story/story-composer";
 import { createWebApiClient } from "../../lib/api";
+import { apiErrorMessage } from "@hasut/api-client";
 
-async function upload(
-  file: File,
-  purpose: "STORY_IMAGE" | "STORY_VIDEO" | "STORY_AUDIO",
-): Promise<string> {
-  const client = createWebApiClient();
-  const presign = await client.presignMedia({
-    purpose,
-    mimeType: file.type || "application/octet-stream",
-    byteSize: file.size,
-  });
-  await fetch(presign.uploadUrl, {
-    method: "PUT",
-    headers: presign.headers,
-    body: file,
-  });
-  await client.completeMedia({ mediaId: presign.mediaId });
-  return presign.mediaId;
-}
+type Tab = "activity" | "live";
 
 export default function StoryComposerPage() {
-  const [state, setState] = useState<SurfaceState>("empty");
-  const [message, setMessage] = useState(
-    "Add a 24-hour map presence. Image, optional audio, or a trimmed video. This is not a social feed.",
-  );
-  const [trimStart, setTrimStart] = useState("0");
-  const [trimEnd, setTrimEnd] = useState("15");
+  const [tab, setTab] = useState<Tab>("activity");
+  const [state, setState] = useState<SurfaceState>("loading");
+  const [message, setMessage] = useState("Loading the composer…");
+  const [config, setConfig] = useState<StoryComposerConfig | null>(null);
+  const [tracks, setTracks] = useState<AudioTrackView[]>([]);
+  const [published, setPublished] = useState<StoryView | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const client = createWebApiClient();
+    void (async () => {
+      try {
+        const composer = await client.storyComposerConfig();
+        // A missing library should not block posting, so it is fetched separately.
+        const library = composer.audioLibraryEnabled
+          ? await client.listAudioTracks().catch(() => [])
+          : [];
+        if (cancelled) {
+          return;
+        }
+        setConfig(composer);
+        setTracks(library);
+        setState("success");
+      } catch (error) {
+        if (!cancelled) {
+          setState("error");
+          setMessage(apiErrorMessage(error, "Stories are not available right now."));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <main>
       <AppNav />
       <h1>Presence story</h1>
-      <Surface state={state} title="Composer">
-        <p>{message}</p>
-        <form
-          className="stack"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const image = data.get("image");
-            const video = data.get("video");
-            const audio = data.get("audio");
-            void (async () => {
-              setState("loading");
-              try {
-                if (video instanceof File && video.size > 0) {
-                  const videoMediaId = await upload(video, "STORY_VIDEO");
-                  const audioMediaId =
-                    audio instanceof File && audio.size > 0
-                      ? await upload(audio, "STORY_AUDIO")
-                      : null;
-                  await createWebApiClient().createStory({
-                    kind: "VIDEO",
-                    videoMediaId,
-                    audioMediaId,
-                    trimStartSeconds: Number(trimStart),
-                    trimEndSeconds: Number(trimEnd),
-                  });
-                } else if (image instanceof File && image.size > 0) {
-                  const imageMediaId = await upload(image, "STORY_IMAGE");
-                  const audioMediaId =
-                    audio instanceof File && audio.size > 0
-                      ? await upload(audio, "STORY_AUDIO")
-                      : null;
-                  await createWebApiClient().createStory({
-                    kind: "IMAGE",
-                    imageMediaId,
-                    audioMediaId,
-                  });
-                } else {
-                  setState("error");
-                  setMessage("Choose an image or video.");
-                  return;
-                }
-                setState("success");
-                setMessage("Story published for 24 hours. Your map pin stays a circle.");
-              } catch (error) {
-                setState("error");
-                setMessage(error instanceof HasutApiError ? error.message : "Unable to publish.");
-              }
-            })();
-          }}
-        >
-          <label>
-            Image
-            <input type="file" name="image" accept="image/*" />
-          </label>
-          <label>
-            Optional audio
-            <input type="file" name="audio" accept="audio/*" />
-          </label>
-          <label>
-            Video
-            <input type="file" name="video" accept="video/*" />
-          </label>
-          <label>
-            Trim start (seconds)
-            <input value={trimStart} onChange={(event) => setTrimStart(event.target.value)} />
-          </label>
-          <label>
-            Trim end (seconds)
-            <input value={trimEnd} onChange={(event) => setTrimEnd(event.target.value)} />
-          </label>
-          <Button type="submit">Publish story</Button>
-        </form>
-        <Button
-          variant="secondary"
-          onClick={() =>
-            void createWebApiClient()
-              .startLive()
-              .then((live) => {
-                setState("success");
-                setMessage(`Live started. HLS: ${live.hlsUrl ?? "pending ingest"}`);
-              })
-              .catch((error: unknown) => {
-                setState("error");
-                setMessage(error instanceof HasutApiError ? error.message : "Unable to go live.");
-              })
-          }
-        >
-          Go live
-        </Button>
+      <p style={{ color: cssVar("mutedText"), marginTop: 0 }}>
+        A 24-hour presence on the discovery map. This is not a social feed.
+      </p>
+
+      <div style={{ maxWidth: 360, marginBottom: 16 }}>
+        <SegmentedTabs
+          label="Story section"
+          tabs={[
+            { id: "activity", label: "Activity" },
+            { id: "live", label: "Live" },
+          ]}
+          active={tab}
+          onChange={setTab}
+        />
+      </div>
+
+      <Surface state={state} title={tab === "activity" ? "Compose" : "Go live"}>
+        {state !== "success" || config === null ? (
+          <p>{message}</p>
+        ) : tab === "activity" ? (
+          <>
+            <StoryComposer config={config} tracks={tracks} onPublished={setPublished} />
+            {published === null ? null : (
+              <p style={{ marginTop: 16, fontSize: 14, color: cssVar("mutedText") }}>
+                Live until {new Date(published.expiresAt).toLocaleTimeString()}.
+              </p>
+            )}
+          </>
+        ) : (
+          <LiveComposer patronCount={config.patronCount} />
+        )}
       </Surface>
     </main>
   );

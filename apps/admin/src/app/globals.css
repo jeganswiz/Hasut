@@ -358,3 +358,76 @@ select:hover {
     transition: none !important;
   }
 }
+
+/* Staff sign-in. Deliberately unlike the member portal: numbered steps, no SSO. */
+.staff-login-form {
+  display: grid;
+  gap: 18px;
+}
+
+.staff-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.staff-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hasut-color-muted-text);
+}
+
+.staff-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 2px solid var(--hasut-color-border);
+}
+
+.staff-steps li span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--hasut-color-border);
+  font-size: 11px;
+}
+
+.staff-steps li[aria-current="step"] {
+  border-top-color: var(--hasut-color-primary);
+  color: var(--hasut-color-text);
+}
+
+.staff-steps li[aria-current="step"] span {
+  background: var(--hasut-color-primary);
+  border-color: var(--hasut-color-primary);
+  color: var(--hasut-color-text-on-primary);
+}
+
+.staff-steps li[data-done="true"] {
+  border-top-color: var(--hasut-color-success);
+}
+
+.staff-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--hasut-color-muted-text);
+}
+
+.staff-link {
+  justify-self: start;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--hasut-color-primary);
+  font-size: 13px;
+  cursor: pointer;
+}

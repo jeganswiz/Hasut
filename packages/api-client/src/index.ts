@@ -7,7 +7,13 @@ export {
   hasutErrorCode,
   isHasutApiError,
 } from "./client";
-export type { HasutApiClientOptions } from "./client";
+export type {
+  AudioTrackUpsertInput,
+  HasutApiClientOptions,
+  OtpDestinationInput,
+  StoryAudioInput,
+  StoryCreateInput,
+} from "./client";
 export { createAxiosHttpAdapter } from "./http";
 export type { HasutHttpAdapter, HasutHttpRequest, HasutHttpResponse } from "./http";
 export {

@@ -16,6 +16,7 @@
     "@hasut/config": "workspace:*",
     "@hasut/types": "workspace:*",
     "@hasut/ui": "workspace:*",
+    "@hasut/utils": "workspace:*",
     "next": "^15.5.2",
     "react": "19.0.0",
     "react-dom": "19.0.0"

@@ -151,9 +151,50 @@ Member identity request already existed; this sprint completed operator decide, 
 
 **Status:** Implemented. Playwright member chrome smoke (`pnpm test:e2e`). Helmet headers already on the API. Public member/admin payloads omit phone and exact coordinates. Nearby query notes in [discovery performance](../development/discovery-performance.md).
 
+## Sprint 10 — Identity and access
+
+Raises sign-in from phone-only OTP to a full identity surface across web, admin, and mobile. Still one `Member`; still no new deployable.
+
+- Contracts first: email/password, OTP channel, SSO, two-step verification, reset ticket, and captcha config in `packages/types`, `packages/validation`, `packages/api-client`
+- Prisma: nullable phone, `email` / `password_hash` / `two_factor_enabled` on `Member`, OTP `channel` and new purposes, `member_identities` for SSO
+- Provider seams: `EmailProvider` (SMTP / console), `CaptchaVerifier` (reCAPTCHA / none), `OAuthProvider` (Google, Facebook), all config-selected
+- `CredentialsService` owns password login, registration, SSO linking, reset tickets, and two-step verification, with authorization and audit in the service
+- `packages/ui`: six-box `OtpInput`, `PasswordField`, `AuthCard`, `AuthTabs`, `SsoButton`, `TextField` on design tokens
+- Web: sign in (password / code / SSO), register, forgot and reset password
+- Admin: staff chrome, email + password first step, phone code second step for 2FA-enabled staff
+- Mobile: password and OTP parity plus forgot password on the same contracts
+
+**Exit:** lint, typecheck, and unit tests green; production boot refuses console email and disabled captcha; no endpoint distinguishes an unknown account from a wrong password; docs synced.
+
+**Status:** Implemented. See [authentication](../architecture/03-authentication.md) and [security](../security/overview.md).
+
 ## What each sprint must not do
 
 Pull in payments, booking, subscriptions, CRM, or a second deployable HASUT service during Phase 1. Stories, video trim, music, and live HLS belong to Phase 2 after Sprint 9.
+
+## Sprint 11 — Story composer
+
+Implemented. Authoring on the Activity tab reaches the bar the product asked for, and two contract fields that were being silently discarded now persist.
+
+- Contracts: `caption`, `captionColor`, `audio` (source / track / segment), `originalAudioMode`, trim window, `AudioTrackView`, and `StoryComposerConfig` in `packages/types`, `packages/validation`, `packages/api-client`.
+- Prisma: caption, caption colour, trim, and soundtrack columns on `Story`; `title` on `LiveSession`; new `AudioTrack` catalogue. Migration `20260921010000_story_composer` backfills `audio_source` for stories that already carried an uploaded track.
+- **Bug fixed:** `storyCreateSchema` accepted `trimStartSeconds` / `trimEndSeconds` and `liveStartSchema` accepted `title`, but neither reached the database — the service never took the fields and the columns did not exist. Both now round-trip, with regression tests.
+- API: `StoriesService` validates caption length, palette membership, trim span, and audio span against `story.policy`; `AudioLibraryService` serves the member-facing catalogue and the staff CRUD. Caption text stays out of the audit trail — entries record `hasCaption`, not the words.
+- `packages/ui`: `RangeSelect` (two-handle scrubber over two native range inputs, so keyboard and screen readers work), `ColorSwatches`, and `SegmentedTabs` (the old `AuthTabs`, renamed now that stories use it too). Range maths lives in a pure `range-select.logic` module with its own tests.
+- Web: `/story` gains Activity / Live tabs, a live caption overlay on the preview, palette swatches, a mood-filtered audio picker with segment selection, and a trim scrubber. Live now sends its title.
+- Admin: `/stories/audio` curates the catalogue; the moderation queue shows caption, live title, and how a story will sound.
+
+## Sprint 12 — Live and audience
+
+Implemented. A story or a live can be kept to **Patrons** — HASUT's word for accepted connections, from חסות (patronage). It is deliberately not "follower": the relationship is mutual and consented, so there is no one-way subscribe.
+
+- Contracts: `StoryAudience` (`EVERYONE` | `PATRONS`) on story create, story view, live start, and live view. `StoryComposerConfig` carries `patronCount` so the picker can label the option honestly.
+- Prisma: `audience` on `stories` and `live_sessions`, migration `20260921020000_story_audience`. Existing rows were published unrestricted, so `EVERYONE` is the only safe backfill.
+- `PatronsService` is the single definition of the relation: accepted connections, symmetric, and a member is always their own Patron. Audience checks read from it rather than querying connections inline, so there is one place to audit.
+- **Authorization fixed:** `GET /stories/:memberId` previously returned every story for any authenticated caller, because it called `listMine` with the path parameter. It now goes through `listForViewer`, which filters on audience.
+- Map pins go through `pinMediaForMembers(ids, viewerId)`, resolving Patron status for a whole screen in one query. A Patrons-only story or live no longer leaks as a pin preview to someone who could not open it, and a signed-out viewer is nobody's Patron.
+- Web: an audience picker on both the Activity and Live tabs, with copy that warns when a member has no Patrons yet. Admin's moderation queue shows the audience alongside caption and sound.
+- Watch path: `GET /me/live` restores the owner's session after a refresh (ingest URL stays on the owner). `GET /stories/:memberId/live` is the nearby watch URL — Patrons-only lives are invisible to a stranger, and ingest is always stripped. The viewer at `/stories/[memberId]` shows caption colour, the chosen audio window, trim looping, and a Live tab with the title.
 
 ## After Phase 1
 

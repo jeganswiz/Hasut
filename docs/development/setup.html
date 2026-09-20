@@ -605,10 +605,11 @@
               <tr>
                 <td>Expo default</td>
                 <td>Mobile (Expo)</td>
-                <td>Metro, typically <code>8081</code></td>
+                <td>Metro, typically <code>8081</code> (SDK 57)</td>
                 <td>
                   Not started by <code>dev:up</code>. Use
-                  <code>pnpm --filter @hasut/mobile dev</code>.
+                  <code>pnpm --filter @hasut/mobile exec expo start --go --lan</code>
+                  so Expo Go can open the project.
                 </td>
               </tr>
             </tbody>
@@ -893,10 +894,13 @@
               dev</code
             >
           </div>
-          <p>Mobile is separate:</p>
+          <p>
+            Mobile is Expo SDK 57 (current Expo Go). On a physical phone, set Metro and the API to
+            your PC LAN IPv4, then start Expo Go mode:
+          </p>
           <div class="cmd">
             <button type="button" data-copy>Copy</button>
-            <code>pnpm --filter @hasut/mobile dev</code>
+            <code>pnpm --filter @hasut/mobile exec expo start --go --lan</code>
           </div>
           <p>
             Compose file: <code>infra/compose/docker-compose.yml</code> (project name

@@ -1,11 +1,33 @@
 "use client";
 
 import { HasutApiError } from "@hasut/api-client";
-import type { LiveSessionView, StoryView } from "@hasut/types";
+import type { LiveSessionView, StoryAudience, StoryView } from "@hasut/types";
 import { Button, Surface, type SurfaceState } from "@hasut/ui";
 import { useCallback, useEffect, useState } from "react";
 import { createAdminApiClient } from "../lib/api";
 import { useAdminSession } from "../lib/use-admin-session";
+
+function audienceLabel(audience: StoryAudience): string {
+  return audience === "PATRONS" ? "Patrons" : "Everyone";
+}
+
+/** Moderators need to see what a story will sound like before they judge it. */
+function describeSound(story: StoryView): string {
+  const original =
+    story.kind === "VIDEO" && story.originalAudioMode !== "KEEP"
+      ? story.originalAudioMode === "MUTE"
+        ? "original muted"
+        : "layered on original"
+      : null;
+  const added =
+    story.audio.source === "LIBRARY"
+      ? (story.audio.title ?? "HASUT track")
+      : story.audio.source === "UPLOAD"
+        ? "member upload"
+        : null;
+  const parts = [added, original].filter((part): part is string => part !== null);
+  return parts.length === 0 ? "—" : parts.join(" · ");
+}
 
 export function StoriesQueue() {
   const { ready, denied } = useAdminSession(["ADMIN", "MODERATOR"]);
@@ -82,6 +104,9 @@ export function StoriesQueue() {
           <tr>
             <th>Kind</th>
             <th>Member</th>
+            <th>Caption or title</th>
+            <th>Audience</th>
+            <th>Sound</th>
             <th>Status</th>
             <th></th>
           </tr>
@@ -91,6 +116,9 @@ export function StoriesQueue() {
             <tr key={item.id}>
               <td>LIVE</td>
               <td>{item.memberId.slice(0, 8)}</td>
+              <td>{item.title.length === 0 ? "—" : item.title}</td>
+              <td>{audienceLabel(item.audience)}</td>
+              <td>—</td>
               <td>{item.status}</td>
               <td>
                 <Button onClick={() => void endLive(item.id)}>End live</Button>
@@ -101,6 +129,9 @@ export function StoriesQueue() {
             <tr key={item.id}>
               <td>{item.kind}</td>
               <td>{item.memberId.slice(0, 8)}</td>
+              <td>{item.caption.length === 0 ? "—" : item.caption}</td>
+              <td>{audienceLabel(item.audience)}</td>
+              <td>{describeSound(item)}</td>
               <td>{item.moderationStatus}</td>
               <td>
                 {item.moderationStatus === "ACTIVE" ? (

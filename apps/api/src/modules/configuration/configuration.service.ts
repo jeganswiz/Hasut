@@ -15,10 +15,13 @@ import {
   MEDIA_POLICY_DEFAULTS,
   PROFESSIONAL_AVAILABILITY_CONFIG_KEY,
   PROFESSIONAL_AVAILABILITY_DEFAULTS,
+  STORY_POLICY_CONFIG_KEY,
+  STORY_POLICY_DEFAULTS,
   isAuthPolicy,
   isAvailabilityOptions,
   isDiscoveryRankingWeights,
   isMediaPolicy,
+  isStoryPolicy,
   normalizeRankingWeights,
   readDiscoveryPolicy,
   readLocationPolicy,
@@ -32,6 +35,7 @@ import {
   type MessagingPolicy,
   type ProfessionalAvailabilityOption,
   type ReportsPolicy,
+  type StoryPolicy,
 } from "@hasut/config";
 import type {
   DiscoveryPolicyView,
@@ -67,6 +71,16 @@ export class ConfigurationService {
       return row.valueJson;
     }
     return AUTH_POLICY_DEFAULTS;
+  }
+
+  async getStoryPolicy(): Promise<StoryPolicy> {
+    const row = await this.prisma.remoteConfig.findUnique({
+      where: { key: STORY_POLICY_CONFIG_KEY },
+    });
+    if (row !== null && isStoryPolicy(row.valueJson)) {
+      return row.valueJson;
+    }
+    return STORY_POLICY_DEFAULTS;
   }
 
   async getLocationPolicy(): Promise<LocationPolicy> {

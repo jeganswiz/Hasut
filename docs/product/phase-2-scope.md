@@ -2,7 +2,7 @@
 
 Phase 2 starts **only after Sprint 9** (Phase 1 hardening) is green. It is not a generic social network and not a second identity. HASUT stays a location-intelligent professional and business network; stories are **map presence**.
 
-**Status:** Implemented behind feature flag `stories.live`. Modules: `apps/api/src/modules/stories`. Web composer `/story`, viewer `/stories/[memberId]` (HLS via `hls.js`). Map pin DTO includes `pinMediaKind` and `previewHlsUrl`; web pins attach muted HLS previews (capped, data-saver aware). Admin `/stories` moderates stories and live. Optional MediaMTX: `docker compose --profile live up mediamtx`.
+**Status:** Implemented behind feature flag `stories.live`. Modules: `apps/api/src/modules/stories`. Web composer `/story` (Activity / Live tabs), viewer `/stories/[memberId]` (HLS via `hls.js`). Map pin DTO includes `pinMediaKind` and `previewHlsUrl`; web pins attach muted HLS previews (capped, data-saver aware). Admin `/stories` moderates stories and live; admin `/stories/audio` curates the soundtrack library. Optional MediaMTX: `docker compose --profile live up mediamtx`.
 
 ## In
 
@@ -30,6 +30,45 @@ Admin can moderate stories and live sessions. Feature-flag the whole phase.
 
 - Client-side edit first (browser `MediaRecorder` / trim). Server stores transcoded HLS, not raw camera files.
 - Image + optional audio; video trim + audio; go live.
+
+### Sprint 11 authoring surface (implemented)
+
+`/story` splits into two tabs, **Activity** and **Live**, matching the viewer.
+
+| Control            | Contract field                            | Rule                                                                                                                                           |
+| ------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Photo / video pick | `imageMediaId` / `videoMediaId`           | Preview is a local blob; only the chosen file uploads.                                                                                         |
+| Caption            | `caption`                                 | Trimmed, capped at `story.policy.captionMaxLength`.                                                                                            |
+| Caption colour     | `captionColor`                            | Must match a swatch in `story.policy.captionColors`. The service rejects anything else, so a caption can never be made unreadable.             |
+| Video trim         | `trimStartSeconds` / `trimEndSeconds`     | Two-handle scrubber. Span capped at `maxVideoDurationSeconds`.                                                                                 |
+| Soundtrack         | `audio.source`                            | `NONE`, `LIBRARY` (HASUT cloud), or `UPLOAD` (member file).                                                                                    |
+| Audio portion      | `audio.startSeconds` / `audio.endSeconds` | Span capped at `maxAudioSegmentSeconds` and clamped to the track length.                                                                       |
+| Original sound     | `originalAudioMode`                       | `KEEP`, `MUTE` (drop the camera audio), or `OVERLAY` (layer the chosen track on top). Rejected on image stories, which have no original sound. |
+
+Trim and audio bounds are enforced twice: `packages/validation` shapes the request, and `StoriesService` re-checks against configuration because the caps are operator-owned and a stale client will not know they moved.
+
+### Audio library
+
+`AudioTrack` is an admin-curated catalogue so the licensing question is answered once per track instead of once per member upload. Staff manage it at admin `/stories/audio`; members read only active tracks through `GET /stories/audio`, and only while `story.policy.audioLibraryEnabled` is on. A story that references a retired track is rejected at create time rather than published silently.
+
+### Audience — Patrons
+
+A story or a live is either visible to **everyone nearby** or to the member's **Patrons**.
+
+Patrons are accepted connections. The word comes from חסות, patronage, and is deliberately not "follower": HASUT has no one-way subscribe, so the set is symmetric and both sides consented to it. `PatronsService` owns the definition; every audience check reads from it, so there is one place to audit rather than a connection query scattered across services.
+
+Enforcement runs on both read paths:
+
+- `GET /stories/:memberId` filters on audience for the calling viewer. Before Sprint 12 this endpoint returned every story to any authenticated caller.
+- Map pin previews resolve Patron status for the whole visible set in one query. A Patrons-only story or live never appears as a pin preview to someone who could not open it, and a signed-out viewer is nobody's Patron.
+
+Members always see their own posts at any audience. Moderators see everything, because moderation cannot depend on the audience a member chose.
+
+`GET /me/live` and `GET /stories/:memberId/live` return `{ live }` so a missing session is not an empty-body error. The nearby watch payload never includes `ingestUrl`. The full-screen viewer plays caption, the audio window, and the live title; a live session opens on the Live tab.
+
+### Composer configuration
+
+`story.policy` in `packages/config` owns the caption palette, caption length, video cap, audio segment cap, and the library switch. Clients fetch it from `GET /stories/composer`; no app hardcodes a swatch or a duration.
 
 ## Infra
 

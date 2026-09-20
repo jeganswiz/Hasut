@@ -32,6 +32,18 @@ enum MemberRoleName {
 enum OtpPurpose {
   LOGIN
   REAUTH
+  PASSWORD_RESET
+  TWO_FACTOR
+}
+
+enum OtpChannel {
+  SMS
+  EMAIL
+}
+
+enum IdentityProviderName {
+  GOOGLE
+  FACEBOOK
 }
 
 enum ThemeConfigStatus {
@@ -41,7 +53,15 @@ enum ThemeConfigStatus {
 
 model Member {
   id        String       @id @default(uuid()) @db.Uuid
-  phoneE164 String       @unique @map("phone_e164")
+  /// Null for email-first and SSO members until they add a phone.
+  phoneE164 String?      @unique @map("phone_e164")
+  /// Lowercase lookup key. Never exposed on public payloads.
+  email             String?   @unique
+  emailVerifiedAt   DateTime? @map("email_verified_at") @db.Timestamptz(6)
+  passwordHash      String?   @map("password_hash")
+  passwordUpdatedAt DateTime? @map("password_updated_at") @db.Timestamptz(6)
+  /// Second factor after email + password. Opt-in per member; staff are the target.
+  twoFactorEnabled  Boolean   @default(false) @map("two_factor_enabled")
   status    MemberStatus @default(ACTIVE)
   createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -76,8 +96,26 @@ model Member {
   reviewsWritten        Review[]
   stories               Story[]
   liveSessions          LiveSession[]
+  identities            MemberIdentity[]
 
   @@map("members")
+}
+
+/// A verified third-party sign-in linked to one Member. Never a second identity.
+model MemberIdentity {
+  id                String               @id @default(uuid()) @db.Uuid
+  memberId          String               @map("member_id") @db.Uuid
+  provider          IdentityProviderName
+  providerAccountId String               @map("provider_account_id")
+  email             String?
+  lastLoginAt       DateTime?            @map("last_login_at") @db.Timestamptz(6)
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([memberId])
+  @@map("member_identities")
 }
 
 model MemberRole {
@@ -93,9 +131,14 @@ model MemberRole {
 
 model OtpChallenge {
   id          String     @id @default(uuid()) @db.Uuid
-  phoneE164   String     @map("phone_e164")
+  channel     OtpChannel @default(SMS)
+  /// Exactly one of phoneE164 / email is set, matching the channel.
+  phoneE164   String?    @map("phone_e164")
+  email       String?
   codeHash    String     @map("code_hash")
   purpose     OtpPurpose
+  /// Set once a password-reset challenge is verified, so the ticket is single-use.
+  memberId    String?    @map("member_id") @db.Uuid
   expiresAt   DateTime   @map("expires_at") @db.Timestamptz(6)
   attemptCount Int       @default(0) @map("attempt_count")
   maxAttempts Int        @map("max_attempts")
@@ -106,6 +149,7 @@ model OtpChallenge {
   createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([phoneE164, purpose, consumedAt])
+  @@index([email, purpose, consumedAt])
   @@map("otp_challenges")
 }
 
@@ -555,6 +599,42 @@ enum LiveSessionStatus {
   ENDED
 }
 
+enum StoryAudioSource {
+  NONE
+  LIBRARY
+  UPLOAD
+}
+
+enum StoryOriginalAudioMode {
+  KEEP
+  MUTE
+  OVERLAY
+}
+
+/// PATRONS is HASUT's word for accepted connections (from חסות, patronage).
+enum StoryAudience {
+  EVERYONE
+  PATRONS
+}
+
+/// Admin-curated soundtrack a member can attach to a story. Licensing is vetted
+/// once here instead of per upload.
+model AudioTrack {
+  id              String   @id @default(uuid()) @db.Uuid
+  title           String
+  artist          String
+  mediaId         String   @map("media_id") @db.Uuid
+  durationSeconds Int      @map("duration_seconds")
+  mood            String
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  stories Story[]
+
+  @@index([isActive, mood])
+  @@map("audio_tracks")
+}
+
 model Story {
   id                String                 @id @default(uuid()) @db.Uuid
   memberId          String                 @map("member_id") @db.Uuid
@@ -562,22 +642,36 @@ model Story {
   imageMediaId      String?                @map("image_media_id") @db.Uuid
   videoMediaId      String?                @map("video_media_id") @db.Uuid
   audioMediaId      String?                @map("audio_media_id") @db.Uuid
+  audioSource       StoryAudioSource       @default(NONE) @map("audio_source")
+  audioTrackId      String?                @map("audio_track_id") @db.Uuid
+  audioStartSeconds Int                    @default(0) @map("audio_start_seconds")
+  audioEndSeconds   Int?                   @map("audio_end_seconds")
+  originalAudioMode StoryOriginalAudioMode @default(KEEP) @map("original_audio_mode")
+  audience          StoryAudience          @default(EVERYONE)
+  caption           String                 @default("")
+  captionColor      String?                @map("caption_color")
+  trimStartSeconds  Int                    @default(0) @map("trim_start_seconds")
+  trimEndSeconds    Int?                   @map("trim_end_seconds")
   hlsUrl            String?                @map("hls_url")
   previewHlsUrl     String?                @map("preview_hls_url")
   expiresAt         DateTime               @map("expires_at") @db.Timestamptz(6)
   moderationStatus  StoryModerationStatus  @default(ACTIVE) @map("moderation_status")
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member     Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  audioTrack AudioTrack? @relation(fields: [audioTrackId], references: [id], onDelete: SetNull)
 
   @@index([memberId, expiresAt])
   @@index([moderationStatus, expiresAt])
+  @@index([audience, expiresAt])
   @@map("stories")
 }
 
 model LiveSession {
   id            String            @id @default(uuid()) @db.Uuid
   memberId      String            @map("member_id") @db.Uuid
+  title         String            @default("")
+  audience      StoryAudience     @default(EVERYONE)
   status        LiveSessionStatus @default(LIVE)
   hlsUrl        String?           @map("hls_url")
   previewHlsUrl String?           @map("preview_hls_url")

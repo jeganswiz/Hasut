@@ -1,5 +1,7 @@
 export { AUTH_POLICY_CONFIG_KEY, AUTH_POLICY_DEFAULTS, isAuthPolicy } from "./auth-policy";
 export type { AuthPolicy } from "./auth-policy";
+export { STORY_POLICY_CONFIG_KEY, STORY_POLICY_DEFAULTS, isStoryPolicy } from "./story-policy";
+export type { StoryPolicy } from "./story-policy";
 export {
   apiEnvSchema,
   parseApiEnv,

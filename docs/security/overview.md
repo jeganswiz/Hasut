@@ -4,11 +4,19 @@ Phase 1 security baseline. Aligns with OWASP ASVS / API Top 10 at a practical Sa
 
 ## Identity and session
 
-- OTP hashed at rest; plaintext only in SMS and never logged.
+- OTP hashed at rest; plaintext only in SMS or email and never logged.
+- Passwords hashed with Argon2id; the hash never enters a DTO and never reaches a client.
+- Password login, registration, OTP request/resend, and forgot password sit behind `CaptchaVerifier`.
+- Unknown email and wrong password return the same `UNAUTHENTICATED` envelope; forgot password answers uniformly. Neither endpoint confirms that an account exists.
+- Password reset is two-legged: OTP first, then a single-use short-lived ticket. The OTP is never replayed as a bearer credential.
+- Forgot password sends nothing when the address has no account, so it is not an outbound SMS/email relay, while the response stays identical.
+- Changing or resetting a password revokes every session for that member, including the caller's.
+- Two-step verification for staff: email + password issues no session on its own when the flag is on.
+- SSO tokens are verified server side against the provider; provider secrets stay on the API.
 - Refresh rotation; reuse detection revokes the session family.
 - Multi-device; explicit logout-all.
 - Suspended members fail all authenticated routes with `ACCOUNT_SUSPENDED`.
-- Admin role changes are audited.
+- Admin role changes, password changes, resets, SSO links, and two-step toggles are audited.
 
 ## Authorization
 
@@ -18,7 +26,8 @@ Phase 1 security baseline. Aligns with OWASP ASVS / API Top 10 at a practical Sa
 
 ## Privacy
 
-- No public phones.
+- No public phones and no public emails.
+- OTP receipts return a masked `destinationHint` only, so a receipt cannot be used to read back the address it was sent to.
 - No default exact personal coordinates (see [location](../architecture/04-location.md)).
 - Chat is not a phone-number leak prevention product; do not build aggressive regex blockers. Protected Service is a future value proposition, not a Phase 1 filter.
 
@@ -41,22 +50,27 @@ Phase 1 security baseline. Aligns with OWASP ASVS / API Top 10 at a practical Sa
 - Playwright smoke: member chrome on web and admin login chrome (`pnpm test:e2e`).
 - Public member, discovery, report, ticket, and admin member payloads omit phone and exact lat/lng.
 - Story/live URLs are playback pointers; they do not expose phone or exact coordinates.
+- Story and live audience (`EVERYONE` or `PATRONS`) is enforced in `StoriesService`, not in a guard, and on both read paths: reading a member's stories and rendering map pin previews. A Patrons-only post never surfaces as a pin preview to a viewer who could not open it, and a signed-out viewer is treated as nobody's Patron. Patrons means accepted connections only — a `PENDING` request does not grant access.
+- `GET /stories/:memberId/live` strips `ingestUrl`. Only `GET /me/live` and admin moderation return the WHIP URL.
+- Story captions are member content and are not written to the audit trail; entries record whether a caption exists, not its text.
 
 ## Secrets
 
 - Environment variables / secret manager. Never commit `.env` values.
 - `.env.example` keys only.
 - OTP provider keys, JWT keys, S3, DB URLs.
+- SMTP credentials, `RECAPTCHA_SECRET_KEY`, and `FACEBOOK_APP_SECRET` are server side only. Site keys and OAuth client IDs are public by design and ship through `GET /auth/config`.
 
 ## Abuse
 
-- OTP per-phone and per-IP limits.
+- OTP per-destination (phone or email) and per-IP limits.
+- Password attempt cap per hour, tracked separately from OTP limits.
 - Report rate limits.
 - Discovery query rate limits to reduce location triangulation.
 
 ## Logging and audit
 
-- No OTP, tokens, or exact location in application logs.
+- No OTP, passwords, reset tickets, SSO tokens, captcha tokens, or exact location in application logs.
 - Admin mutations → `audit_logs` with redaction policy.
 - `request_id` on every log line.
 
@@ -70,4 +84,6 @@ Phase 1 security baseline. Aligns with OWASP ASVS / API Top 10 at a practical Sa
 
 - Users may exchange contact info in chat; we do not police it.
 - Approximate map markers can still leak neighborhood; cell size is a config tradeoff.
-- Console OTP adapter is a critical misconfiguration risk — production boot must refuse it.
+- Console OTP adapter is a critical misconfiguration risk — production boot must refuse it. The same rule covers `EMAIL_PROVIDER=console` and `CAPTCHA_PROVIDER=none`; `packages/config` fails validation rather than booting insecure.
+- SSO trusts the provider's email verification. A provider account takeover is an account takeover here too; two-step verification is the mitigation for staff.
+- Registration returns `CONFLICT` for an email that already exists, so it is a weak account-existence oracle. Captcha and rate limits are the mitigation; the alternative (silent success) is worse for real users.

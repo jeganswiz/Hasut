@@ -1,4 +1,4 @@
-import { LoginScreen } from "../src/social";
+import { LoginScreen } from "../src/auth";
 
 export default function LoginRoute() {
   return <LoginScreen />;

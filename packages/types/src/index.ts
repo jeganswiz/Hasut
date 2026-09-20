@@ -9,19 +9,38 @@ export type {
   AppEnvironment,
   ErrorCode,
 } from "./api";
-export { MEMBER_ROLES, MEMBER_STATUSES, OTP_PROVIDERS, OTP_PURPOSES } from "./auth";
+export {
+  CAPTCHA_PROVIDERS,
+  EMAIL_PROVIDERS,
+  IDENTITY_PROVIDERS,
+  MEMBER_ROLES,
+  MEMBER_STATUSES,
+  OTP_CHANNELS,
+  OTP_PROVIDERS,
+  OTP_PURPOSES,
+} from "./auth";
 export type {
+  AuthAuthenticated,
+  AuthClientConfig,
+  AuthLoginResult,
   AuthSessionView,
   AuthTokens,
+  AuthTwoFactorRequired,
   AuthVerifyResult,
+  CaptchaProviderName,
   CurrentMember,
+  EmailProviderName,
+  IdentityProviderName,
   LogoutAllResult,
   LogoutResult,
   MemberRole,
   MemberStatus,
   OtpChallengeReceipt,
+  OtpChannel,
   OtpProviderName,
   OtpPurpose,
+  PasswordResetTicket,
+  PasswordUpdateResult,
 } from "./auth";
 export {
   CATEGORY_APPLIES_TO,
@@ -156,11 +175,26 @@ export type {
 } from "./social";
 export { THEME_TOKEN_KEYS } from "./theme";
 export type { ThemeTokenKey, ThemeTokens } from "./theme";
-export { LIVE_SESSION_STATUSES, STORY_KINDS, STORY_MODERATION_STATUSES } from "./stories";
+export {
+  LIVE_SESSION_STATUSES,
+  STORY_AUDIENCES,
+  STORY_AUDIO_SOURCES,
+  STORY_CAPTION_MAX_LENGTH,
+  STORY_KINDS,
+  STORY_MODERATION_STATUSES,
+  STORY_ORIGINAL_AUDIO_MODES,
+} from "./stories";
 export type {
+  AudioTrackView,
+  LivePresenceView,
   LiveSessionStatus,
   LiveSessionView,
+  StoryAudience,
+  StoryAudioSource,
+  StoryAudioView,
+  StoryComposerConfig,
   StoryKind,
   StoryModerationStatus,
+  StoryOriginalAudioMode,
   StoryView,
 } from "./stories";

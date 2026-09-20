@@ -1,6 +1,17 @@
-import type { LiveSessionView, StoryView } from "@hasut/types";
-import { liveStartSchema, storyCreateSchema, storyModerateSchema } from "@hasut/validation";
-import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
+import type {
+  AudioTrackView,
+  LivePresenceView,
+  LiveSessionView,
+  StoryComposerConfig,
+  StoryView,
+} from "@hasut/types";
+import {
+  audioTrackUpsertSchema,
+  liveStartSchema,
+  storyCreateSchema,
+  storyModerateSchema,
+} from "@hasut/validation";
+import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { z } from "zod";
@@ -9,8 +20,11 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { getRequestId } from "../../common/middleware/request-id.middleware";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { AudioLibraryService } from "./audio-library.service";
 import { LiveService } from "./live.service";
 import { StoriesService } from "./stories.service";
+
+const audioTrackActiveSchema = z.object({ isActive: z.boolean() });
 
 @ApiTags("stories")
 @Controller()
@@ -18,6 +32,7 @@ export class StoriesController {
   constructor(
     private readonly stories: StoriesService,
     private readonly live: LiveService,
+    private readonly audio: AudioLibraryService,
   ) {}
 
   @ApiBearerAuth()
@@ -43,10 +58,17 @@ export class StoriesController {
   @ApiOperation({ summary: "Start a live presence session" })
   startLive(
     @CurrentUser("memberId") memberId: string,
-    @Body(new ZodValidationPipe(liveStartSchema)) _body: z.infer<typeof liveStartSchema>,
+    @Body(new ZodValidationPipe(liveStartSchema)) body: z.infer<typeof liveStartSchema>,
     @Req() req: Request,
   ): Promise<LiveSessionView> {
-    return this.live.start(memberId, getRequestId(req));
+    return this.live.start(memberId, body, getRequestId(req));
+  }
+
+  @ApiBearerAuth()
+  @Get("me/live")
+  @ApiOperation({ summary: "Current live session for the signed-in member" })
+  async currentLive(@CurrentUser("memberId") memberId: string): Promise<LivePresenceView> {
+    return { live: await this.live.current(memberId) };
   }
 
   @ApiBearerAuth()
@@ -60,10 +82,37 @@ export class StoriesController {
   }
 
   @ApiBearerAuth()
+  @Get("stories/composer")
+  @ApiOperation({ summary: "Caption palette, duration caps, and Patron count" })
+  composerConfig(@CurrentUser("memberId") memberId: string): Promise<StoryComposerConfig> {
+    return this.stories.composerConfig(memberId);
+  }
+
+  @ApiBearerAuth()
+  @Get("stories/audio")
+  @ApiOperation({ summary: "HASUT cloud soundtracks a member can attach" })
+  listAudio(): Promise<AudioTrackView[]> {
+    return this.audio.listActive();
+  }
+
+  @ApiBearerAuth()
+  @Get("stories/:memberId/live")
+  @ApiOperation({ summary: "Live session for a nearby member, filtered by audience" })
+  async liveForMember(
+    @CurrentUser("memberId") viewerId: string,
+    @Param("memberId") ownerId: string,
+  ): Promise<LivePresenceView> {
+    return { live: await this.live.forViewer(ownerId, viewerId) };
+  }
+
+  @ApiBearerAuth()
   @Get("stories/:memberId")
-  @ApiOperation({ summary: "Active stories for a nearby member" })
-  listForMember(@Param("memberId") memberId: string): Promise<StoryView[]> {
-    return this.stories.listMine(memberId);
+  @ApiOperation({ summary: "Active stories for a nearby member, filtered by audience" })
+  listForMember(
+    @CurrentUser("memberId") viewerId: string,
+    @Param("memberId") ownerId: string,
+  ): Promise<StoryView[]> {
+    return this.stories.listForViewer(ownerId, viewerId);
   }
 
   @ApiBearerAuth()
@@ -105,5 +154,46 @@ export class StoriesController {
     @Req() req: Request,
   ): Promise<LiveSessionView> {
     return this.live.endById(user.memberId, user.roles, liveId, getRequestId(req));
+  }
+
+  @ApiBearerAuth()
+  @Roles("ADMIN", "MODERATOR")
+  @Get("admin/stories/audio")
+  @ApiOperation({ summary: "Full soundtrack catalogue including retired tracks" })
+  listAudioAdmin(@CurrentUser() user: RequestAuthContext): Promise<AudioTrackView[]> {
+    return this.audio.listAll(user.roles);
+  }
+
+  @ApiBearerAuth()
+  @Roles("ADMIN", "MODERATOR")
+  @Post("admin/stories/audio")
+  @ApiOperation({ summary: "Add a soundtrack to the HASUT cloud library" })
+  createAudio(
+    @CurrentUser() user: RequestAuthContext,
+    @Body(new ZodValidationPipe(audioTrackUpsertSchema))
+    body: z.infer<typeof audioTrackUpsertSchema>,
+    @Req() req: Request,
+  ): Promise<AudioTrackView> {
+    return this.audio.create(user.memberId, user.roles, body, getRequestId(req));
+  }
+
+  @ApiBearerAuth()
+  @Roles("ADMIN", "MODERATOR")
+  @Patch("admin/stories/audio/:id")
+  @ApiOperation({ summary: "Retire or restore a soundtrack" })
+  setAudioActive(
+    @CurrentUser() user: RequestAuthContext,
+    @Param("id") trackId: string,
+    @Body(new ZodValidationPipe(audioTrackActiveSchema))
+    body: z.infer<typeof audioTrackActiveSchema>,
+    @Req() req: Request,
+  ): Promise<AudioTrackView> {
+    return this.audio.setActive(
+      user.memberId,
+      user.roles,
+      trackId,
+      body.isActive,
+      getRequestId(req),
+    );
   }
 }

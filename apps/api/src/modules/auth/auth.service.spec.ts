@@ -8,16 +8,23 @@ import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
 import { AuthService } from "./auth.service";
 import { OtpCodeGenerator } from "./otp-code.generator";
+import { CAPTCHA_VERIFIER } from "./providers/captcha-verifier";
+import { EMAIL_PROVIDER } from "./providers/email-provider";
 import { OTP_PROVIDER } from "./providers/otp-provider";
 import { RateLimitService } from "./rate-limit.service";
 import { SECRET_HASHER } from "./secret-hasher";
 import { TokenService } from "./token.service";
 
 const PHONE = "+919876543210";
+const EMAIL = "jegan@example.com";
 const CONTEXT = { ip: "127.0.0.1", userAgent: "jest", requestId: "req-auth" };
 const MEMBER = {
   id: "member-1",
   phoneE164: PHONE,
+  email: null,
+  emailVerified: false,
+  hasPassword: false,
+  twoFactorEnabled: false,
   status: "ACTIVE" as const,
   roles: ["MEMBER" as const],
   createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
@@ -36,6 +43,7 @@ describe("AuthService", () => {
     otpChallenge: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
     session: {
@@ -48,6 +56,7 @@ describe("AuthService", () => {
   };
   const users = {
     upsertByPhone: jest.fn(),
+    upsertByEmail: jest.fn(),
     toCurrentMember: jest.fn(),
   };
   const configuration = {
@@ -71,6 +80,13 @@ describe("AuthService", () => {
     verifyOtp: jest.fn(),
     resendOtp: jest.fn(),
   };
+  const emailProvider = {
+    sendOtp: jest.fn(),
+  };
+  const captcha = {
+    required: false,
+    assertHuman: jest.fn(),
+  };
   const hasher = {
     hash: jest.fn(async (plain: string) => `hash:${plain}`),
     verify: jest.fn(async (hashed: string, plain: string) => hashed === `hash:${plain}`),
@@ -80,7 +96,7 @@ describe("AuthService", () => {
       if (key === "NODE_ENV") {
         return "test";
       }
-      if (key === "OTP_PROVIDER") {
+      if (key === "OTP_PROVIDER" || key === "EMAIL_PROVIDER") {
         return "console";
       }
       return undefined;
@@ -100,6 +116,8 @@ describe("AuthService", () => {
         { provide: OtpCodeGenerator, useValue: codes },
         { provide: ConfigService, useValue: config },
         { provide: OTP_PROVIDER, useValue: otpProvider },
+        { provide: EMAIL_PROVIDER, useValue: emailProvider },
+        { provide: CAPTCHA_VERIFIER, useValue: captcha },
         { provide: SECRET_HASHER, useValue: hasher },
       ],
     }).compile();
@@ -118,18 +136,24 @@ describe("AuthService", () => {
     otpProvider.sendOtp.mockResolvedValue({});
     otpProvider.resendOtp.mockResolvedValue({});
     otpProvider.style = "transport";
+    emailProvider.sendOtp.mockResolvedValue({});
+    captcha.assertHuman.mockResolvedValue(undefined);
     codes.generate.mockReturnValue("123456");
     tokens.signAccess.mockReturnValue("access.jwt");
     users.upsertByPhone.mockResolvedValue(MEMBER);
+    users.upsertByEmail.mockResolvedValue({ ...MEMBER, email: EMAIL, emailVerified: true });
     users.toCurrentMember.mockReturnValue(MEMBER);
     prisma.session.findMany.mockResolvedValue([]);
     prisma.session.updateMany.mockResolvedValue({ count: 0 });
   });
 
-  it("accepts a valid OTP and issues tokens", async () => {
-    const challenge = {
+  function challengeRow(overrides: Record<string, unknown> = {}) {
+    return {
       id: "challenge-1",
+      channel: "SMS",
       phoneE164: PHONE,
+      email: null,
+      memberId: null,
       codeHash: "hash:123456",
       purpose: "LOGIN",
       expiresAt: futureDate(),
@@ -137,9 +161,19 @@ describe("AuthService", () => {
       maxAttempts: 5,
       lastSentAt: new Date(),
       consumedAt: null,
+      ...overrides,
     };
-    prisma.otpChallenge.findFirst.mockResolvedValue(challenge);
-    prisma.otpChallenge.update.mockResolvedValue({ ...challenge, attemptCount: 1 });
+  }
+
+  /** `verifyOtp` locates the challenge, then `consumeChallenge` reloads it by id. */
+  function stageChallenge(row: ReturnType<typeof challengeRow>): void {
+    prisma.otpChallenge.findFirst.mockResolvedValue(row);
+    prisma.otpChallenge.findUnique.mockResolvedValue(row);
+    prisma.otpChallenge.update.mockResolvedValue({ ...row, attemptCount: row.attemptCount + 1 });
+  }
+
+  it("accepts a valid OTP and issues tokens", async () => {
+    stageChallenge(challengeRow());
     prisma.session.create.mockResolvedValue({
       id: "session-1",
       memberId: MEMBER.id,
@@ -157,20 +191,62 @@ describe("AuthService", () => {
     expect(otpProvider.sendOtp).not.toHaveBeenCalled();
   });
 
+  it("signs in through an email code and upserts by email", async () => {
+    stageChallenge(challengeRow({ channel: "EMAIL", phoneE164: null, email: EMAIL }));
+    prisma.session.create.mockResolvedValue({ id: "session-2", memberId: MEMBER.id });
+
+    const service = await createService();
+    const result = await service.verifyOtp(
+      { email: EMAIL, code: "123456", purpose: "LOGIN" },
+      CONTEXT,
+    );
+
+    expect(users.upsertByEmail).toHaveBeenCalledWith(EMAIL);
+    expect(users.upsertByPhone).not.toHaveBeenCalled();
+    expect(result.tokens.accessToken).toBe("access.jwt");
+  });
+
+  it("sends an email code through the email provider, not the SMS provider", async () => {
+    prisma.otpChallenge.findFirst.mockResolvedValue(null);
+    prisma.otpChallenge.create.mockResolvedValue(
+      challengeRow({ channel: "EMAIL", phoneE164: null, email: EMAIL }),
+    );
+
+    const service = await createService();
+    const receipt = await service.requestOtp({ email: EMAIL, purpose: "LOGIN" }, CONTEXT);
+
+    expect(emailProvider.sendOtp).toHaveBeenCalledWith(
+      expect.objectContaining({ email: EMAIL, code: "123456" }),
+    );
+    expect(otpProvider.sendOtp).not.toHaveBeenCalled();
+    expect(receipt.channel).toBe("EMAIL");
+    expect(receipt.destinationHint).toBe("je•••@example.com");
+  });
+
+  it("never returns a full destination on the receipt", async () => {
+    prisma.otpChallenge.findFirst.mockResolvedValue(null);
+    prisma.otpChallenge.create.mockResolvedValue(challengeRow());
+
+    const service = await createService();
+    const receipt = await service.requestOtp({ phone: PHONE, purpose: "LOGIN" }, CONTEXT);
+
+    expect(receipt.destinationHint).toBe("•••••• 3210");
+    expect(JSON.stringify(receipt)).not.toContain(PHONE);
+  });
+
+  it("refuses to mint a reset or two-factor code from the public endpoint", async () => {
+    const service = await createService();
+    await expect(
+      service.requestOtp({ phone: PHONE, purpose: "PASSWORD_RESET" }, CONTEXT),
+    ).rejects.toMatchObject({ errorCode: "VALIDATION_ERROR" });
+    await expect(
+      service.requestOtp({ phone: PHONE, purpose: "TWO_FACTOR" }, CONTEXT),
+    ).rejects.toMatchObject({ errorCode: "VALIDATION_ERROR" });
+    expect(prisma.otpChallenge.create).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid OTP", async () => {
-    const challenge = {
-      id: "challenge-1",
-      phoneE164: PHONE,
-      codeHash: "hash:123456",
-      purpose: "LOGIN",
-      expiresAt: futureDate(),
-      attemptCount: 0,
-      maxAttempts: 5,
-      lastSentAt: new Date(),
-      consumedAt: null,
-    };
-    prisma.otpChallenge.findFirst.mockResolvedValue(challenge);
-    prisma.otpChallenge.update.mockResolvedValue({ ...challenge, attemptCount: 1 });
+    stageChallenge(challengeRow());
 
     const service = await createService();
     await expect(
@@ -182,17 +258,7 @@ describe("AuthService", () => {
   });
 
   it("rejects an expired OTP", async () => {
-    prisma.otpChallenge.findFirst.mockResolvedValue({
-      id: "challenge-1",
-      phoneE164: PHONE,
-      codeHash: "hash:123456",
-      purpose: "LOGIN",
-      expiresAt: pastDate(),
-      attemptCount: 0,
-      maxAttempts: 5,
-      lastSentAt: pastDate(),
-      consumedAt: null,
-    });
+    stageChallenge(challengeRow({ expiresAt: pastDate(), lastSentAt: pastDate() }));
 
     const service = await createService();
     await expect(
@@ -202,17 +268,7 @@ describe("AuthService", () => {
   });
 
   it("rejects too many verification attempts", async () => {
-    prisma.otpChallenge.findFirst.mockResolvedValue({
-      id: "challenge-1",
-      phoneE164: PHONE,
-      codeHash: "hash:123456",
-      purpose: "LOGIN",
-      expiresAt: futureDate(),
-      attemptCount: 5,
-      maxAttempts: 5,
-      lastSentAt: new Date(),
-      consumedAt: null,
-    });
+    stageChallenge(challengeRow({ attemptCount: 5 }));
 
     const service = await createService();
     await expect(
@@ -221,17 +277,7 @@ describe("AuthService", () => {
   });
 
   it("enforces resend cooldown", async () => {
-    prisma.otpChallenge.findFirst.mockResolvedValue({
-      id: "challenge-1",
-      phoneE164: PHONE,
-      codeHash: "hash:123456",
-      purpose: "LOGIN",
-      expiresAt: futureDate(),
-      attemptCount: 0,
-      maxAttempts: 5,
-      lastSentAt: new Date(),
-      consumedAt: null,
-    });
+    stageChallenge(challengeRow());
 
     const service = await createService();
     await expect(
@@ -277,6 +323,10 @@ describe("AuthService", () => {
       member: {
         id: MEMBER.id,
         phoneE164: PHONE,
+        email: null,
+        emailVerifiedAt: null,
+        passwordHash: null,
+        twoFactorEnabled: false,
         status: "ACTIVE",
         createdAt: new Date(MEMBER.createdAt),
         roles: [{ role: "MEMBER" }],
@@ -310,7 +360,7 @@ describe("AuthService", () => {
 
   it("surfaces rate-limit failures from the rate limiter", async () => {
     rateLimit.assertOtpAllowed.mockRejectedValue(
-      new HasutHttpException("RATE_LIMITED", "Too many OTP requests for this phone", 429),
+      new HasutHttpException("RATE_LIMITED", "Too many verification codes requested", 429),
     );
     prisma.otpChallenge.findFirst.mockResolvedValue(null);
 

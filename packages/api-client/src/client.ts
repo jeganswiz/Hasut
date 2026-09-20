@@ -4,10 +4,15 @@ import {
   fail,
   type ApiEnvelope,
   type ApiFailure,
+  type AuthClientConfig,
+  type AuthLoginResult,
   type AuthSessionView,
   type AuthTokens,
   type AuthVerifyResult,
   type CurrentMember,
+  type IdentityProviderName,
+  type PasswordResetTicket,
+  type PasswordUpdateResult,
   type HealthData,
   type LogoutAllResult,
   type LogoutResult,
@@ -63,16 +68,25 @@ import {
   type ReviewView,
   type ServiceOfferingView,
   type StoryView,
+  type AudioTrackView,
+  type StoryAudience,
+  type StoryAudioSource,
+  type StoryComposerConfig,
+  type StoryOriginalAudioMode,
   type LiveSessionView,
   type ThemeTokens,
 } from "@hasut/types";
 import { createRequestId, normalizeRequestId } from "@hasut/utils";
 import {
   apiFailureSchema,
+  authClientConfigSchema,
+  authLoginResultSchema,
   authSessionListSchema,
   authTokensSchema,
   authVerifyResultSchema,
   currentMemberSchema,
+  passwordResetTicketSchema,
+  passwordUpdateResultSchema,
   healthDataSchema,
   logoutAllResultSchema,
   currentModeListSchema,
@@ -141,6 +155,10 @@ import {
   reviewAggregateViewSchema,
   storyListSchema,
   storyViewSchema,
+  storyComposerConfigSchema,
+  audioTrackListSchema,
+  audioTrackViewSchema,
+  livePresenceViewSchema,
   liveSessionListSchema,
   liveSessionViewSchema,
 } from "@hasut/validation";
@@ -162,6 +180,47 @@ export interface HasutApiClientOptions {
   tokenStorage?: TokenStorage;
   http?: HasutHttpAdapter;
   getRequestId?: () => string;
+}
+
+/** A one-time code goes to a phone or an email, never both. */
+export interface OtpDestinationInput {
+  phone?: string;
+  email?: string;
+  purpose?: "LOGIN" | "REAUTH" | "PASSWORD_RESET" | "TWO_FACTOR";
+  deviceId?: string;
+  captchaToken?: string;
+}
+
+export interface StoryAudioInput {
+  source: StoryAudioSource;
+  /** Set when `source` is `LIBRARY`. */
+  trackId?: string | null;
+  /** Set when `source` is `UPLOAD`. */
+  mediaId?: string | null;
+  startSeconds?: number;
+  endSeconds?: number | null;
+}
+
+export interface StoryCreateInput {
+  kind: "IMAGE" | "VIDEO";
+  imageMediaId?: string;
+  videoMediaId?: string;
+  caption?: string;
+  captionColor?: string | null;
+  audio?: StoryAudioInput;
+  originalAudioMode?: StoryOriginalAudioMode;
+  audience?: StoryAudience;
+  trimStartSeconds?: number;
+  trimEndSeconds?: number | null;
+}
+
+export interface AudioTrackUpsertInput {
+  title: string;
+  artist: string;
+  mediaId: string;
+  durationSeconds: number;
+  mood: string;
+  isActive?: boolean;
 }
 
 function headersToRecord(headers: Headers): Record<string, string> {
@@ -241,11 +300,14 @@ export class HasutApiClient {
     return result.data;
   }
 
-  async requestOtp(body: {
-    phone: string;
-    purpose?: "LOGIN" | "REAUTH";
-    deviceId?: string;
-  }): Promise<OtpChallengeReceipt> {
+  async authConfig(): Promise<AuthClientConfig> {
+    const result = await this.request(authClientConfigSchema, "/api/v1/auth/config", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async requestOtp(body: OtpDestinationInput): Promise<OtpChallengeReceipt> {
     const result = await this.request(otpChallengeReceiptSchema, "/api/v1/auth/otp/request", {
       method: "POST",
       body: JSON.stringify(body),
@@ -253,12 +315,7 @@ export class HasutApiClient {
     return result.data;
   }
 
-  async verifyOtp(body: {
-    phone: string;
-    code: string;
-    purpose?: "LOGIN" | "REAUTH";
-    deviceId?: string;
-  }): Promise<AuthVerifyResult> {
+  async verifyOtp(body: OtpDestinationInput & { code: string }): Promise<AuthVerifyResult> {
     const result = await this.request(authVerifyResultSchema, "/api/v1/auth/otp/verify", {
       method: "POST",
       body: JSON.stringify(body),
@@ -266,14 +323,114 @@ export class HasutApiClient {
     return result.data;
   }
 
-  async resendOtp(body: {
-    phone: string;
-    purpose?: "LOGIN" | "REAUTH";
-    deviceId?: string;
-  }): Promise<OtpChallengeReceipt> {
+  async resendOtp(body: OtpDestinationInput): Promise<OtpChallengeReceipt> {
     const result = await this.request(otpChallengeReceiptSchema, "/api/v1/auth/otp/resend", {
       method: "POST",
       body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async register(body: {
+    email: string;
+    password: string;
+    displayName: string;
+    phone?: string;
+    deviceId?: string;
+    captchaToken?: string;
+  }): Promise<AuthVerifyResult> {
+    const result = await this.request(authVerifyResultSchema, "/api/v1/auth/password/register", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async loginWithPassword(body: {
+    email: string;
+    password: string;
+    deviceId?: string;
+    captchaToken?: string;
+  }): Promise<AuthLoginResult> {
+    const result = await this.request(authLoginResultSchema, "/api/v1/auth/password/login", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async verifyTwoFactor(body: {
+    challengeId: string;
+    code: string;
+    deviceId?: string;
+    captchaToken?: string;
+  }): Promise<AuthVerifyResult> {
+    const result = await this.request(authVerifyResultSchema, "/api/v1/auth/two-factor/verify", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async loginWithSso(body: {
+    provider: IdentityProviderName;
+    token: string;
+    deviceId?: string;
+    captchaToken?: string;
+  }): Promise<AuthVerifyResult> {
+    const result = await this.request(authVerifyResultSchema, "/api/v1/auth/sso", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async forgotPassword(
+    body: OtpDestinationInput & { captchaToken?: string },
+  ): Promise<OtpChallengeReceipt> {
+    const result = await this.request(otpChallengeReceiptSchema, "/api/v1/auth/password/forgot", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async verifyPasswordReset(body: {
+    challengeId: string;
+    code: string;
+    captchaToken?: string;
+  }): Promise<PasswordResetTicket> {
+    const result = await this.request(
+      passwordResetTicketSchema,
+      "/api/v1/auth/password/reset/verify",
+      { method: "POST", body: JSON.stringify(body) },
+    );
+    return result.data;
+  }
+
+  async resetPassword(body: { ticket: string; password: string }): Promise<PasswordUpdateResult> {
+    const result = await this.request(passwordUpdateResultSchema, "/api/v1/auth/password/reset", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async changePassword(body: {
+    currentPassword: string;
+    password: string;
+  }): Promise<PasswordUpdateResult> {
+    const result = await this.request(passwordUpdateResultSchema, "/api/v1/auth/password", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async setTwoFactor(enabled: boolean): Promise<CurrentMember> {
+    const result = await this.request(currentMemberSchema, "/api/v1/auth/two-factor", {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
     });
     return result.data;
   }
@@ -1304,17 +1461,24 @@ export class HasutApiClient {
     return result.data;
   }
 
-  async createStory(body: {
-    kind: "IMAGE" | "VIDEO";
-    imageMediaId?: string;
-    videoMediaId?: string;
-    audioMediaId?: string | null;
-    trimStartSeconds?: number;
-    trimEndSeconds?: number;
-  }): Promise<StoryView> {
+  async createStory(body: StoryCreateInput): Promise<StoryView> {
     const result = await this.request(storyViewSchema, "/api/v1/me/stories", {
       method: "POST",
       body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async storyComposerConfig(): Promise<StoryComposerConfig> {
+    const result = await this.request(storyComposerConfigSchema, "/api/v1/stories/composer", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listAudioTracks(): Promise<AudioTrackView[]> {
+    const result = await this.request(audioTrackListSchema, "/api/v1/stories/audio", {
+      method: "GET",
     });
     return result.data;
   }
@@ -1331,10 +1495,26 @@ export class HasutApiClient {
     return result.data;
   }
 
-  async startLive(): Promise<LiveSessionView> {
+  async getMyLive(): Promise<LiveSessionView | null> {
+    const result = await this.request(livePresenceViewSchema, "/api/v1/me/live", {
+      method: "GET",
+    });
+    return result.data.live;
+  }
+
+  async getMemberLive(memberId: string): Promise<LiveSessionView | null> {
+    const result = await this.request(livePresenceViewSchema, `/api/v1/stories/${memberId}/live`, {
+      method: "GET",
+    });
+    return result.data.live;
+  }
+
+  async startLive(
+    body: { title?: string; audience?: StoryAudience } = {},
+  ): Promise<LiveSessionView> {
     const result = await this.request(liveSessionViewSchema, "/api/v1/me/live", {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     });
     return result.data;
   }
@@ -1370,6 +1550,30 @@ export class HasutApiClient {
     const result = await this.request(liveSessionViewSchema, `/api/v1/admin/live/${liveId}/end`, {
       method: "POST",
     });
+    return result.data;
+  }
+
+  async listAdminAudioTracks(): Promise<AudioTrackView[]> {
+    const result = await this.request(audioTrackListSchema, "/api/v1/admin/stories/audio", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async createAudioTrack(body: AudioTrackUpsertInput): Promise<AudioTrackView> {
+    const result = await this.request(audioTrackViewSchema, "/api/v1/admin/stories/audio", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async setAudioTrackActive(trackId: string, isActive: boolean): Promise<AudioTrackView> {
+    const result = await this.request(
+      audioTrackViewSchema,
+      `/api/v1/admin/stories/audio/${trackId}`,
+      { method: "PATCH", body: JSON.stringify({ isActive }) },
+    );
     return result.data;
   }
 
