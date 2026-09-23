@@ -1,7 +1,9 @@
+import { STORY_POLICY_DEFAULTS } from "@hasut/config";
 import { Test } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { AuditService } from "../audit/audit.service";
+import { ConfigurationService } from "../configuration/configuration.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveService } from "./live.service";
 import { PatronsService } from "./patrons.service";
@@ -16,10 +18,12 @@ describe("LiveService", () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
   };
   const stories = { assertEnabled: jest.fn() };
   const patrons = { isPatronOf: jest.fn() };
+  const configuration = { getStoryPolicy: jest.fn() };
   const audit = { record: jest.fn() };
   const config = { get: jest.fn().mockReturnValue("") };
 
@@ -30,6 +34,7 @@ describe("LiveService", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: StoriesService, useValue: stories },
         { provide: PatronsService, useValue: patrons },
+        { provide: ConfigurationService, useValue: configuration },
         { provide: AuditService, useValue: audit },
         { provide: ConfigService, useValue: config },
       ],
@@ -41,6 +46,8 @@ describe("LiveService", () => {
     jest.resetAllMocks();
     stories.assertEnabled.mockResolvedValue(undefined);
     patrons.isPatronOf.mockResolvedValue(false);
+    configuration.getStoryPolicy.mockResolvedValue(STORY_POLICY_DEFAULTS);
+    prisma.liveSession.count.mockResolvedValue(0);
     audit.record.mockResolvedValue(undefined);
     config.get.mockReturnValue("");
   });
@@ -65,8 +72,16 @@ describe("LiveService", () => {
     prisma.liveSession.create.mockResolvedValue(startedRow());
     const live = await service();
     const created = await live.start("m1", {}, "req");
+    expect(prisma.liveSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          hlsUrl: expect.stringContaining("/live/"),
+          previewHlsUrl: expect.stringContaining("/index.m3u8"),
+          ingestUrl: expect.stringContaining("/media/whip/"),
+        }),
+      }),
+    );
     expect(created.status).toBe("LIVE");
-    expect(created.previewHlsUrl).toContain("preview.m3u8");
     expect(created.title).toBe("");
   });
 
@@ -93,6 +108,15 @@ describe("LiveService", () => {
       expect.objectContaining({ data: expect.objectContaining({ audience: "PATRONS" }) }),
     );
     expect(created.audience).toBe("PATRONS");
+  });
+
+  it("refuses another live once the hourly cap is full", async () => {
+    prisma.liveSession.count.mockResolvedValue(STORY_POLICY_DEFAULTS.maxLiveStartsPerHour);
+    const live = await service();
+    await expect(live.start("m1", { title: "Again" }, "req")).rejects.toBeInstanceOf(
+      HasutHttpException,
+    );
+    expect(prisma.liveSession.create).not.toHaveBeenCalled();
   });
 
   it("defaults a live to everyone", async () => {

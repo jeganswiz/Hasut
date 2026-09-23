@@ -177,5 +177,6 @@ export {
   storyListSchema,
   storyModerateSchema,
   storyOriginalAudioModeSchema,
+  storyPlaybackStatusSchema,
   storyViewSchema,
 } from "./stories";

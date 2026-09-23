@@ -617,6 +617,11 @@ enum StoryAudience {
   PATRONS
 }
 
+enum StoryPlaybackStatus {
+  PENDING
+  READY
+}
+
 /// Admin-curated soundtrack a member can attach to a story. Licensing is vetted
 /// once here instead of per upload.
 model AudioTrack {
@@ -654,6 +659,7 @@ model Story {
   trimEndSeconds    Int?                   @map("trim_end_seconds")
   hlsUrl            String?                @map("hls_url")
   previewHlsUrl     String?                @map("preview_hls_url")
+  playbackStatus    StoryPlaybackStatus    @default(READY) @map("playback_status")
   expiresAt         DateTime               @map("expires_at") @db.Timestamptz(6)
   moderationStatus  StoryModerationStatus  @default(ACTIVE) @map("moderation_status")
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)

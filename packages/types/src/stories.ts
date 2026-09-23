@@ -32,6 +32,10 @@ export const STORY_CAPTION_MAX_LENGTH = 180;
 export const STORY_AUDIENCES = ["EVERYONE", "PATRONS"] as const;
 export type StoryAudience = (typeof STORY_AUDIENCES)[number];
 
+/** Video stays PENDING until a playlist exists. Images are READY immediately. */
+export const STORY_PLAYBACK_STATUSES = ["PENDING", "READY"] as const;
+export type StoryPlaybackStatus = (typeof STORY_PLAYBACK_STATUSES)[number];
+
 /** A HASUT-cloud soundtrack a member can attach to a story. Admin curated. */
 export interface AudioTrackView {
   id: string;
@@ -70,6 +74,7 @@ export interface StoryView {
   trimEndSeconds: number | null;
   originalAudioMode: StoryOriginalAudioMode;
   audience: StoryAudience;
+  playbackStatus: StoryPlaybackStatus;
   expiresAt: string;
   moderationStatus: StoryModerationStatus;
   createdAt: string;
@@ -106,4 +111,6 @@ export interface StoryComposerConfig {
   audioLibraryEnabled: boolean;
   /** How many accepted connections the member has, to label the Patrons option. */
   patronCount: number;
+  maxActiveStories: number;
+  storyTtlHours: number;
 }

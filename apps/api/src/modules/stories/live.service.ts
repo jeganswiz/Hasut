@@ -6,12 +6,15 @@ import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { assertModerationAccess } from "../../common/auth/staff-auth";
 import type { ApiEnv } from "../../config/env";
 import { AuditService } from "../audit/audit.service";
+import { ConfigurationService } from "../configuration/configuration.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { livePlaybackUrls } from "./playback-origin";
 import { PatronsService } from "./patrons.service";
 import { StoriesService } from "./stories.service";
 
 /** Mirrors `liveStartSchema`; the slice is belt and braces behind validation. */
 const TITLE_MAX_LENGTH = 80;
+const HOUR_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class LiveService {
@@ -19,6 +22,7 @@ export class LiveService {
     private readonly prisma: PrismaService,
     private readonly stories: StoriesService,
     private readonly patrons: PatronsService,
+    private readonly configuration: ConfigurationService,
     private readonly audit: AuditService,
     private readonly config: ConfigService<ApiEnv, true>,
   ) {}
@@ -29,13 +33,27 @@ export class LiveService {
     requestId: string,
   ): Promise<LiveSessionView> {
     await this.stories.assertEnabled();
+    const policy = await this.configuration.getStoryPolicy();
+    const recent = await this.prisma.liveSession.count({
+      where: { memberId, startedAt: { gt: new Date(Date.now() - HOUR_MS) } },
+    });
+    if (recent >= policy.maxLiveStartsPerHour) {
+      throw new HasutHttpException(
+        "RATE_LIMITED",
+        "Too many live sessions in the last hour. Try again later.",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
     await this.prisma.liveSession.updateMany({
       where: { memberId, status: "LIVE" },
       data: { status: "ENDED", endedAt: new Date() },
     });
     const id = randomUUID();
-    const base = this.config.get("LIVE_HLS_BASE_URL", { infer: true });
-    const origin = base.length > 0 ? base.replace(/\/$/, "") : "/media/hls";
+    const urls = livePlaybackUrls(
+      id,
+      this.config.get("LIVE_HLS_BASE_URL", { infer: true }),
+      this.config.get("LIVE_WHIP_BASE_URL", { infer: true }),
+    );
     const created = await this.prisma.liveSession.create({
       data: {
         id,
@@ -43,9 +61,9 @@ export class LiveService {
         title: (input.title ?? "").trim().slice(0, TITLE_MAX_LENGTH),
         audience: input.audience ?? "EVERYONE",
         status: "LIVE",
-        hlsUrl: `${origin}/live/${id}/index.m3u8`,
-        previewHlsUrl: `${origin}/live/${id}/preview.m3u8`,
-        ingestUrl: `${origin}/whip/${id}`,
+        hlsUrl: urls.hlsUrl,
+        previewHlsUrl: urls.previewHlsUrl,
+        ingestUrl: urls.ingestUrl,
       },
     });
     await this.audit.record({

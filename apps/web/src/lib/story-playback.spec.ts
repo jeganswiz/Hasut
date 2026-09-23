@@ -24,6 +24,7 @@ function story(overrides: Partial<StoryView> = {}): StoryView {
     trimEndSeconds: 18,
     originalAudioMode: "MUTE",
     audience: "EVERYONE",
+    playbackStatus: "READY",
     expiresAt: "2026-09-21T00:00:00.000Z",
     moderationStatus: "ACTIVE",
     createdAt: "2026-09-20T00:00:00.000Z",

@@ -60,6 +60,9 @@ export const apiEnvSchema = z
     MAPTILER_API_KEY: z.string().optional().default(""),
     STADIA_API_KEY: z.string().optional().default(""),
     LIVE_HLS_BASE_URL: z.string().optional().default(""),
+    LIVE_WHIP_BASE_URL: z.string().optional().default(""),
+    /** Empty leaves video stories PENDING. A path runs the story HLS worker. */
+    FFMPEG_PATH: z.string().optional().default(""),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === "production" && value.OTP_PROVIDER === "console") {

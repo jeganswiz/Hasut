@@ -4,8 +4,15 @@ import { join } from "node:path";
 const FRONTEND_FILES = [
   "src/components/discovery-experience.tsx",
   "src/components/discovery-map.tsx",
+  "src/components/app-nav.tsx",
+  "src/components/search-suggest.tsx",
+  "src/components/nav-icons.tsx",
+  "src/components/native-scroller.tsx",
+  "src/components/toast-stack.tsx",
   "src/lib/use-discovery-map.ts",
+  "src/lib/discovery-chrome.ts",
   "src/app/discovery.css",
+  "src/app/globals.css",
 ];
 
 describe("web discovery source", () => {

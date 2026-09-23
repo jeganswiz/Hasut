@@ -1,14 +1,27 @@
 "use client";
 
 import type { DiscoveryCard, DiscoveryPreview } from "@hasut/types";
-import { BottomSheet, FilterChip, NearbyCard, SearchBar, ServiceCard } from "@hasut/ui";
+import { BottomSheet, FilterChip, NearbyCard, ServiceCard } from "@hasut/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { flattenCategories } from "../lib/categories";
+import {
+  buildSearchSuggestions,
+  isDiscoveryAlert,
+  nextToasts,
+  type SearchSuggestion,
+  type ToastNote,
+} from "../lib/discovery-chrome";
+import { useDiscoveryMapController } from "../lib/use-discovery-map";
 import { AppNav } from "./app-nav";
 import { DiscoveryMap } from "./discovery-map";
-import { flattenCategories } from "../lib/categories";
-import { useDiscoveryMapController } from "../lib/use-discovery-map";
+import { NativeScroller } from "./native-scroller";
+import { SearchSuggest } from "./search-suggest";
+import { ToastStack } from "./toast-stack";
 
 export function DiscoveryExperience() {
   const discovery = useDiscoveryMapController();
+  const [toasts, setToasts] = useState<ToastNote[]>([]);
+  const toastTimers = useRef<number[]>([]);
   const selected = discovery.result?.items.find((item) => item.id === discovery.selectedId) ?? null;
   const cards = discovery.result?.items ?? [];
   const services = discovery.result?.items.filter((item) => item.kind === "PROFESSIONAL") ?? [];
@@ -17,36 +30,75 @@ export function DiscoveryExperience() {
     discovery.policy !== null &&
     discovery.acceptedCoords.latitude === discovery.policy.demoLatitude &&
     discovery.acceptedCoords.longitude === discovery.policy.demoLongitude;
+  const categories = useMemo(() => flattenCategories(discovery.categories), [discovery.categories]);
+  const suggestions = useMemo(
+    () =>
+      buildSearchSuggestions({
+        query: discovery.query,
+        items: discovery.suggestionQuery === discovery.query.trim() ? discovery.suggestions : [],
+        categories,
+        prefiltered: true,
+      }),
+    [categories, discovery.query, discovery.suggestionQuery, discovery.suggestions],
+  );
+
+  useEffect(() => {
+    if (!isDiscoveryAlert(discovery.load, discovery.message)) {
+      return;
+    }
+    const id = discovery.statusTick;
+    const text = discovery.message;
+    setToasts((current) => nextToasts(current, text, id));
+    const timer = window.setTimeout(() => {
+      setToasts((current) => current.filter((item) => item.id !== id));
+    }, 4600);
+    toastTimers.current.push(timer);
+  }, [discovery.load, discovery.message, discovery.statusTick]);
+
+  useEffect(() => {
+    const timers = toastTimers.current;
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, []);
+
+  function pickSuggestion(suggestion: SearchSuggestion): void {
+    if (suggestion.group === "Service") {
+      discovery.setCategoryId(suggestion.categoryId);
+      discovery.setQuery(suggestion.label);
+      return;
+    }
+    discovery.setQuery(suggestion.label);
+    discovery.setSelectedId(suggestion.itemId);
+  }
 
   return (
     <div className="discovery-shell">
-      <DiscoveryMap
-        tileUrl={discovery.policy?.mapTileUrl ?? ""}
-        fallbackTileUrls={discovery.policy?.mapFallbackTileUrls ?? []}
-        attribution={discovery.policy?.mapAttribution}
-        center={discovery.acceptedCoords}
-        overlay={discovery.overlayCoords}
-        panCellId={discovery.panCellId}
-        markers={discovery.result?.markers ?? []}
-        clusters={discovery.result?.clusters ?? []}
-        selectedId={discovery.selectedId}
-        onSelect={discovery.setSelectedId}
-      />
-      <div className="discovery-overlay">
-        <div className="discovery-top">
-          <AppNav />
-          <SearchBar
-            placeholder="Search service"
-            value={discovery.query}
-            onChange={(event) => discovery.setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                discovery.searchNearby();
-              }
-            }}
+      <AppNav />
+      <ToastStack toasts={toasts} />
+      <div className="discovery-stage" data-map-stage>
+        <DiscoveryMap
+          tileUrl={discovery.policy?.mapTileUrl ?? ""}
+          fallbackTileUrls={discovery.policy?.mapFallbackTileUrls ?? []}
+          attribution={discovery.policy?.mapAttribution}
+          center={discovery.acceptedCoords}
+          overlay={discovery.overlayCoords}
+          panCellId={discovery.panCellId}
+          markers={discovery.result?.markers ?? []}
+          clusters={discovery.result?.clusters ?? []}
+          selectedId={discovery.selectedId}
+          onSelect={discovery.setSelectedId}
+        />
+        <div className="discovery-float">
+          <SearchSuggest
+            query={discovery.query}
+            suggestions={suggestions}
+            onQueryChange={discovery.setQuery}
+            onPick={pickSuggestion}
           />
-          <p className="discovery-status">{discovery.message}</p>
-          <div className="discovery-filters">
+          <NativeScroller className="discovery-filters" label="Discovery filters">
             {(discovery.policy?.radiusOptionsMeters ?? []).map((option) => (
               <FilterChip
                 key={option}
@@ -91,7 +143,7 @@ export function DiscoveryExperience() {
             <FilterChip active={demoActive} onClick={() => discovery.useDemoArea()}>
               Seeded area
             </FilterChip>
-            {flattenCategories(discovery.categories).map((category) => (
+            {categories.map((category) => (
               <FilterChip
                 key={category.id}
                 active={discovery.categoryId === category.id}
@@ -104,55 +156,55 @@ export function DiscoveryExperience() {
                 {category.name}
               </FilterChip>
             ))}
-          </div>
-        </div>
-        <div className="discovery-sheet">
-          <BottomSheet>
-            {discovery.gps === "denied" || discovery.gps === "unavailable" ? (
-              <p>
-                <button type="button" onClick={discovery.locate}>
-                  Retry location
-                </button>
-              </p>
-            ) : null}
-            {discovery.load === "error" ? (
-              <p>
-                <button type="button" onClick={discovery.searchNearby}>
-                  Retry search
-                </button>
-              </p>
-            ) : null}
-            {selected !== null ? <PreviewCard item={selected} preview={discovery.preview} /> : null}
-            <div className="discovery-row">
-              {cards.map((item) => (
-                <NearbyCard
-                  key={`${item.kind}-${item.id}`}
-                  active={item.id === discovery.selectedId}
-                  title={item.title}
-                  rating={item.rating}
-                  distance={item.distanceBucket}
-                  onClick={() => discovery.setSelectedId(item.id)}
-                />
-              ))}
-            </div>
-            <div className="discovery-row">
-              {services.map((item) => (
-                <ServiceCard
-                  key={`service-${item.id}`}
-                  title={item.title}
-                  categoryLabel={item.categoryLabel}
-                  rating={item.rating}
-                  photoUrl={item.photoUrl}
-                  providerName={item.subtitle}
-                  onOpen={() => {
-                    window.location.assign(item.href);
-                  }}
-                />
-              ))}
-            </div>
-          </BottomSheet>
+          </NativeScroller>
         </div>
       </div>
+      <section className="discovery-results" aria-label="Nearby results">
+        <BottomSheet>
+          {discovery.gps === "denied" || discovery.gps === "unavailable" ? (
+            <p>
+              <button type="button" onClick={discovery.locate}>
+                Retry location
+              </button>
+            </p>
+          ) : null}
+          {discovery.load === "error" ? (
+            <p>
+              <button type="button" onClick={discovery.searchNearby}>
+                Retry search
+              </button>
+            </p>
+          ) : null}
+          {selected !== null ? <PreviewCard item={selected} preview={discovery.preview} /> : null}
+          <NativeScroller className="discovery-row" label="Nearby places">
+            {cards.map((item) => (
+              <NearbyCard
+                key={`${item.kind}-${item.id}`}
+                active={item.id === discovery.selectedId}
+                title={item.title}
+                rating={item.rating}
+                distance={item.distanceBucket}
+                onClick={() => discovery.setSelectedId(item.id)}
+              />
+            ))}
+          </NativeScroller>
+          <NativeScroller className="discovery-row" label="Services">
+            {services.map((item) => (
+              <ServiceCard
+                key={`service-${item.id}`}
+                title={item.title}
+                categoryLabel={item.categoryLabel}
+                rating={item.rating}
+                photoUrl={item.photoUrl}
+                providerName={item.subtitle}
+                onOpen={() => {
+                  window.location.assign(item.href);
+                }}
+              />
+            ))}
+          </NativeScroller>
+        </BottomSheet>
+      </section>
     </div>
   );
 }

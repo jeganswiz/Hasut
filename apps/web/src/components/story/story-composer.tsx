@@ -314,6 +314,9 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
             patronCount={config.patronCount}
             disabled={busy}
           />
+          <p style={{ margin: 0, fontSize: 13, color: cssVar("mutedText") }}>
+            Up to {config.maxActiveStories} active stories, each for {config.storyTtlHours} hours.
+          </p>
 
           <AuthFeedbackNote feedback={feedback} />
           <Button onClick={() => void publish()} disabled={busy}>

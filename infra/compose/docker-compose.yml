@@ -57,6 +57,9 @@ services:
     ports:
       - "8888:8888"
       - "8889:8889"
+      - "8189:8189/udp"
+    volumes:
+      - ../mediamtx/mediamtx.yml:/mediamtx.yml:ro
     profiles: ["live"]
 
   api:
@@ -79,6 +82,8 @@ services:
       JWT_REFRESH_SECRET: hasut-dev-refresh-secret-32chars-min
       GEOCODER_PROVIDER: console
       MEDIA_STORAGE: memory
+      LIVE_HLS_BASE_URL: http://127.0.0.1:8888
+      LIVE_WHIP_BASE_URL: http://127.0.0.1:8889
     ports:
       - "3001:3001"
     depends_on:

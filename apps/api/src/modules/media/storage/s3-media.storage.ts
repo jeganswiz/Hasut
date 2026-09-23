@@ -1,4 +1,9 @@
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -58,6 +63,35 @@ export class S3MediaStorage implements MediaStorage {
       );
       return null;
     }
+  }
+
+  async read(objectKey: string): Promise<Buffer | null> {
+    try {
+      const result = await this.client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }),
+      );
+      const body = result.Body;
+      if (body === undefined || !("transformToByteArray" in body)) {
+        return null;
+      }
+      return Buffer.from(await body.transformToByteArray());
+    } catch (error) {
+      this.logger.warn(
+        `Media object is not readable: ${error instanceof Error ? error.name : "error"}`,
+      );
+      return null;
+    }
+  }
+
+  async write(objectKey: string, body: Buffer, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
   }
 
   publicUrl(objectKey: string): string {

@@ -8,6 +8,7 @@ import type {
   StoryAudioView,
   StoryComposerConfig,
   StoryOriginalAudioMode,
+  StoryPlaybackStatus,
   StoryView,
 } from "@hasut/types";
 import { HttpStatus, Injectable } from "@nestjs/common";
@@ -21,9 +22,10 @@ import { MediaService } from "../media/media.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AudioLibraryService } from "./audio-library.service";
 import { PatronsService } from "./patrons.service";
+import { storyPlaybackUrls } from "./playback-origin";
 
 const FLAG = "stories.live";
-const TTL_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 export interface PinMedia {
   kind: PinMediaKind;
@@ -69,6 +71,7 @@ interface StoryRow {
   trimEndSeconds: number | null;
   hlsUrl: string | null;
   previewHlsUrl: string | null;
+  playbackStatus: string;
   expiresAt: Date;
   moderationStatus: string;
   createdAt: Date;
@@ -96,6 +99,8 @@ export class StoriesService {
       maxAudioSegmentSeconds: policy.maxAudioSegmentSeconds,
       audioLibraryEnabled: policy.audioLibraryEnabled,
       patronCount: await this.patrons.countFor(memberId),
+      maxActiveStories: policy.maxActiveStories,
+      storyTtlHours: policy.storyTtlHours,
     };
   }
 
@@ -129,6 +134,7 @@ export class StoriesService {
     }
 
     const policy = await this.configuration.getStoryPolicy();
+    await this.assertPublishBudget(memberId, policy);
     const caption = this.resolveCaption(input.caption ?? "", policy);
     const captionColor = this.resolveCaptionColor(input.captionColor ?? null, policy);
     const trim = this.resolveTrim(input, policy);
@@ -156,7 +162,8 @@ export class StoriesService {
         trimEndSeconds: trim.endSeconds,
         hlsUrl: hls.hlsUrl,
         previewHlsUrl: hls.previewHlsUrl,
-        expiresAt: new Date(Date.now() + TTL_MS),
+        playbackStatus: input.kind === "VIDEO" ? "PENDING" : "READY",
+        expiresAt: new Date(Date.now() + policy.storyTtlHours * HOUR_MS),
       },
     });
     await this.audit.record({
@@ -188,6 +195,31 @@ export class StoriesService {
       );
     }
     return trimmed;
+  }
+
+  /** Active-story and hourly caps. Counts stay in Postgres so a restart cannot reset them. */
+  private async assertPublishBudget(memberId: string, policy: StoryPolicy): Promise<void> {
+    const now = new Date();
+    const active = await this.prisma.story.count({
+      where: { memberId, expiresAt: { gt: now }, moderationStatus: "ACTIVE" },
+    });
+    if (active >= policy.maxActiveStories) {
+      throw new HasutHttpException(
+        "RATE_LIMITED",
+        `You already have ${policy.maxActiveStories} active stories. Wait for one to expire.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const recent = await this.prisma.story.count({
+      where: { memberId, createdAt: { gt: new Date(now.getTime() - HOUR_MS) } },
+    });
+    if (recent >= policy.maxStoriesPerHour) {
+      throw new HasutHttpException(
+        "RATE_LIMITED",
+        "Too many stories in the last hour. Try again later.",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 
   /** Only palette colours survive, so a caption can never be made unreadable. */
@@ -418,6 +450,10 @@ export class StoriesService {
         continue;
       }
       if (story.kind === "VIDEO") {
+        // A pending playlist is not a preview. Fall through so an image can still pin.
+        if (story.playbackStatus !== "READY" || story.previewHlsUrl === null) {
+          continue;
+        }
         map.set(story.memberId, {
           kind: "VIDEO",
           previewHlsUrl: story.previewHlsUrl,
@@ -441,12 +477,7 @@ export class StoriesService {
     if (kind === "IMAGE") {
       return { hlsUrl: null, previewHlsUrl: null };
     }
-    const base = this.config.get("LIVE_HLS_BASE_URL", { infer: true });
-    const origin = base.length > 0 ? base.replace(/\/$/, "") : "/media/hls";
-    return {
-      hlsUrl: `${origin}/${id}/index.m3u8`,
-      previewHlsUrl: `${origin}/${id}/preview.m3u8`,
-    };
+    return storyPlaybackUrls(id, this.config.get("LIVE_HLS_BASE_URL", { infer: true }));
   }
 
   private async toView(row: StoryRow): Promise<StoryView> {
@@ -466,6 +497,7 @@ export class StoriesService {
       trimEndSeconds: row.trimEndSeconds,
       originalAudioMode: row.originalAudioMode as StoryView["originalAudioMode"],
       audience: row.audience as StoryAudience,
+      playbackStatus: row.playbackStatus as StoryPlaybackStatus,
       expiresAt: row.expiresAt.toISOString(),
       moderationStatus: row.moderationStatus as StoryView["moderationStatus"],
       createdAt: row.createdAt.toISOString(),

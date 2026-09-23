@@ -7,7 +7,7 @@ import type { ApiEnv } from "../../config/env";
 import { AuditService } from "../audit/audit.service";
 import { ConfigurationService } from "../configuration/configuration.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { MEDIA_STORAGE, type MediaStorage } from "./storage/media-storage";
+import { MEDIA_STORAGE, type MediaStorage, type StoredObjectMeta } from "./storage/media-storage";
 import { MemoryMediaStorage } from "./storage/memory-media.storage";
 
 @Injectable()
@@ -201,6 +201,22 @@ export class MediaService {
         HttpStatus.BAD_REQUEST,
       );
     }
+  }
+
+  readObject(objectKey: string): Promise<Buffer | null> {
+    return this.storage.read(objectKey);
+  }
+
+  writeObject(objectKey: string, body: Buffer, contentType: string): Promise<void> {
+    return this.storage.write(objectKey, body, contentType);
+  }
+
+  objectUrl(objectKey: string): string {
+    return this.storage.publicUrl(objectKey);
+  }
+
+  headObject(objectKey: string): Promise<StoredObjectMeta | null> {
+    return this.storage.head(objectKey);
   }
 
   async photoUrl(mediaId: string | null): Promise<string | null> {

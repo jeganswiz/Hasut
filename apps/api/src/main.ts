@@ -15,6 +15,7 @@ import { AppModule } from "./app.module";
 import { requestIdMiddleware } from "./common/middleware/request-id.middleware";
 import type { ApiEnv } from "./config/env";
 import { HealthService } from "./modules/health/health.service";
+import { createHlsProxyMiddleware } from "./modules/stories/hls-proxy";
 import { flushSentry, initSentry } from "./observability/sentry";
 
 function loadLocalEnv(): void {
@@ -111,6 +112,7 @@ async function bootstrap(): Promise<void> {
   const health = app.get(HealthService);
   const http = app.getHttpAdapter().getInstance() as {
     get: (path: string, handler: (req: Request, res: Response) => void) => void;
+    use: (path: string, handler: (req: Request, res: Response) => void) => void;
   };
 
   http.get("/health", (req, res) => {
@@ -126,6 +128,11 @@ async function bootstrap(): Promise<void> {
     const requestId = normalizeRequestId(req.header(REQUEST_ID_HEADER));
     void health.ready().then((data) => writeReadyResponse(res, requestId, data));
   });
+
+  http.use(
+    "/media/hls",
+    createHlsProxyMiddleware(config.get("LIVE_HLS_BASE_URL", { infer: true })),
+  );
 
   const port = config.get("PORT", { infer: true });
   await app.listen(port);

@@ -10,6 +10,7 @@ import {
 import { resolveRealtimeApiBaseUrl } from "@hasut/config";
 import type {
   CategoryView,
+  DiscoveryCard,
   DiscoveryKind,
   DiscoveryPolicyView,
   DiscoveryPreview,
@@ -19,6 +20,7 @@ import { DISCOVERY_PRESENCE_EVENT } from "@hasut/types";
 import { mergePresenceMarker, shouldAcceptLocationFix, snapToGrid } from "@hasut/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createWebApiClient } from "./api";
+import { DEFAULT_DISCOVERY_KINDS } from "./discovery-chrome";
 import { webTokenStorage } from "./token-storage";
 
 type GpsState = "prompt" | "granted" | "denied" | "unavailable";
@@ -38,7 +40,7 @@ export function useDiscoveryMapController() {
   const [radiusMeters, setRadiusMeters] = useState<number | undefined>();
   const [verified, setVerified] = useState(false);
   const [available, setAvailable] = useState(false);
-  const [kinds, setKinds] = useState<DiscoveryKind[]>([]);
+  const [kinds, setKinds] = useState<DiscoveryKind[]>([...DEFAULT_DISCOVERY_KINDS]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [preview, setPreview] = useState<DiscoveryPreview | null>(null);
   const [gps, setGps] = useState<GpsState>("prompt");
@@ -46,6 +48,14 @@ export function useDiscoveryMapController() {
   const [acceptedCoords, setAcceptedCoords] = useState<DiscoveryCoords | null>(null);
   const [load, setLoad] = useState<DiscoveryLoadState>("loading");
   const [message, setMessage] = useState("Finding what’s nearby…");
+  const [statusTick, setStatusTick] = useState(0);
+  const [suggestions, setSuggestions] = useState<DiscoveryCard[]>([]);
+  const [suggestionQuery, setSuggestionQuery] = useState("");
+
+  const publishStatus = useCallback((text: string) => {
+    setMessage(text);
+    setStatusTick((value) => value + 1);
+  }, []);
 
   const acceptedRef = useRef<DiscoveryCoords | null>(null);
   const acceptedAtRef = useRef<number | null>(null);
@@ -57,14 +67,17 @@ export function useDiscoveryMapController() {
 
   resultRef.current = result;
 
-  const applyDemoArea = useCallback((nextPolicy: DiscoveryPolicyView) => {
-    const demo = { latitude: nextPolicy.demoLatitude, longitude: nextPolicy.demoLongitude };
-    acceptedRef.current = demo;
-    acceptedAtRef.current = Date.now();
-    setOverlayCoords(demo);
-    setAcceptedCoords(demo);
-    setMessage("Showing the seeded demo neighborhood.");
-  }, []);
+  const applyDemoArea = useCallback(
+    (nextPolicy: DiscoveryPolicyView) => {
+      const demo = { latitude: nextPolicy.demoLatitude, longitude: nextPolicy.demoLongitude };
+      acceptedRef.current = demo;
+      acceptedAtRef.current = Date.now();
+      setOverlayCoords(demo);
+      setAcceptedCoords(demo);
+      publishStatus("Showing the seeded demo neighborhood.");
+    },
+    [publishStatus],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +97,7 @@ export function useDiscoveryMapController() {
       } catch {
         if (!cancelled) {
           setLoad("error");
-          setMessage("Unable to load discovery configuration.");
+          publishStatus("Unable to load discovery configuration.");
         }
       }
     })();
@@ -132,7 +145,7 @@ export function useDiscoveryMapController() {
       }
       return;
     }
-    setMessage("Getting your location…");
+    publishStatus("Getting your location…");
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const next = {
@@ -183,7 +196,7 @@ export function useDiscoveryMapController() {
       searchGenRef.current = generation;
       if (!silent) {
         setLoad("loading");
-        setMessage("Searching nearby…");
+        publishStatus("Searching nearby…");
       }
       try {
         const client = createWebApiClient();
@@ -214,11 +227,13 @@ export function useDiscoveryMapController() {
         setResult(data);
         if (data.items.length === 0) {
           setLoad("empty");
-          setMessage("No nearby results in this area. Try a wider distance or another category.");
+          publishStatus(
+            "No nearby results in this area. Try a wider distance or another category.",
+          );
           return;
         }
         setLoad("success");
-        setMessage(`${data.items.length} nearby results`);
+        publishStatus(`${data.items.length} nearby results`);
       } catch (error) {
         if (generation !== searchGenRef.current) {
           return;
@@ -228,7 +243,7 @@ export function useDiscoveryMapController() {
         }
         setResult(null);
         setLoad("error");
-        setMessage(
+        publishStatus(
           error instanceof HasutApiError
             ? error.message
             : "Network failure. Check your connection and try again.",
@@ -258,6 +273,42 @@ export function useDiscoveryMapController() {
     searchNearby,
     verified,
   ]);
+
+  useEffect(() => {
+    const text = query.trim();
+    if (text.length === 0 || acceptedCoords === null || policy === null) {
+      setSuggestions([]);
+      setSuggestionQuery("");
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void createWebApiClient()
+        .searchNearby({
+          q: text,
+          latitude: acceptedCoords.latitude,
+          longitude: acceptedCoords.longitude,
+          radiusMeters,
+          kinds: [...DEFAULT_DISCOVERY_KINDS],
+        })
+        .then((data) => {
+          if (!cancelled) {
+            setSuggestions(data.items);
+            setSuggestionQuery(text);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setSuggestions([]);
+            setSuggestionQuery("");
+          }
+        });
+    }, policy.searchDebounceMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [acceptedCoords, policy, query, radiusMeters]);
 
   useEffect(() => {
     if (policy === null || acceptedCoords === null) {
@@ -340,7 +391,7 @@ export function useDiscoveryMapController() {
     acceptedRef.current = null;
     acceptedAtRef.current = null;
     setGps("prompt");
-    setMessage("Getting your location…");
+    publishStatus("Getting your location…");
     setWatchNonce((current) => current + 1);
   }, []);
 
@@ -380,6 +431,9 @@ export function useDiscoveryMapController() {
     panCellId,
     load,
     message,
+    statusTick,
+    suggestions,
+    suggestionQuery,
     useDemoArea,
     locate,
     searchNearby: () => void searchNearby(false),

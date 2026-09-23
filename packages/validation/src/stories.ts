@@ -6,6 +6,7 @@ import {
   STORY_KINDS,
   STORY_MODERATION_STATUSES,
   STORY_ORIGINAL_AUDIO_MODES,
+  STORY_PLAYBACK_STATUSES,
 } from "@hasut/types";
 import { z } from "zod";
 
@@ -14,6 +15,7 @@ const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 export const storyAudioSourceSchema = z.enum(STORY_AUDIO_SOURCES);
 export const storyOriginalAudioModeSchema = z.enum(STORY_ORIGINAL_AUDIO_MODES);
 export const storyAudienceSchema = z.enum(STORY_AUDIENCES);
+export const storyPlaybackStatusSchema = z.enum(STORY_PLAYBACK_STATUSES);
 
 /**
  * The composer sends one audio block rather than loose fields, so an impossible
@@ -149,6 +151,7 @@ export const storyViewSchema = z.object({
   trimEndSeconds: z.number().nullable(),
   originalAudioMode: storyOriginalAudioModeSchema,
   audience: storyAudienceSchema,
+  playbackStatus: storyPlaybackStatusSchema,
   expiresAt: z.string(),
   moderationStatus: z.enum(STORY_MODERATION_STATUSES),
   createdAt: z.string(),
@@ -184,6 +187,8 @@ export const storyComposerConfigSchema = z.object({
   maxAudioSegmentSeconds: z.number(),
   audioLibraryEnabled: z.boolean(),
   patronCount: z.number(),
+  maxActiveStories: z.number(),
+  storyTtlHours: z.number(),
 });
 
 export const liveStartSchema = z.object({

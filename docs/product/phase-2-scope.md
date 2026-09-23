@@ -2,7 +2,7 @@
 
 Phase 2 starts **only after Sprint 9** (Phase 1 hardening) is green. It is not a generic social network and not a second identity. HASUT stays a location-intelligent professional and business network; stories are **map presence**.
 
-**Status:** Implemented behind feature flag `stories.live`. Modules: `apps/api/src/modules/stories`. Web composer `/story` (Activity / Live tabs), viewer `/stories/[memberId]` (HLS via `hls.js`). Map pin DTO includes `pinMediaKind` and `previewHlsUrl`; web pins attach muted HLS previews (capped, data-saver aware). Admin `/stories` moderates stories and live; admin `/stories/audio` curates the soundtrack library. Optional MediaMTX: `docker compose --profile live up mediamtx`.
+**Status:** Implemented behind feature flag `stories.live`. Modules: `apps/api/src/modules/stories`. Web composer `/story` (Activity / Live tabs), viewer `/stories/[memberId]` (HLS via `hls.js`). Mobile viewer `/stories/[memberId]` (Sprints 19, 22, 23, and 26 — HLS plus soundtrack, including a relative `/media/hls` playlist via the API proxy) and mobile composer `/story` (Sprints 20–21, photo and trimmed video) use the same APIs. Map pin DTO includes `pinMediaKind` and `previewHlsUrl`; web and mobile pins attach muted HLS previews (capped, data-saver aware). The mobile map prompts the owner to add a presence when their pin is still the profile (Sprint 25). Admin `/stories` moderates stories and live; admin `/stories/audio` curates the soundtrack library. Optional MediaMTX: `docker compose --profile live up mediamtx`.
 
 ## In
 
@@ -82,7 +82,7 @@ Marketplace checkout, creator tokens, billing, treating live as a second product
 
 ## Sprints (draft, split when Phase 1 exits)
 
-1. Story domain + media policy (video/audio) + composer image/video + 24h expiry + idle rings
-2. HLS VOD transcode + full-screen viewer + map preview rungs
-3. Live ingest + HLS live + pin priority LIVE first + admin moderation
-4. Hardening: abuse limits, PII, data-saver, battery, feature flags
+1. Story domain + media policy (video/audio) + composer image/video + 24h expiry + idle rings — done (Sprints 11–12)
+2. HLS VOD transcode + full-screen viewer + map preview rungs — viewer and pin rungs done; Sprint 15 writes a 240p playlist when `FFMPEG_PATH` is set and storage is public, then marks the video `READY`; Sprint 24 attaches the same muted previews on the phone
+3. Live ingest + HLS live + pin priority LIVE first + admin moderation — pin priority and moderation done; Sprint 16–17 publish and close WHIP; Sprint 18 proxies `/media/hls` and `/media/whip` to MediaMTX on the web origin; Sprint 26 proxies `/media/hls` on the API so a phone can play the same relative playlist
+4. Hardening: abuse limits, data-saver, battery, feature flags — done (Sprint 13)

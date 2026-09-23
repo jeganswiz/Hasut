@@ -1,0 +1,13 @@
+# Local live ingest for the compose profile `live`.
+# HLS is :8888, WHIP/WebRTC is :8889. Paths match the API: live/{id} and stories/{id}.
+logLevel: info
+hls: true
+hlsAddress: :8888
+hlsAllowOrigin: "*"
+hlsAlwaysRemux: true
+webrtc: true
+webrtcAddress: :8889
+webrtcAllowOrigin: "*"
+webrtcLocalUDPAddress: :8189
+paths:
+  all_others:

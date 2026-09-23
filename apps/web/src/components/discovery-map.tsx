@@ -4,12 +4,11 @@ import { OSM_MAP_ATTRIBUTION, advanceBasemapIndex } from "@hasut/config";
 import type { DiscoveryCluster, DiscoveryMarker } from "@hasut/types";
 import { diffDiscoveryMarkers } from "@hasut/utils";
 import { useEffect, useRef, useState } from "react";
+import { isLivePlaylist } from "../lib/live-playlist";
+import { allowPinAutoplay, intersectsViewport, pickPinPreviews } from "../lib/pin-playback";
 
-function allowPinAutoplay(): boolean {
+function pinAutoplayAllowed(): boolean {
   if (typeof window === "undefined") {
-    return false;
-  }
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     return false;
   }
   const connection = (
@@ -17,20 +16,12 @@ function allowPinAutoplay(): boolean {
       connection?: { saveData?: boolean; type?: string; effectiveType?: string };
     }
   ).connection;
-  if (connection?.saveData === true) {
-    return false;
-  }
-  if (connection?.type === "cellular") {
-    return false;
-  }
-  if (
-    connection?.effectiveType === "slow-2g" ||
-    connection?.effectiveType === "2g" ||
-    connection?.effectiveType === "3g"
-  ) {
-    return false;
-  }
-  return true;
+  return allowPinAutoplay({
+    reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    saveData: connection?.saveData,
+    type: connection?.type,
+    effectiveType: connection?.effectiveType,
+  });
 }
 
 function markerHtml(marker: DiscoveryMarker, selected: boolean): string {
@@ -92,6 +83,7 @@ export function DiscoveryMap({
   const clusterLayers = useRef(new Map<string, import("leaflet").Marker>());
   const selfLayer = useRef<import("leaflet").Marker | null>(null);
   const pinPlayers = useRef<Array<{ destroy: () => void }>>([]);
+  const readyPlaylists = useRef(new Set<string>());
   const onSelectRef = useRef(onSelect);
   const [mapReady, setMapReady] = useState(false);
   const ready = tileUrl.length > 0 && center !== null;
@@ -269,52 +261,99 @@ export function DiscoveryMap({
       pinPlayers.current = [];
     }
 
+    let cancelled = false;
+
     function attach(): void {
       destroyPlayers();
       if (
         document.hidden ||
         selectedId !== null ||
-        !allowPinAutoplay() ||
+        !pinAutoplayAllowed() ||
         mapNode.current === null
       ) {
         return;
       }
+      const frame = mapNode.current.getBoundingClientRect();
       const videos = [...mapNode.current.querySelectorAll<HTMLVideoElement>("video[data-hls]")];
-      videos.sort((a, b) => Number(b.dataset.kind === "LIVE") - Number(a.dataset.kind === "LIVE"));
-      void import("hls.js").then((mod) => {
-        const Hls = mod.default;
-        let attached = 0;
-        for (const video of videos) {
-          if (attached >= 3) {
-            break;
+      const urls = [
+        ...new Set(
+          videos
+            .map((video) => video.dataset.hls)
+            .filter((url): url is string => url !== undefined && url.length > 0),
+        ),
+      ];
+      void Promise.all(urls.map((url) => rememberReadyPlaylist(readyPlaylists.current, url))).then(
+        () => {
+          if (cancelled || mapNode.current === null) {
+            return;
           }
-          const url = video.dataset.hls;
-          if (url === undefined || url.length === 0) {
-            continue;
-          }
-          video.muted = true;
-          if (Hls.isSupported()) {
-            const hls = new Hls({ maxBufferLength: 4, capLevelToPlayerSize: true });
-            hls.loadSource(url);
-            hls.attachMedia(video);
-            pinPlayers.current.push({ destroy: () => hls.destroy() });
-          } else {
-            video.src = url;
-          }
-          void video.play().catch(() => undefined);
-          attached += 1;
-        }
-      });
+          const chosen = new Set(
+            pickPinPreviews(
+              videos.map((video) => {
+                const box = video.getBoundingClientRect();
+                const url = video.dataset.hls ?? "";
+                return {
+                  kind: video.dataset.kind === "LIVE" ? "LIVE" : "VIDEO",
+                  url,
+                  inView: intersectsViewport(box, frame),
+                  playlistReady: readyPlaylists.current.has(url),
+                };
+              }),
+            ).map((candidate) => candidate.url),
+          );
+          void import("hls.js").then((mod) => {
+            if (cancelled) {
+              return;
+            }
+            const Hls = mod.default;
+            for (const video of videos) {
+              const url = video.dataset.hls;
+              if (url === undefined || !chosen.has(url)) {
+                continue;
+              }
+              video.muted = true;
+              if (Hls.isSupported()) {
+                const hls = new Hls({ maxBufferLength: 4, capLevelToPlayerSize: true });
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                pinPlayers.current.push({ destroy: () => hls.destroy() });
+              } else {
+                video.src = url;
+              }
+              void video.play().catch(() => undefined);
+            }
+          });
+        },
+      );
     }
 
     const timer = window.setTimeout(attach, 80);
     document.addEventListener("visibilitychange", attach);
+    const map = mapRef.current;
+    map?.on("moveend", attach);
     return () => {
+      cancelled = true;
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", attach);
+      map?.off("moveend", attach);
       destroyPlayers();
     };
   }, [clusters, mapReady, markers, selectedId]);
 
   return <div ref={mapNode} className="discovery-map" />;
+}
+
+async function rememberReadyPlaylist(ready: Set<string>, url: string): Promise<void> {
+  if (ready.has(url)) {
+    return;
+  }
+  try {
+    const response = await fetch(url);
+    const body = response.ok ? await response.text() : "";
+    if (isLivePlaylist(response.status, body)) {
+      ready.add(url);
+    }
+  } catch {
+    // Pin stays on the still avatar until the playlist exists.
+  }
 }

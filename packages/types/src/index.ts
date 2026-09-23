@@ -183,6 +183,7 @@ export {
   STORY_KINDS,
   STORY_MODERATION_STATUSES,
   STORY_ORIGINAL_AUDIO_MODES,
+  STORY_PLAYBACK_STATUSES,
 } from "./stories";
 export type {
   AudioTrackView,
@@ -196,5 +197,6 @@ export type {
   StoryKind,
   StoryModerationStatus,
   StoryOriginalAudioMode,
+  StoryPlaybackStatus,
   StoryView,
 } from "./stories";

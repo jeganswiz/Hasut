@@ -9,15 +9,19 @@ import { DEFAULT_THEME_TOKENS } from "@hasut/config";
 import {
   DISCOVERY_PRESENCE_EVENT,
   type DiscoveryCard,
+  type DiscoveryMarker,
   type DiscoveryPolicyView,
   type DiscoveryResult,
   type ThemeTokens,
 } from "@hasut/types";
-import { mergePresenceMarker, shouldAcceptLocationFix } from "@hasut/utils";
+import { mergePresenceMarker, shouldAcceptLocationFix, type LayoutBox } from "@hasut/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "expo-router";
+import { Link, type Href } from "expo-router";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { createMobileApiClient } from "./api";
+import { createMobileApiClient, mobileApiBaseUrl } from "./api";
+import { layoutBox, ownerPresenceCopy, pinPreviewUri } from "./pin-playback";
+import { usePickedPinPreviewUrls } from "./pin-previews";
+import { PresencePlayer } from "./presence-player";
 import { mobileTokenStorage } from "./token-storage";
 
 type GpsState = "prompt" | "granted" | "denied" | "unavailable";
@@ -66,12 +70,24 @@ export function DiscoveryScreen() {
   const [gps, setGps] = useState<GpsState>("prompt");
   const [message, setMessage] = useState("Finding what’s nearby…");
   const [coords, setCoords] = useState<DeviceCoords | null>(null);
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
+  const [pinBoxes, setPinBoxes] = useState<Record<string, LayoutBox>>({});
+  const [selfId, setSelfId] = useState<string | null>(null);
   const acceptedRef = useRef<DeviceCoords | null>(null);
   const acceptedAtRef = useRef<number | null>(null);
   const resultRef = useRef<DiscoveryResult | null>(null);
   const permissionGrantedRef = useRef(false);
   const styles = makeStyles(tokens);
   resultRef.current = result;
+  const previewUrls = usePickedPinPreviewUrls(
+    result?.markers ?? [],
+    pinBoxes,
+    mapSize,
+    selected !== null,
+    mobileApiBaseUrl(),
+  );
+  const selfMarker = result?.markers.find((marker) => marker.id === selfId) ?? null;
+  const presenceHint = ownerPresenceCopy(selfId !== null, selfMarker?.pinMediaKind ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -251,28 +267,64 @@ export function DiscoveryScreen() {
     };
   }, [policy]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void mobileTokenStorage.getAccessToken().then((token) => {
+      if (cancelled || token === null) {
+        return;
+      }
+      void createMobileApiClient()
+        .getMyProfile()
+        .then((mine) => {
+          if (!cancelled) {
+            setSelfId(mine.id);
+          }
+        })
+        .catch(() => undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <View style={styles.screen}>
-      <View style={styles.map}>
+      <View
+        style={styles.map}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setMapSize({ width, height });
+        }}
+      >
         {(result?.markers ?? []).map((marker) => (
-          <View
+          <MapPin
             key={marker.id}
-            style={[
-              styles.pin,
-              marker.ring === "available" ? styles.pinAvailable : null,
-              marker.ring === "live" ? styles.pinLive : null,
-            ]}
-          >
-            {marker.photoUrl ? (
-              <Image source={{ uri: marker.photoUrl }} style={styles.pinImage} />
-            ) : (
-              <Text style={styles.pinText}>
-                {marker.initials}
-                {marker.pinMediaKind === "LIVE" ? " LIVE" : ""}
-              </Text>
-            )}
-          </View>
+            marker={marker}
+            playUrl={(() => {
+              const uri = pinPreviewUri(marker, mobileApiBaseUrl());
+              return uri !== null && previewUrls.has(uri) ? uri : null;
+            })()}
+            styles={styles}
+            href={marker.id === selfId ? ("/story" as Href) : undefined}
+            onLayout={(box) => {
+              setPinBoxes((current) =>
+                current[marker.id]?.top === box.top &&
+                current[marker.id]?.left === box.left &&
+                current[marker.id]?.right === box.right &&
+                current[marker.id]?.bottom === box.bottom
+                  ? current
+                  : { ...current, [marker.id]: box },
+              );
+            }}
+          />
         ))}
+        {selfId !== null && selfMarker === null ? (
+          <Link href={"/story" as Href}>
+            <View style={[styles.pin, styles.pinSelf]}>
+              <Text style={styles.pinText}>You</Text>
+            </View>
+          </Link>
+        ) : null}
         {(result?.clusters ?? []).map((cluster) => (
           <View key={cluster.id} style={styles.cluster}>
             <Text style={styles.clusterText}>{cluster.count}</Text>
@@ -287,6 +339,12 @@ export function DiscoveryScreen() {
           onChangeText={setQuery}
         />
         <Text style={styles.status}>{message}</Text>
+        {presenceHint.length > 0 ? <Text style={styles.status}>{presenceHint}</Text> : null}
+        {selfId !== null ? (
+          <Link href={"/story" as Href}>
+            <Text style={styles.chipLabel}>Add presence</Text>
+          </Link>
+        ) : null}
         <View style={styles.row}>
           <Link href="/connections">
             <Text style={styles.chipLabel}>Connections</Text>
@@ -359,12 +417,65 @@ export function DiscoveryScreen() {
               {selected.verified ? "Verified · " : ""}
               {selected.available ? "Available" : ""}
             </Text>
+            {selected.kind === "MEMBER" ? (
+              <Link href={`/stories/${selected.id}` as Href}>
+                <Text style={styles.chipLabel}>Watch presence</Text>
+              </Link>
+            ) : null}
           </View>
         ) : null}
         {gps === "denied" ? <Text>Enable location to discover nearby people.</Text> : null}
       </View>
     </View>
   );
+}
+
+function MapPin({
+  marker,
+  playUrl,
+  href,
+  styles,
+  onLayout,
+}: {
+  marker: DiscoveryMarker;
+  playUrl: string | null;
+  href?: Href;
+  styles: ReturnType<typeof makeStyles>;
+  onLayout: (box: LayoutBox) => void;
+}) {
+  const pin = (
+    <View
+      style={[
+        styles.pin,
+        marker.ring === "available" ? styles.pinAvailable : null,
+        marker.ring === "live" ? styles.pinLive : null,
+        href !== undefined ? styles.pinSelf : null,
+      ]}
+      onLayout={(event) => {
+        const { x, y, width, height } = event.nativeEvent.layout;
+        onLayout(layoutBox(x, y, width, height));
+      }}
+    >
+      {marker.photoUrl ? (
+        <Image source={{ uri: marker.photoUrl }} style={styles.pinImage} />
+      ) : (
+        <Text style={styles.pinText}>{marker.initials}</Text>
+      )}
+      {playUrl !== null ? (
+        <PresencePlayer
+          key={playUrl}
+          uri={playUrl}
+          muted
+          trimStartSeconds={0}
+          trimEndSeconds={null}
+          controls={false}
+          contentFit="cover"
+        />
+      ) : null}
+      {marker.pinMediaKind === "LIVE" ? <Text style={styles.pinLiveLabel}>LIVE</Text> : null}
+    </View>
+  );
+  return href !== undefined ? <Link href={href}>{pin}</Link> : pin;
 }
 
 function makeStyles(tokens: ThemeTokens) {
@@ -432,7 +543,15 @@ function makeStyles(tokens: ThemeTokens) {
     pinImage: { width: 44, height: 44, borderRadius: 22 },
     pinAvailable: { borderColor: tokens.success },
     pinLive: { borderColor: tokens.danger },
+    pinSelf: { borderColor: tokens.accent },
     pinText: { fontWeight: "700", color: tokens.text },
+    pinLiveLabel: {
+      position: "absolute",
+      bottom: 2,
+      color: tokens.textOnPrimary,
+      fontSize: 9,
+      fontWeight: "700",
+    },
     cluster: {
       width: 36,
       height: 36,

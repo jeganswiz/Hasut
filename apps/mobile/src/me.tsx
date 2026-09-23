@@ -2,6 +2,7 @@ import { HasutApiError } from "@hasut/api-client";
 import { DEFAULT_THEME_TOKENS } from "@hasut/config";
 import type { OwnerMemberProfile, ThemeTokens } from "@hasut/types";
 import { useCallback, useEffect, useState } from "react";
+import { Link, type Href } from "expo-router";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { createMobileApiClient } from "./api";
 
@@ -47,6 +48,14 @@ export function MeScreen() {
       >
         <Text style={styles.buttonLabel}>Save</Text>
       </Pressable>
+      <Link href={"/story" as Href}>
+        <Text style={styles.link}>Add presence</Text>
+      </Link>
+      {profile !== null ? (
+        <Link href={`/stories/${profile.id}` as Href}>
+          <Text style={styles.link}>Watch my presence</Text>
+        </Link>
+      ) : null}
     </View>
   );
 }
@@ -71,5 +80,6 @@ function makeStyles(tokens: ThemeTokens) {
       justifyContent: "center",
     },
     buttonLabel: { color: tokens.textOnPrimary, fontWeight: "700" },
+    link: { color: tokens.text, fontWeight: "600" },
   });
 }

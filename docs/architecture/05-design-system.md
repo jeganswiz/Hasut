@@ -67,13 +67,15 @@ Web and Admin import from `@hasut/ui`. Mobile uses `@hasut/ui-native` only if RN
 ## Map-first UX (member)
 
 - Map is the canvas.
-- Floating search + location + category chip.
-- Bottom sheet: horizontal nearby professionals/businesses; service cards below.
+- Floating search with suggestions for services, people, professionals, and businesses. Empty and error copy appears in a toast, not on the map.
+- Nearby cards and service cards sit in document flow under the map block, so the map stays visible. Horizontal strips use a native scroller (hidden scrollbar, touch momentum, pointer drag) everywhere that pattern appears.
+- Top chrome is fixed. It starts as a blurred transparent bar and shortens as the page scrolls. After half the map block has scrolled past, the bar uses the surface token.
+- Signed-in members see their profile in the chrome. Named destinations are icons with hover and press motion.
 - **Map pins are circular avatars** (photo or initials), not rating pills. A ring encodes availability or live presence. When `stories.live` is on, pin media priority is LIVE → video → image → profile.
 - Self pin links to the presence composer (`/story`) and `/me` profile editor.
 - Selected entity uses primary surface (active card) and a distinct map marker.
 - Ratings use `accent` only, typically on cards rather than the pin itself.
-- Small viewports: bottom tab bar (Map, Connections, Inbox, Notifications, Me), `100dvh`, safe-area, 44px targets, reduced-motion for pulses. Desktop keeps a refined top chrome + logo.
+- Small viewports: bottom tab bar stays icon-only. Desktop keeps the icon row in the top chrome beside the logo.
 - Admin chrome: collapsible sidebar, KPI cards, dense tables (`KpiCard`, `HasutLogo`, `Avatar` in `@hasut/ui`).
 
 Admin chrome is denser (tables, filters, sidebar) but the same tokens.

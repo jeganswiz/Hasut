@@ -3,6 +3,7 @@
 import type { LiveSessionView, StoryView } from "@hasut/types";
 import { Button, SegmentedTabs, cssVar } from "@hasut/ui";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { isLivePlaylist, LIVE_PLAYLIST_POLL_MS } from "../../lib/live-playlist";
 import { loopWithin, mutesOriginalAudio, storyAudioSrc } from "../../lib/story-playback";
 
 type Tab = "activity" | "live";
@@ -75,7 +76,8 @@ function StoryStage({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioSrc = storyAudioSrc(story);
-  const hlsUrl = story.hlsUrl ?? story.previewHlsUrl;
+  const preparing = story.kind === "VIDEO" && story.playbackStatus === "PENDING";
+  const hlsUrl = preparing ? null : (story.hlsUrl ?? story.previewHlsUrl);
 
   useHls(videoRef, hlsUrl);
 
@@ -129,6 +131,18 @@ function StoryStage({
             style={{ width: "100%", height: "100%", objectFit: "contain" }}
           />
         ) : null}
+        {preparing ? (
+          <p
+            style={{
+              margin: 0,
+              padding: 24,
+              color: cssVar("textOnPrimary"),
+              textAlign: "center",
+            }}
+          >
+            Preparing playback
+          </p>
+        ) : null}
         {hlsUrl !== null ? (
           <video
             ref={videoRef}
@@ -177,18 +191,33 @@ function StoryStage({
 
 function LiveStage({ live }: { live: LiveSessionView }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  useHls(videoRef, live.hlsUrl ?? live.previewHlsUrl);
+  const playlistUrl = live.hlsUrl ?? live.previewHlsUrl;
+  const ready = useLivePlaylist(playlistUrl);
+  useHls(videoRef, ready ? playlistUrl : null);
 
   return (
     <div style={{ display: "grid", gap: 12, width: "100%", maxWidth: 360 }}>
       <StageFrame>
-        <video
-          ref={videoRef}
-          controls
-          playsInline
-          autoPlay
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
-        />
+        {ready ? (
+          <video
+            ref={videoRef}
+            controls
+            playsInline
+            autoPlay
+            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          />
+        ) : (
+          <p
+            style={{
+              margin: 0,
+              padding: 24,
+              color: cssVar("textOnPrimary"),
+              textAlign: "center",
+            }}
+          >
+            Waiting for the live preview
+          </p>
+        )}
         <div
           style={{
             position: "absolute",
@@ -236,6 +265,48 @@ function StageFrame({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+function useLivePlaylist(url: string | null): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(false);
+    if (url === null) {
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const probe = (): void => {
+      void fetch(url)
+        .then(async (response) => {
+          const body = response.ok ? await response.text() : "";
+          return isLivePlaylist(response.status, body);
+        })
+        .then((ok) => {
+          if (cancelled) {
+            return;
+          }
+          if (ok) {
+            setReady(true);
+            return;
+          }
+          timer = setTimeout(probe, LIVE_PLAYLIST_POLL_MS);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            timer = setTimeout(probe, LIVE_PLAYLIST_POLL_MS);
+          }
+        });
+    };
+    probe();
+    return () => {
+      cancelled = true;
+      if (timer !== null) {
+        clearTimeout(timer);
+      }
+    };
+  }, [url]);
+  return ready;
 }
 
 function useHls(ref: RefObject<HTMLVideoElement | null>, url: string | null): void {

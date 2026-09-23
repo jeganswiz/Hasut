@@ -127,7 +127,10 @@ export function StoriesQueue() {
           ))}
           {stories.map((item) => (
             <tr key={item.id}>
-              <td>{item.kind}</td>
+              <td>
+                {item.kind}
+                {item.playbackStatus === "PENDING" ? " · preparing" : ""}
+              </td>
               <td>{item.memberId.slice(0, 8)}</td>
               <td>{item.caption.length === 0 ? "—" : item.caption}</td>
               <td>{audienceLabel(item.audience)}</td>

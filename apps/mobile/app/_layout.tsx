@@ -15,6 +15,8 @@ export default function RootLayout() {
         <Tabs.Screen name="support" options={{ href: null }} />
         <Tabs.Screen name="verification" options={{ href: null }} />
         <Tabs.Screen name="conversations/[id]" options={{ href: null }} />
+        <Tabs.Screen name="stories/[memberId]" options={{ href: null }} />
+        <Tabs.Screen name="story" options={{ href: null }} />
       </Tabs>
     </>
   );

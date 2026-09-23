@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
 import type { NextConfig } from "next";
+import { mediaProxyRewrites } from "./src/lib/media-proxy";
 
 const rootEnv = resolve(__dirname, "../../.env");
 if (existsSync(rootEnv)) {
@@ -39,6 +40,10 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         destination: `${apiOrigin}/api/:path*`,
       },
+      ...mediaProxyRewrites(
+        process.env.LIVE_HLS_BASE_URL ?? "",
+        process.env.LIVE_WHIP_BASE_URL ?? "",
+      ),
     ];
   },
   transpilePackages: [

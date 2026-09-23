@@ -4,6 +4,7 @@ import type { MediaStorage, PresignPutResult, StoredObjectMeta } from "./media-s
 @Injectable()
 export class MemoryMediaStorage implements MediaStorage {
   private readonly objects = new Map<string, StoredObjectMeta>();
+  private readonly bodies = new Map<string, Buffer>();
 
   async presignPut(
     objectKey: string,
@@ -19,6 +20,17 @@ export class MemoryMediaStorage implements MediaStorage {
 
   async head(objectKey: string): Promise<StoredObjectMeta | null> {
     return this.objects.get(objectKey) ?? null;
+  }
+
+  async read(objectKey: string): Promise<Buffer | null> {
+    const body = this.bodies.get(objectKey);
+    return body === undefined ? null : Buffer.from(body);
+  }
+
+  async write(objectKey: string, body: Buffer, contentType: string): Promise<void> {
+    const copy = Buffer.from(body);
+    this.bodies.set(objectKey, copy);
+    this.objects.set(objectKey, { contentType, contentLength: copy.length });
   }
 
   publicUrl(objectKey: string): string {

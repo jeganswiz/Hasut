@@ -12,7 +12,7 @@ import { StoriesService } from "./stories.service";
 
 describe("StoriesService", () => {
   const prisma = {
-    story: { create: jest.fn(), findMany: jest.fn(), update: jest.fn() },
+    story: { create: jest.fn(), findMany: jest.fn(), update: jest.fn(), count: jest.fn() },
     liveSession: { findMany: jest.fn() },
     audioTrack: { findUnique: jest.fn() },
   };
@@ -60,6 +60,7 @@ describe("StoriesService", () => {
       trimEndSeconds: null,
       hlsUrl: null,
       previewHlsUrl: null,
+      playbackStatus: "READY",
       expiresAt: new Date(Date.now() + 1000),
       moderationStatus: "ACTIVE",
       createdAt: new Date(),
@@ -85,6 +86,7 @@ describe("StoriesService", () => {
     );
     prisma.liveSession.findMany.mockResolvedValue([]);
     prisma.story.findMany.mockResolvedValue([]);
+    prisma.story.count.mockResolvedValue(0);
     patrons.isPatronOf.mockResolvedValue(false);
     patrons.countFor.mockResolvedValue(0);
     patrons.patronOwnersAmong.mockResolvedValue(new Set<string>());
@@ -95,6 +97,8 @@ describe("StoriesService", () => {
     const created = await stories.create("m1", { kind: "IMAGE", imageMediaId: "img-1" }, "req");
     expect(created.kind).toBe("IMAGE");
     expect(created.imageUrl).toBe("https://cdn.example/img.jpg");
+    expect(created.playbackStatus).toBe("READY");
+    expect(created.hlsUrl).toBeNull();
   });
 
   it("rejects story create when the flag is off", async () => {
@@ -126,7 +130,11 @@ describe("StoriesService", () => {
         captionColor: "#EAB308",
         trimStartSeconds: 3,
         trimEndSeconds: 18,
+        playbackStatus: "PENDING",
       });
+      const saved = persisted();
+      expect(saved.hlsUrl).toBe(saved.previewHlsUrl);
+      expect(String(saved.hlsUrl)).toContain(`/stories/${String(saved.id)}/index.m3u8`);
       expect(created.trimEndSeconds).toBe(18);
       expect(created.caption).toBe("Rewiring a shop board");
     });
@@ -162,6 +170,25 @@ describe("StoriesService", () => {
           "req",
         ),
       ).rejects.toMatchObject({ errorCode: "VALIDATION_ERROR" });
+    });
+
+    it("refuses another story once the active cap is full", async () => {
+      prisma.story.count.mockResolvedValueOnce(STORY_POLICY_DEFAULTS.maxActiveStories);
+      const stories = await service();
+      await expect(
+        stories.create("m1", { kind: "IMAGE", imageMediaId: "img-1" }, "req"),
+      ).rejects.toMatchObject({ errorCode: "RATE_LIMITED" });
+      expect(prisma.story.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a burst of stories inside an hour", async () => {
+      prisma.story.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(STORY_POLICY_DEFAULTS.maxStoriesPerHour);
+      const stories = await service();
+      await expect(
+        stories.create("m1", { kind: "IMAGE", imageMediaId: "img-1" }, "req"),
+      ).rejects.toMatchObject({ errorCode: "RATE_LIMITED" });
     });
   });
 
@@ -278,6 +305,7 @@ describe("StoriesService", () => {
         kind: "VIDEO",
         audience: "EVERYONE",
         previewHlsUrl: "/media/hls/s1/preview.m3u8",
+        playbackStatus: "READY",
         imageMediaId: null,
       },
     ]);
@@ -301,12 +329,38 @@ describe("StoriesService", () => {
         kind: "VIDEO",
         audience: "EVERYONE",
         previewHlsUrl: "/media/hls/s1/preview.m3u8",
+        playbackStatus: "READY",
         imageMediaId: null,
       },
     ]);
     const stories = await service();
     const pins = await stories.pinMediaForMembers(["m1"], "viewer");
     expect(pins.get("m1")?.kind).toBe("VIDEO");
+  });
+
+  it("keeps a preparing video off the map and falls through to an image", async () => {
+    prisma.liveSession.findMany.mockResolvedValue([]);
+    prisma.story.findMany.mockResolvedValue([
+      {
+        memberId: "m1",
+        kind: "VIDEO",
+        audience: "EVERYONE",
+        previewHlsUrl: "/media/hls/stories/s1/index.m3u8",
+        playbackStatus: "PENDING",
+        imageMediaId: null,
+      },
+      {
+        memberId: "m1",
+        kind: "IMAGE",
+        audience: "EVERYONE",
+        previewHlsUrl: null,
+        playbackStatus: "READY",
+        imageMediaId: "img-1",
+      },
+    ]);
+    const stories = await service();
+    const pins = await stories.pinMediaForMembers(["m1"], "viewer");
+    expect(pins.get("m1")?.kind).toBe("IMAGE");
   });
 
   describe("audience", () => {

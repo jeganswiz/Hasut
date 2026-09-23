@@ -196,6 +196,122 @@ Implemented. A story or a live can be kept to **Patrons** — HASUT's word for a
 - Web: an audience picker on both the Activity and Live tabs, with copy that warns when a member has no Patrons yet. Admin's moderation queue shows the audience alongside caption and sound.
 - Watch path: `GET /me/live` restores the owner's session after a refresh (ingest URL stays on the owner). `GET /stories/:memberId/live` is the nearby watch URL — Patrons-only lives are invisible to a stranger, and ingest is always stripped. The viewer at `/stories/[memberId]` shows caption colour, the chosen audio window, trim looping, and a Live tab with the title.
 
+## Sprint 13 — Presence hardening
+
+Implemented. Publishing and map playback now follow operator caps instead of an uncapped 24-hour write.
+
+- `story.policy` adds `storyTtlHours`, `maxActiveStories`, `maxStoriesPerHour`, and `maxLiveStartsPerHour`. `readStoryPolicy` fills any cap an older stored policy does not have, so a saved caption palette is kept.
+- `StoriesService` refuses a sixth active story and an eleventh story inside an hour. Expiry uses `storyTtlHours`. `LiveService` refuses a ninth go-live inside an hour. Counts are Postgres rows, so a process restart does not reset them.
+- Map pins still prefer live, stay muted, and stop when the sheet is open or the tab is hidden. They also skip pins outside the map frame and reattach on pan. Data saver, cellular, and reduced motion stay on the still avatar. At most three previews decode.
+
+## Sprint 14 — Playback origins
+
+Implemented. Story and live URLs now match MediaMTX, and a video is not treated as playable until a playlist exists.
+
+- `LIVE_HLS_BASE_URL` is the HLS origin (local MediaMTX `:8888`). `LIVE_WHIP_BASE_URL` is the ingest origin (`:8889`). Empty bases stay relative: `/media/hls` and `/media/whip`.
+- Playlists are `stories/{id}/index.m3u8` and `live/{id}/index.m3u8`. Preview uses the same playlist until a 240p rendition exists. WHIP is `live/{id}/whip` on the WHIP origin.
+- `Story.playbackStatus` is `PENDING` for a new video and `READY` for an image. Existing rows stay `READY` (migration `20260924000000_story_playback`). There is no member endpoint to flip the status.
+- Map pins skip a pending video and fall through to an image. The viewer shows “Preparing playback” instead of a broken player. The admin queue labels a pending video.
+- Compose profile `live` mounts `infra/mediamtx/mediamtx.yml`. Cutting trim and soundtrack into that playlist is the Sprint 15 worker.
+
+## Sprint 15 — Story HLS transcode
+
+Implemented. A new video stays `PENDING` until a 240p playlist is stored at a public URL.
+
+- `buildStoryTranscodePlan` is the ffmpeg argument list: trim window, `KEEP` / `MUTE` / `OVERLAY`, and a 240p VOD playlist. Caption text is not an argument. `KEEP` ignores a stored extra track, matching the viewer.
+- `StoryPlaybackService` reads the uploaded video (and added audio when the mode needs it), runs the plan, and writes `story-hls/{id}/index.m3u8` plus segments. It sets `playbackStatus` to `READY` and points both playback URLs at that playlist only when the object is public `http(s)`.
+- `FFMPEG_PATH` empty (the local default) does not start the worker, so stories stay pending. A failed transcode is not retried until the process restarts. There is still no member endpoint to mark a story ready.
+- Memory storage has no public URL, so the worker stays idle there even if ffmpeg is installed. S3 (or any storage whose `publicUrl` is `http(s)`) is what publishes the pin.
+
+## Sprint 16 — Live camera ingest
+
+Implemented. Go live sends the camera to the owner's WHIP URL when that URL is absolute.
+
+- `publishWhip` gathers ICE, POSTs the SDP offer to the ingest URL, and applies the SDP answer. A relative `/media/whip` path is not treated as reachable, so the browser does not POST it.
+- The live composer opens the camera only for an `http(s)` ingest URL and shows the local preview. If the media server refuses the offer, the session is ended so the pin does not stay live with no picture. When the server is not configured, the session still starts and the camera stays off.
+- Refresh reconnects the camera when an ingest URL is reachable. Ending live closes the peer connection and stops the tracks. The ingest URL is no longer rendered. SDP is not logged.
+
+## Sprint 17 — Live session close and playback wait
+
+Implemented. Ending a broadcast tells the media server, and the viewer waits until a real playlist exists.
+
+- The WHIP `Location` header is resolved against the ingest origin. A `Location` on any other origin is ignored. Ending live sends `DELETE` to that session URL, then closes the camera.
+- The live viewer fetches the playlist and attaches the player only after the body is HLS (`#EXTM3U`). Until then it shows “Waiting for the live preview” and checks again every two seconds.
+
+## Sprint 18 — Local media proxy and pin playlist wait
+
+Implemented. Relative playback and ingest URLs reach MediaMTX through the web origin, and map pins wait for a real playlist.
+
+- Next rewrites `/media/hls/:path*` to the HLS origin (`LIVE_HLS_BASE_URL` or `http://127.0.0.1:8888`) and `/media/whip/:path*` to the WHIP origin (`LIVE_WHIP_BASE_URL` or `http://127.0.0.1:8889`). The browser stays on the web origin.
+- A `/media/whip` ingest URL is reachable. A WHIP `Location` on the local MediaMTX host is rewritten onto that path so `DELETE` also goes through the proxy. A `Location` on any other host is still dropped.
+- Map pins only attach `hls.js` after the playlist body is HLS. A 404 pin stays on the still avatar. Live pins still win among ready playlists, and the decode cap stays three.
+
+## Sprint 19 — Mobile presence viewer
+
+Implemented. Nearby members can open the same presence payload on the phone that the web viewer uses.
+
+- Route `/stories/[memberId]` loads `listMemberStories` and `getMemberLive`. Audience filtering stays in the API. A missing session is `{ live: null }`, not an error.
+- Activity and Live tabs match the web viewer. An image shows the still and caption. A pending video shows “Preparing playback”. A relative `/media/hls` playlist is not fetched from the device (no Next rewrite). A live without an absolute playlist shows “Waiting for the live preview”.
+- Discovery “Watch presence” is on member cards. Me has “Watch my presence”. Caption colour comes from the story, not a hardcoded swatch. Story playback helpers live in `@hasut/utils` so web and mobile share the KEEP / MUTE / OVERLAY rules.
+- HLS decode on device is still the web player. This sprint is the watch path, not a second composer.
+
+## Sprint 20 — Mobile story composer
+
+Implemented. A member can publish a photo story and start or end a live session from the phone, using the same APIs as the web composer.
+
+- Route `/story` loads `GET /stories/composer` and the audio library when that switch is on. Caption length, palette, TTL, and active-story caps come from configuration.
+- Activity publishes an image: library photo, caption, a palette swatch, audience, and an optional HASUT track. Video trim stays on the web composer. Upload goes through presign → PUT → complete.
+- Live starts and ends a session with a title and audience. The camera stays on the web composer (no native WHIP). Refresh restores `GET /me/live`.
+- Me has **Add presence**. Caption colours are the operator palette, not hardcoded swatches.
+
+## Sprint 21 — Mobile video story
+
+Implemented. The phone composer can publish a trimmed video with the same original-sound rules as the web composer.
+
+- Activity switches Photo / Video. A video is picked from the library, trimmed with the shared `moveHandle` / `normalizeRange` helpers (now in `@hasut/utils`), and capped by `maxVideoDurationSeconds`.
+- KEEP / MUTE / OVERLAY match the web labels. OVERLAY without a soundtrack is refused before upload. Image stories still force KEEP.
+- The picker duration is milliseconds and is converted to seconds before trim. Preview on device is the clock window, not an HLS player. Transcode remains the Sprint 15 worker.
+
+## Sprint 22 — Mobile HLS playback
+
+Implemented. The phone viewer attaches a player only when the playlist is an absolute `http(s)` HLS URL.
+
+- `storyPlaybackUri` / `livePlaybackUri` reuse `reachablePlaybackUrl`. A relative `/media/hls` path still waits. A pending video still shows “Preparing playback”.
+- `expo-video` plays the ready video (muted when original sound is MUTE) and loops inside the stored trim window. A live attaches only after the playlist body is `#EXTM3U`.
+- Added soundtrack still shows the track title; decode of that file stays a later step. Pin autoplay on the mobile map is unchanged.
+
+## Sprint 23 — Mobile soundtrack playback
+
+Implemented. The phone viewer plays the stored HASUT track when the KEEP / MUTE / OVERLAY rules say it should be heard.
+
+- `storyAudioUri` reuses `storyAudioSrc` and `reachablePlaybackUrl`. A KEEP video stays silent even if a track is stored. A relative audio path is not fetched from the device.
+- `expo-audio` loops inside `audio.startSeconds` / `audio.endSeconds`. The track title still appears under the stage. A missing file stays silent; the viewer does not show a broken player.
+- Recording permission is off in the Expo plugin. Pin autoplay on the mobile map is unchanged.
+
+## Sprint 24 — Mobile map pin playback
+
+Implemented. Discovery pins on the phone play a muted HLS preview with the same rules as the web map.
+
+- `allowPinAutoplay`, `pickPinPreviews`, and `intersectsViewport` live in `@hasut/utils`. Live pins win, only pins on the map frame play, and at most three decoders run.
+- A pin attaches `expo-video` only after the playlist is an absolute `http(s)` `#EXTM3U` document. IMAGE and PROFILE stay on the still. Relative `/media/hls` paths are not fetched.
+- Reduced motion, data saver, and cellular stay on the avatar. Opening a result sheet or leaving the app stops the previews. The unmuted player remains the full-screen viewer.
+
+## Sprint 25 — Mobile discovery presence signals
+
+Implemented. The phone map now reads a real connection type and prompts the owner to add a presence.
+
+- `pinAutoplaySignalsFromNetwork` maps Expo `CELLULAR` onto the same autoplay gate as the web `navigator.connection` type. `expo-network` updates when the radio changes. Data saver and slow `effectiveType` still come from the browser connection object when it exists.
+- A signed-in owner sees **Add presence** and a You pin (accent ring) that opens `/story`. If their nearby marker is still `PROFILE`, the sheet says “Add a presence so neighbors see more than your profile.”
+- IP address is not requested. Pin playback stays muted and capped.
+
+## Sprint 26 — API HLS proxy for mobile playback
+
+Implemented. The phone can play a relative `/media/hls` playlist by asking the API, the same way the web app uses a Next rewrite.
+
+- Nest serves `GET`/`HEAD` `/media/hls/*` and forwards only a sanitized subpath to `LIVE_HLS_BASE_URL` or `http://127.0.0.1:8888`. Traversal and schemes are refused. MediaMTX down is `502`.
+- `resolveMediaUrl` prefixes `/media/hls` with `EXPO_PUBLIC_API_URL`. A CDN `http(s)` playlist is unchanged. `/media/audio` is not proxied.
+- The API still stores relative playback URLs when no HLS origin is configured. WHIP stays on the web rewrite. SDP is not logged.
+
 ## After Phase 1
 
 [Phase 2 presence stories and live](./phase-2-scope.md) is implemented behind `stories.live`: map pin priority LIVE → video → image → profile; HLS viewer buffering; optional MediaMTX compose profile. After that: Protected Service design, marketplace, billing, multi-city operations, skill verification productization.

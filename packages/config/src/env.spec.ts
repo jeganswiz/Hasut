@@ -19,6 +19,7 @@ describe("parseApiEnv", () => {
     expect(env.MEDIA_STORAGE).toBe("memory");
     expect(env.MAPTILER_API_KEY).toBe("");
     expect(env.STADIA_API_KEY).toBe("");
+    expect(env.FFMPEG_PATH).toBe("");
     expect(env.CAPTCHA_PROVIDER).toBe("none");
     expect(env.EMAIL_PROVIDER).toBe("console");
   });

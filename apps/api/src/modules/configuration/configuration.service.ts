@@ -16,12 +16,11 @@ import {
   PROFESSIONAL_AVAILABILITY_CONFIG_KEY,
   PROFESSIONAL_AVAILABILITY_DEFAULTS,
   STORY_POLICY_CONFIG_KEY,
-  STORY_POLICY_DEFAULTS,
   isAuthPolicy,
   isAvailabilityOptions,
   isDiscoveryRankingWeights,
   isMediaPolicy,
-  isStoryPolicy,
+  readStoryPolicy,
   normalizeRankingWeights,
   readDiscoveryPolicy,
   readLocationPolicy,
@@ -77,10 +76,7 @@ export class ConfigurationService {
     const row = await this.prisma.remoteConfig.findUnique({
       where: { key: STORY_POLICY_CONFIG_KEY },
     });
-    if (row !== null && isStoryPolicy(row.valueJson)) {
-      return row.valueJson;
-    }
-    return STORY_POLICY_DEFAULTS;
+    return readStoryPolicy(row?.valueJson);
   }
 
   async getLocationPolicy(): Promise<LocationPolicy> {
