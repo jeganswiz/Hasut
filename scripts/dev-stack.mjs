@@ -89,6 +89,7 @@ export function parseDevUpArgs(argv) {
     forceSeed: argv.includes("--seed"),
     infraOnly: argv.includes("--infra-only"),
     skipInstall: argv.includes("--skip-install"),
+    skipAdmin: argv.includes("--skip-admin"),
   };
 }
 
@@ -250,6 +251,11 @@ export async function waitForApps() {
   await waitForHttp("http://127.0.0.1:3002", 120_000, "admin");
 }
 
+export async function waitForAppsWithoutAdmin() {
+  await waitForHttp("http://127.0.0.1:3001/health/ready", 180_000, "API");
+  await waitForHttp("http://127.0.0.1:3000", 120_000, "web");
+}
+
 export function printReadyBanner() {
   console.log("");
   console.log("HASUT is running");
@@ -261,6 +267,22 @@ export function printReadyBanner() {
   console.log("  OpenAPI         http://localhost:3001/api/docs");
   console.log("  Web             http://localhost:3000");
   console.log("  Admin           http://localhost:3002");
+  console.log("");
+  console.log("Demo login: 7010358490  OTP: 123456 (after Send code)");
+  console.log("Stop apps:  pnpm dev:down");
+  console.log("Stop Docker data stores too:  pnpm dev:down --infra");
+}
+
+export function printReadyBannerWithoutAdmin() {
+  console.log("");
+  console.log("HASUT is running (API & Web only)");
+  console.log("  Redis (Docker)  localhost:6379");
+  console.log("  Postgres        localhost:5432");
+  console.log("  MinIO           http://localhost:9001");
+  console.log("  API             http://localhost:3001");
+  console.log("  Health          http://localhost:3001/health/ready");
+  console.log("  OpenAPI         http://localhost:3001/api/docs");
+  console.log("  Web             http://localhost:3000");
   console.log("");
   console.log("Demo login: 7010358490  OTP: 123456 (after Send code)");
   console.log("Stop apps:  pnpm dev:down");
@@ -358,6 +380,17 @@ export async function missingAppFilters() {
   }
   if (!(await isPortOpen(APP_PORTS.admin))) {
     missing.push("@hasut/admin");
+  }
+  return missing;
+}
+
+export async function missingAppFiltersWithoutAdmin() {
+  const missing = [];
+  if (!(await isPortOpen(APP_PORTS.api))) {
+    missing.push("@hasut/api");
+  }
+  if (!(await isPortOpen(APP_PORTS.web))) {
+    missing.push("@hasut/web");
   }
   return missing;
 }
