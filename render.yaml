@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: hasut-api
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm --filter @hasut/api start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PNPM_HOME
+        value: /opt/render/.pnpm
+      - key: PATH
+        value: $PATH:/opt/render/.pnpm
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    maxShutdownDelay: 30
+
+  - type: web
+    name: hasut-web
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: cd apps/web && pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PNPM_HOME
+        value: /opt/render/.pnpm
+      - key: PATH
+        value: $PATH:/opt/render/.pnpm
+
+  - type: web
+    name: hasut-admin
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: cd apps/admin && pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PNPM_HOME
+        value: /opt/render/.pnpm
+      - key: PATH
+        value: $PATH:/opt/render/.pnpm
+
+databases:
+  - name: hasut-postgres
+    plan: free
+    region: oregon
+    databaseName: hasut_db
+    user: hasut_user
