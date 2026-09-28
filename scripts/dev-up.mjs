@@ -4,13 +4,16 @@ import {
   ensurePnpmInstall,
   migrateDatabase,
   missingAppFilters,
+  missingAppFiltersWithoutAdmin,
   parseDevUpArgs,
   printReadyBanner,
+  printReadyBannerWithoutAdmin,
   seedDatabase,
   shouldSeed,
   startApps,
   startDataStores,
   waitForApps,
+  waitForAppsWithoutAdmin,
   waitForDataStores,
 } from "./dev-stack.mjs";
 
@@ -34,18 +37,24 @@ async function main() {
     return;
   }
 
-  const missing = await missingAppFilters();
-  if (missing.length === 0) {
-    await waitForApps();
-    printReadyBanner();
+  const missingFilters = args.skipAdmin ? await missingAppFiltersWithoutAdmin() : await missingAppFilters();
+  
+  if (missingFilters.length === 0) {
+    const waitFn = args.skipAdmin ? waitForAppsWithoutAdmin : waitForApps;
+    const printFn = args.skipAdmin ? printReadyBannerWithoutAdmin : printReadyBanner;
+    await waitFn();
+    printFn();
     console.log("Apps were already running. Leave this window or use pnpm dev:down to stop them.");
     return;
   }
 
-  const child = startApps(missing);
-  const ready = waitForApps()
+  const child = startApps(missingFilters);
+  const waitFn = args.skipAdmin ? waitForAppsWithoutAdmin : waitForApps;
+  const printFn = args.skipAdmin ? printReadyBannerWithoutAdmin : printReadyBanner;
+  
+  const ready = waitFn()
     .then(() => {
-      printReadyBanner();
+      printFn();
       console.log("Logs follow. Ctrl+C stops the apps (Docker Redis stays up).");
     })
     .catch((error) => {
