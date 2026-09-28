@@ -1,0 +1,15 @@
+.git
+.github
+.vscode
+.env.local
+.env.*.local
+node_modules
+dist
+build
+coverage
+*.log
+.DS_Store
+README.md
+CONTRIBUTING.md
+.husky
+.eslintcache
