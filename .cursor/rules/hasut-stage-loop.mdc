@@ -11,4 +11,4 @@ After implementing: lint, typecheck, tests, security (authz/PII/uploads), UX sta
 
 Do not claim a feature complete without tests. Do not break existing behavior to add scope.
 
-Work only the requested sprint/stage. Sprint order is in `docs/product/sprint-breakdown.md`.
+Work only the requested sprint/stage. Sprint order is in `docs/product/sprint-breakdown.md`. The active track is web, admin, and the API. Native Expo sprints are parked; “next sprint” means the web launch track.

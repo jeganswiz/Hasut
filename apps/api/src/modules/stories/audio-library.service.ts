@@ -1,4 +1,5 @@
 import type { AudioTrackView, MemberRole } from "@hasut/types";
+import { reachablePlaybackUrl } from "@hasut/utils";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { assertModerationAccess } from "../../common/auth/staff-auth";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
@@ -40,7 +41,8 @@ export class AudioLibraryService {
       where: { isActive: true },
       orderBy: [{ mood: "asc" }, { title: "asc" }],
     });
-    return Promise.all(rows.map((row) => this.toView(row)));
+    const views = await Promise.all(rows.map((row) => this.toView(row)));
+    return views.filter((track) => reachablePlaybackUrl(track.audioUrl));
   }
 
   async listAll(roles: readonly MemberRole[]): Promise<AudioTrackView[]> {
@@ -119,6 +121,14 @@ export class AudioLibraryService {
     }
     const row = await this.prisma.audioTrack.findUnique({ where: { id: trackId } });
     if (row === null || !row.isActive) {
+      throw new HasutHttpException(
+        "VALIDATION_ERROR",
+        "That track is no longer available",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const audioUrl = await this.media.photoUrl(row.mediaId);
+    if (!reachablePlaybackUrl(audioUrl)) {
       throw new HasutHttpException(
         "VALIDATION_ERROR",
         "That track is no longer available",

@@ -7,7 +7,7 @@ import { AppNav } from "../../components/app-nav";
 import { LiveComposer } from "../../components/story/live-composer";
 import { StoryComposer } from "../../components/story/story-composer";
 import { createWebApiClient } from "../../lib/api";
-import { apiErrorMessage } from "@hasut/api-client";
+import { apiErrorMessage, hasutErrorCode } from "@hasut/api-client";
 
 type Tab = "activity" | "live";
 
@@ -36,10 +36,22 @@ export default function StoryComposerPage() {
         setTracks(library);
         setState("success");
       } catch (error) {
-        if (!cancelled) {
-          setState("error");
-          setMessage(apiErrorMessage(error, "Stories are not available right now."));
+        if (cancelled) {
+          return;
         }
+        const code = hasutErrorCode(error);
+        if (code === "UNAUTHENTICATED") {
+          setState("empty");
+          setMessage("Sign in to add a presence.");
+          return;
+        }
+        if (code === "FORBIDDEN") {
+          setState("empty");
+          setMessage("Stories are not available right now.");
+          return;
+        }
+        setState("error");
+        setMessage(apiErrorMessage(error, "Stories are not available right now."));
       }
     })();
     return () => {

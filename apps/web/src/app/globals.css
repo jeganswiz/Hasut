@@ -29,6 +29,28 @@ main {
   }
 }
 
+.pwa-install {
+  position: fixed;
+  top: var(--chrome-height);
+  left: 0;
+  right: 0;
+  z-index: 35;
+  display: grid;
+  gap: 12px;
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 12px 16px;
+  background: var(--hasut-color-surface);
+  color: var(--hasut-color-text);
+  border-bottom: 1px solid var(--hasut-color-border);
+}
+
+.pwa-install-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .app-chrome {
   position: fixed;
   top: 0;

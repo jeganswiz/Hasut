@@ -64,6 +64,14 @@ describe("AudioLibraryService", () => {
     expect(tracks[0]?.audioUrl).toBe("https://cdn.example/audio.m4a");
   });
 
+  it("hides tracks whose media object is missing so the library is not a silent catalogue", async () => {
+    prisma.audioTrack.findMany.mockResolvedValue([track()]);
+    media.photoUrl.mockResolvedValue(null);
+    const library = await service();
+
+    await expect(library.listActive()).resolves.toEqual([]);
+  });
+
   it("returns nothing when the library is switched off in configuration", async () => {
     configuration.getStoryPolicy.mockResolvedValue({
       ...STORY_POLICY_DEFAULTS,
@@ -99,6 +107,16 @@ describe("AudioLibraryService", () => {
 
   it("rejects a retired track when a story tries to use it", async () => {
     prisma.audioTrack.findUnique.mockResolvedValue(track({ isActive: false }));
+    const library = await service();
+
+    await expect(library.requirePlayable("track-1")).rejects.toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+    });
+  });
+
+  it("rejects a track whose file was never uploaded", async () => {
+    prisma.audioTrack.findUnique.mockResolvedValue(track());
+    media.photoUrl.mockResolvedValue(null);
     const library = await service();
 
     await expect(library.requirePlayable("track-1")).rejects.toMatchObject({

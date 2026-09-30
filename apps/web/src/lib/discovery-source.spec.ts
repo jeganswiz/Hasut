@@ -22,5 +22,8 @@ describe("web discovery source", () => {
     ).join("\n");
     expect(source).not.toMatch(/#6D28D9|#EAB308|#7C3AED|#FBBF24/i);
     expect(source).not.toMatch(/Plumbing|Electrical|Tutoring|Fitness training/);
+    expect(source).toContain("ownerPresenceCopy");
+    expect(source).toContain("Add presence");
+    expect(source).toContain("Play previews");
   });
 });

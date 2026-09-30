@@ -2,8 +2,10 @@ import {
   allowPinAutoplay,
   intersectsViewport,
   isHlsDocument,
+  ownerPresenceCopy,
   pickPinPreviews,
   pinAutoplaySignalsFromNetwork,
+  showPinPreviewControl,
 } from "./pin-playback";
 
 describe("pinAutoplaySignalsFromNetwork", () => {
@@ -33,6 +35,20 @@ describe("allowPinAutoplay", () => {
     expect(allowPinAutoplay({ reducedMotion: false, type: "cellular" })).toBe(false);
     expect(allowPinAutoplay({ reducedMotion: true })).toBe(false);
     expect(allowPinAutoplay({ reducedMotion: false, effectiveType: "2g" })).toBe(false);
+  });
+
+  it("lets the member opt in on cellular unless reduced motion is on", () => {
+    expect(allowPinAutoplay({ reducedMotion: false, type: "cellular", explicitAllow: true })).toBe(
+      true,
+    );
+    expect(allowPinAutoplay({ reducedMotion: true, type: "cellular", explicitAllow: true })).toBe(
+      false,
+    );
+    expect(
+      showPinPreviewControl({ reducedMotion: false, type: "cellular", explicitAllow: false }),
+    ).toBe(true);
+    expect(showPinPreviewControl({ reducedMotion: false })).toBe(false);
+    expect(showPinPreviewControl({ reducedMotion: true, type: "cellular" })).toBe(false);
   });
 });
 
@@ -72,6 +88,20 @@ describe("pickPinPreviews", () => {
       3,
     );
     expect(picked.map((item) => item.url)).toEqual(["v1"]);
+  });
+});
+
+describe("ownerPresenceCopy", () => {
+  it("prompts the owner when their pin is still the profile", () => {
+    expect(ownerPresenceCopy(false, "PROFILE")).toBe("");
+    expect(ownerPresenceCopy(true, null)).toBe(
+      "Add a presence so neighbors see more than your profile.",
+    );
+    expect(ownerPresenceCopy(true, "PROFILE")).toBe(
+      "Add a presence so neighbors see more than your profile.",
+    );
+    expect(ownerPresenceCopy(true, "IMAGE")).toBe("Your presence is on the map.");
+    expect(ownerPresenceCopy(true, "LIVE")).toBe("Your presence is on the map.");
   });
 });
 

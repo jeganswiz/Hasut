@@ -2,8 +2,15 @@
 
 import type { DiscoveryCard, DiscoveryPreview } from "@hasut/types";
 import { BottomSheet, FilterChip, NearbyCard, ServiceCard } from "@hasut/ui";
+import { ownerPresenceCopy, showPinPreviewControl } from "@hasut/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createWebApiClient } from "../lib/api";
 import { flattenCategories } from "../lib/categories";
+import {
+  browserPinSignals,
+  readPinPreviewOverride,
+  writePinPreviewOverride,
+} from "../lib/pin-playback";
 import {
   buildSearchSuggestions,
   isDiscoveryAlert,
@@ -21,8 +28,16 @@ import { ToastStack } from "./toast-stack";
 export function DiscoveryExperience() {
   const discovery = useDiscoveryMapController();
   const [toasts, setToasts] = useState<ToastNote[]>([]);
+  const [selfId, setSelfId] = useState<string | null>(null);
+  const [playPreviews, setPlayPreviews] = useState(false);
+  const [pinSignals, setPinSignals] = useState(() => browserPinSignals(false));
   const toastTimers = useRef<number[]>([]);
   const selected = discovery.result?.items.find((item) => item.id === discovery.selectedId) ?? null;
+  const selfMarker =
+    selfId === null
+      ? null
+      : (discovery.result?.markers.find((marker) => marker.id === selfId) ?? null);
+  const presenceHint = ownerPresenceCopy(selfId !== null, selfMarker?.pinMediaKind ?? null);
   const cards = discovery.result?.items ?? [];
   const services = discovery.result?.items.filter((item) => item.kind === "PROFESSIONAL") ?? [];
   const demoActive =
@@ -41,6 +56,31 @@ export function DiscoveryExperience() {
       }),
     [categories, discovery.query, discovery.suggestionQuery, discovery.suggestions],
   );
+
+  useEffect(() => {
+    const allowed = readPinPreviewOverride(window.sessionStorage);
+    setPlayPreviews(allowed);
+    setPinSignals(browserPinSignals(allowed));
+  }, []);
+
+  useEffect(() => {
+    setPinSignals(browserPinSignals(playPreviews));
+  }, [playPreviews]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void createWebApiClient()
+      .getMyProfile()
+      .then((mine) => {
+        if (!cancelled) {
+          setSelfId(mine.id);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isDiscoveryAlert(discovery.load, discovery.message)) {
@@ -89,6 +129,8 @@ export function DiscoveryExperience() {
           markers={discovery.result?.markers ?? []}
           clusters={discovery.result?.clusters ?? []}
           selectedId={discovery.selectedId}
+          selfId={selfId}
+          playPreviews={playPreviews}
           onSelect={discovery.setSelectedId}
         />
         <div className="discovery-float">
@@ -143,6 +185,19 @@ export function DiscoveryExperience() {
             <FilterChip active={demoActive} onClick={() => discovery.useDemoArea()}>
               Seeded area
             </FilterChip>
+            {showPinPreviewControl(pinSignals) ? (
+              <FilterChip
+                active={playPreviews}
+                aria-pressed={playPreviews}
+                onClick={() => {
+                  const next = !playPreviews;
+                  writePinPreviewOverride(window.sessionStorage, next);
+                  setPlayPreviews(next);
+                }}
+              >
+                Play previews
+              </FilterChip>
+            ) : null}
             {categories.map((category) => (
               <FilterChip
                 key={category.id}
@@ -175,7 +230,15 @@ export function DiscoveryExperience() {
               </button>
             </p>
           ) : null}
-          {selected !== null ? <PreviewCard item={selected} preview={discovery.preview} /> : null}
+          {selfId !== null ? (
+            <p>
+              <a href="/story">Add presence</a>
+            </p>
+          ) : null}
+          {presenceHint.length > 0 ? <p>{presenceHint}</p> : null}
+          {selected !== null ? (
+            <PreviewCard item={selected} preview={discovery.preview} ownerId={selfId} />
+          ) : null}
           <NativeScroller className="discovery-row" label="Nearby places">
             {cards.map((item) => (
               <NearbyCard
@@ -209,7 +272,15 @@ export function DiscoveryExperience() {
   );
 }
 
-function PreviewCard({ item, preview }: { item: DiscoveryCard; preview: DiscoveryPreview | null }) {
+function PreviewCard({
+  item,
+  preview,
+  ownerId,
+}: {
+  item: DiscoveryCard;
+  preview: DiscoveryPreview | null;
+  ownerId: string | null;
+}) {
   const title = preview?.title ?? item.title;
   const subtitle = preview?.subtitle ?? item.subtitle;
   const location = preview?.approximateLocation?.label;
@@ -229,6 +300,12 @@ function PreviewCard({ item, preview }: { item: DiscoveryCard; preview: Discover
           <>
             {" · "}
             <a href={`/stories/${item.id}`}>Watch presence</a>
+          </>
+        ) : null}
+        {ownerId !== null && item.id === ownerId ? (
+          <>
+            {" · "}
+            <a href="/story">Add presence</a>
           </>
         ) : null}
       </p>

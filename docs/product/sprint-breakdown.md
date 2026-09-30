@@ -2,6 +2,16 @@
 
 Sprints assume roughly one focused delivery increment each. Do not start a sprint until the previous foundation is merged and tests are green. Implementation begins only when requested, starting at Sprint 0.
 
+## Delivery rule
+
+**Active track:** member **web**, **admin**, shared contracts, and the Nest API.
+
+**Parked:** native iOS/Android (`apps/mobile`, Expo). No new mobile features, Expo dependencies, or phone-only sprints until the operator says web has launched and they want apps. Existing Sprints 19–25 stay in the tree as history and must not be extended.
+
+**Phone experience until then:** responsive web (PWA, bottom tabs, mobile-width Playwright). That is launch, not Expo Go.
+
+When the user says “implement next sprint,” pick the next **web / admin / API** increment on the [web launch track](#web-launch-track). Do not continue the parked native track.
+
 ## Development order (strict)
 
 1. Monorepo, tooling, compose, CI, docs already here
@@ -18,7 +28,7 @@ Sprints assume roughly one focused delivery increment each. Do not start a sprin
 12. Verification identity
 13. Reports/blocks + notifications + support
 14. Admin console (can start shell earlier, complete here)
-15. Design system + web/mobile discovery UX
+15. Design system + web discovery UX
 16. E2E, security pass, staging
 
 Admin **theme/flags** can land with configuration in step 2–3 so apps boot on tokens from day one of UI work.
@@ -31,7 +41,7 @@ Admin **theme/flags** can land with configuration in step 2–3 so apps boot on 
 - TypeScript strict on all packages
 - `apps/api` NestJS hello + health
 - `apps/web`, `apps/admin` Next.js shells
-- `apps/mobile` Expo shell
+- `apps/mobile` Expo shell (parked; not a launch surface)
 - Package stubs with public exports
 - docker-compose: Postgres+PostGIS, MinIO, Redis
 - `.env.example`, lint, typecheck, unit placeholder, CI
@@ -62,7 +72,7 @@ Admin **theme/flags** can land with configuration in step 2–3 so apps boot on 
 
 **Exit:** Authenticated member sets profile + location; public profile hides phone and exact coordinates.
 
-**Status:** Implemented. Public profiles omit phone and exact coordinates. Web/mobile profile editors remain a Sprint 8 gap.
+**Status:** Implemented. Public profiles omit phone and exact coordinates. The web profile editor landed in Sprint 8. Expo Me is a parked extra.
 
 ## Sprint 3 — Catalog: categories, professionals, businesses, services
 
@@ -84,7 +94,7 @@ Admin **theme/flags** can land with configuration in step 2–3 so apps boot on 
 
 **Exit:** Ranked nearby list + search filters; ranking weights change without deploy (config).
 
-**Status:** Implemented. `GET /api/v1/discovery/nearby`, `/discovery/search`, `/discovery/preview/:kind/:id`, and `/config/discovery` rank PostGIS candidates with admin weights. Web and mobile are map-first; admin `/discovery` edits defaults and weights without a deploy. People pins are snapped; payloads use `pinLat`/`pinLng` and bucketed distance.
+**Status:** Implemented. `GET /api/v1/discovery/nearby`, `/discovery/search`, `/discovery/preview/:kind/:id`, and `/config/discovery` rank PostGIS candidates with admin weights. Web is map-first; admin `/discovery` edits defaults and weights without a deploy. People pins are snapped; payloads use `pinLat`/`pinLng` and bucketed distance.
 
 ## Sprint 5 — Graph: connections and messaging
 
@@ -129,16 +139,16 @@ Member identity request already existed; this sprint completed operator decide, 
 ## Sprint 8 — Design system and native-like member UX
 
 - `packages/ui` primitives on tokens, including `Avatar`, logo mark, and circular **map avatar pins**
-- Web + mobile discovery map, sheet, nearby cards, search — polished empty/error/GPS-denied states
+- Web discovery map, sheet, nearby cards, search — polished empty/error/GPS-denied states
 - HASUT logo (SVG default; overridable by published `logoUrl`); remote theme on web (not boot defaults only)
 - Native-like responsive chrome: bottom tabs on small viewports (Map, Connections, Inbox, Notifications, Me); safe-area; 44px targets; PWA manifest
-- Profile / location editor (“Me”) on web and mobile
+- Profile / location editor (“Me”) on web (Expo Me is parked)
 - Map pins are rounded profile circles (photo or initials). Ring encodes current mode / availability / Socket.IO presence — **not** stories or live video
 - Close Phase 1 catalog gaps if still open: service offerings (no booking) and review write path for connected members
 
-**Exit:** Member E2E path works on mobile-width web and Expo: OTP → profile → location → map avatars → connect → chat.
+**Exit:** Member E2E path works on mobile-width **web**: OTP → profile → location → map avatars → connect → chat.
 
-**Status:** Implemented. `Avatar` + `HasutLogo` in `@hasut/ui`. Web bottom tabs, PWA manifest, remote theme boot, `/me` profile + location editor, circular map avatar pins. Service offerings and connected-member review write path. Expo tabs + Me screen + circular pin chips.
+**Status:** Implemented. `Avatar` + `HasutLogo` in `@hasut/ui`. Web bottom tabs, PWA manifest, remote theme boot, `/me` profile + location editor, circular map avatar pins. Service offerings and connected-member review write path. Expo tabs exist in the repo as a parked extra, not a launch requirement.
 
 ## Sprint 9 — Hardening
 
@@ -153,7 +163,7 @@ Member identity request already existed; this sprint completed operator decide, 
 
 ## Sprint 10 — Identity and access
 
-Raises sign-in from phone-only OTP to a full identity surface across web, admin, and mobile. Still one `Member`; still no new deployable.
+Raises sign-in from phone-only OTP to a full identity surface on **web** and **admin**. Still one `Member`; still no new deployable. Expo auth parity is a parked extra.
 
 - Contracts first: email/password, OTP channel, SSO, two-step verification, reset ticket, and captcha config in `packages/types`, `packages/validation`, `packages/api-client`
 - Prisma: nullable phone, `email` / `password_hash` / `two_factor_enabled` on `Member`, OTP `channel` and new purposes, `member_identities` for SSO
@@ -162,7 +172,7 @@ Raises sign-in from phone-only OTP to a full identity surface across web, admin,
 - `packages/ui`: six-box `OtpInput`, `PasswordField`, `AuthCard`, `AuthTabs`, `SsoButton`, `TextField` on design tokens
 - Web: sign in (password / code / SSO), register, forgot and reset password
 - Admin: staff chrome, email + password first step, phone code second step for 2FA-enabled staff
-- Mobile: password and OTP parity plus forgot password on the same contracts
+- Mobile (parked extra): password and OTP parity plus forgot password on the same contracts — not a launch requirement
 
 **Exit:** lint, typecheck, and unit tests green; production boot refuses console email and disabled captcha; no endpoint distinguishes an unknown account from a wrong password; docs synced.
 
@@ -246,9 +256,13 @@ Implemented. Relative playback and ingest URLs reach MediaMTX through the web or
 - A `/media/whip` ingest URL is reachable. A WHIP `Location` on the local MediaMTX host is rewritten onto that path so `DELETE` also goes through the proxy. A `Location` on any other host is still dropped.
 - Map pins only attach `hls.js` after the playlist body is HLS. A 404 pin stays on the still avatar. Live pins still win among ready playlists, and the decode cap stays three.
 
+## Parked native track (Sprints 19–25)
+
+**Parked — not required for web launch. Do not extend.** `apps/mobile` stays in the monorepo. These sprints are history from when the phone app was in the active track. The next requested sprint is the [web launch track](#web-launch-track), not more Expo work.
+
 ## Sprint 19 — Mobile presence viewer
 
-Implemented. Nearby members can open the same presence payload on the phone that the web viewer uses.
+Parked native track. Implemented. Nearby members can open the same presence payload on the phone that the web viewer uses.
 
 - Route `/stories/[memberId]` loads `listMemberStories` and `getMemberLive`. Audience filtering stays in the API. A missing session is `{ live: null }`, not an error.
 - Activity and Live tabs match the web viewer. An image shows the still and caption. A pending video shows “Preparing playback”. A relative `/media/hls` playlist is not fetched from the device (no Next rewrite). A live without an absolute playlist shows “Waiting for the live preview”.
@@ -257,7 +271,7 @@ Implemented. Nearby members can open the same presence payload on the phone that
 
 ## Sprint 20 — Mobile story composer
 
-Implemented. A member can publish a photo story and start or end a live session from the phone, using the same APIs as the web composer.
+Parked native track. Implemented. A member can publish a photo story and start or end a live session from the phone, using the same APIs as the web composer.
 
 - Route `/story` loads `GET /stories/composer` and the audio library when that switch is on. Caption length, palette, TTL, and active-story caps come from configuration.
 - Activity publishes an image: library photo, caption, a palette swatch, audience, and an optional HASUT track. Video trim stays on the web composer. Upload goes through presign → PUT → complete.
@@ -266,7 +280,7 @@ Implemented. A member can publish a photo story and start or end a live session 
 
 ## Sprint 21 — Mobile video story
 
-Implemented. The phone composer can publish a trimmed video with the same original-sound rules as the web composer.
+Parked native track. Implemented. The phone composer can publish a trimmed video with the same original-sound rules as the web composer.
 
 - Activity switches Photo / Video. A video is picked from the library, trimmed with the shared `moveHandle` / `normalizeRange` helpers (now in `@hasut/utils`), and capped by `maxVideoDurationSeconds`.
 - KEEP / MUTE / OVERLAY match the web labels. OVERLAY without a soundtrack is refused before upload. Image stories still force KEEP.
@@ -274,7 +288,7 @@ Implemented. The phone composer can publish a trimmed video with the same origin
 
 ## Sprint 22 — Mobile HLS playback
 
-Implemented. The phone viewer attaches a player only when the playlist is an absolute `http(s)` HLS URL.
+Parked native track. Implemented. The phone viewer attaches a player only when the playlist is an absolute `http(s)` HLS URL.
 
 - `storyPlaybackUri` / `livePlaybackUri` reuse `reachablePlaybackUrl`. A relative `/media/hls` path still waits. A pending video still shows “Preparing playback”.
 - `expo-video` plays the ready video (muted when original sound is MUTE) and loops inside the stored trim window. A live attaches only after the playlist body is `#EXTM3U`.
@@ -282,7 +296,7 @@ Implemented. The phone viewer attaches a player only when the playlist is an abs
 
 ## Sprint 23 — Mobile soundtrack playback
 
-Implemented. The phone viewer plays the stored HASUT track when the KEEP / MUTE / OVERLAY rules say it should be heard.
+Parked native track. Implemented. The phone viewer plays the stored HASUT track when the KEEP / MUTE / OVERLAY rules say it should be heard.
 
 - `storyAudioUri` reuses `storyAudioSrc` and `reachablePlaybackUrl`. A KEEP video stays silent even if a track is stored. A relative audio path is not fetched from the device.
 - `expo-audio` loops inside `audio.startSeconds` / `audio.endSeconds`. The track title still appears under the stage. A missing file stays silent; the viewer does not show a broken player.
@@ -290,7 +304,7 @@ Implemented. The phone viewer plays the stored HASUT track when the KEEP / MUTE 
 
 ## Sprint 24 — Mobile map pin playback
 
-Implemented. Discovery pins on the phone play a muted HLS preview with the same rules as the web map.
+Parked native track. Implemented. Discovery pins on the phone play a muted HLS preview with the same rules as the web map.
 
 - `allowPinAutoplay`, `pickPinPreviews`, and `intersectsViewport` live in `@hasut/utils`. Live pins win, only pins on the map frame play, and at most three decoders run.
 - A pin attaches `expo-video` only after the playlist is an absolute `http(s)` `#EXTM3U` document. IMAGE and PROFILE stay on the still. Relative `/media/hls` paths are not fetched.
@@ -298,20 +312,52 @@ Implemented. Discovery pins on the phone play a muted HLS preview with the same 
 
 ## Sprint 25 — Mobile discovery presence signals
 
-Implemented. The phone map now reads a real connection type and prompts the owner to add a presence.
+Parked native track. Implemented. The phone map now reads a real connection type and prompts the owner to add a presence.
 
 - `pinAutoplaySignalsFromNetwork` maps Expo `CELLULAR` onto the same autoplay gate as the web `navigator.connection` type. `expo-network` updates when the radio changes. Data saver and slow `effectiveType` still come from the browser connection object when it exists.
 - A signed-in owner sees **Add presence** and a You pin (accent ring) that opens `/story`. If their nearby marker is still `PROFILE`, the sheet says “Add a presence so neighbors see more than your profile.”
 - IP address is not requested. Pin playback stays muted and capped.
 
-## Sprint 26 — API HLS proxy for mobile playback
+## Sprint 26 — API HLS proxy
 
-Implemented. The phone can play a relative `/media/hls` playlist by asking the API, the same way the web app uses a Next rewrite.
+Implemented. Shared API infra. Relative `/media/hls` playlists can be fetched from the Nest origin. The web app still uses the Next rewrite; this proxy is not a mobile-only leftover to undo.
 
 - Nest serves `GET`/`HEAD` `/media/hls/*` and forwards only a sanitized subpath to `LIVE_HLS_BASE_URL` or `http://127.0.0.1:8888`. Traversal and schemes are refused. MediaMTX down is `502`.
-- `resolveMediaUrl` prefixes `/media/hls` with `EXPO_PUBLIC_API_URL`. A CDN `http(s)` playlist is unchanged. `/media/audio` is not proxied.
+- `resolveMediaUrl` prefixes `/media/hls` with an `http(s)` API origin. A CDN playlist is unchanged. `/media/audio` is not proxied.
 - The API still stores relative playback URLs when no HLS origin is configured. WHIP stays on the web rewrite. SDP is not logged.
 
-## After Phase 1
+## Web launch track
 
-[Phase 2 presence stories and live](./phase-2-scope.md) is implemented behind `stories.live`: map pin priority LIVE → video → image → profile; HLS viewer buffering; optional MediaMTX compose profile. After that: Protected Service design, marketplace, billing, multi-city operations, skill verification productization.
+Phase 2 presence on **web** (Sprints 11–18) is behind `stories.live`: map pin priority LIVE → video → image → profile; HLS viewer buffering; optional MediaMTX compose profile. Native apps wait until after web launch. Protected Service, marketplace, and billing stay out.
+
+### Sprint 27 — Web presence launch polish
+
+Implemented. No Expo work.
+
+- Seed writes short WAV objects to MinIO/S3 when that store is reachable. Members only see tracks with an `http(s)` file; otherwise the composer says the library is empty.
+- Signed-in owners get **Add presence** on the web map, a You pin, and the product hint when their nearby pin is still the profile.
+- Playwright (`pnpm test:e2e`) covers `/story` and `/stories/[memberId]`: loading, empty, live wait, and Patrons isolation.
+
+### Sprint 28 — Web PWA install and HLS origin E2E
+
+Implemented. No Expo work. No billing.
+
+- Member web registers `/sw.js` (shell icons/manifest only; never API, media, or navigations) and offers **Install** when Chromium defers `beforeinstallprompt`, or a Home Screen hint on iOS. Session dismiss only.
+- Playwright starts a MediaMTX-shaped HLS origin (`/live/{id}/index.m3u8`). The live viewer waits on a missing playlist and attaches once the origin returns `#EXTM3U`. When Next is started for e2e, `/media/hls` is rewritten to that origin.
+
+### Sprint 29 — Phase 1 critical web/admin E2E
+
+Implemented. No Expo work. No billing. Playwright mocks `**/api/v1/**` so CI does not need seeded OTP or staff credentials.
+
+- Member (`member-critical.spec.ts`): One-time code `7010358490` → accept Priya Nair → open chat → send text. Tokens stay in web session storage; the thread never shows a phone number.
+- Admin (`admin-critical.spec.ts`): staff email + password → 2FA → member search by display name → identity approve → audit `VERIFICATION_APPROVED`. The members table must not render a phone or `+91`.
+
+### Sprint 30 — Data-saver pin preview opt-in
+
+Implemented. No Expo work.
+
+- `allowPinAutoplay` still freezes pins on reduced motion, data saver, cellular, and slow effective types. `explicitAllow` wins over the network signals only; reduced motion is never overridable.
+- `showPinPreviewControl` shows **Play previews** when the network would block autoplay (or the session override is on). The chip is a `FilterChip` with `aria-pressed`. The choice is `sessionStorage` key `hasut.pin-preview-override` (`1`), and private mode must not throw.
+- Playwright (`discovery-previews.spec.ts`) stubs `navigator.connection` as cellular + data saver and toggles the chip.
+
+Later hardening only if still needed. Protected Service, marketplace, and billing stay out.

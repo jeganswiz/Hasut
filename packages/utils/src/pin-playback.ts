@@ -1,3 +1,5 @@
+import type { PinMediaKind } from "@hasut/types";
+
 export interface PinPreviewCandidate {
   kind: "LIVE" | "VIDEO";
   url: string;
@@ -11,6 +13,8 @@ export interface PinAutoplaySignals {
   saveData?: boolean;
   type?: string;
   effectiveType?: string;
+  /** Member opted in despite cellular or data saver. Never overrides reduced motion. */
+  explicitAllow?: boolean;
 }
 
 export interface LayoutBox {
@@ -38,7 +42,13 @@ export function pinAutoplaySignalsFromNetwork(input: {
 
 /** Cellular, data saver, and reduced motion stay on the still avatar. */
 export function allowPinAutoplay(signals: PinAutoplaySignals): boolean {
-  if (signals.reducedMotion || signals.saveData === true) {
+  if (signals.reducedMotion) {
+    return false;
+  }
+  if (signals.explicitAllow === true) {
+    return true;
+  }
+  if (signals.saveData === true) {
     return false;
   }
   if (signals.type === "cellular") {
@@ -46,6 +56,14 @@ export function allowPinAutoplay(signals: PinAutoplaySignals): boolean {
   }
   const slow = signals.effectiveType;
   return slow !== "slow-2g" && slow !== "2g" && slow !== "3g";
+}
+
+/** Show an opt-in when the network would otherwise freeze pins. */
+export function showPinPreviewControl(signals: PinAutoplaySignals): boolean {
+  if (signals.reducedMotion) {
+    return false;
+  }
+  return signals.explicitAllow === true || !allowPinAutoplay({ ...signals, explicitAllow: false });
 }
 
 export function intersectsViewport(box: LayoutBox, frame: LayoutBox): boolean {
@@ -73,3 +91,14 @@ export function isHlsDocument(status: number, body: string): boolean {
 }
 
 export const HLS_PLAYLIST_POLL_MS = 2000;
+
+/** Sheet copy when the signed-in owner’s nearby pin is still the idle profile. */
+export function ownerPresenceCopy(signedIn: boolean, pinMediaKind: PinMediaKind | null): string {
+  if (!signedIn) {
+    return "";
+  }
+  if (pinMediaKind === null || pinMediaKind === "PROFILE") {
+    return "Add a presence so neighbors see more than your profile.";
+  }
+  return "Your presence is on the map.";
+}

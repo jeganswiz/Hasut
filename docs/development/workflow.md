@@ -9,10 +9,12 @@
 | TypeScript                   | `strict` true; `noImplicitAny`; no `any` without a one-line justification comment |
 | Prisma                       | Schema + migrations                                                               |
 | Jest                         | Unit and API integration                                                          |
-| Playwright                   | Web + admin E2E                                                                   |
-| React Native Testing Library | Mobile unit                                                                       |
+| Playwright                   | Web + admin E2E (launch path)                                                     |
+| React Native Testing Library | Parked Expo unit tests; not required for web launch                               |
 | Docker Compose               | Postgres+PostGIS, MinIO, Redis, API                                               |
-| `pnpm dev:up`                | One-command local stack; see [setup.html](./setup.html)                           |
+| `pnpm dev:up`                | Launch path: API, web, admin; see [setup.html](./setup.html)                      |
+
+The next requested sprint is the web launch track in [sprint-breakdown.md](../product/sprint-breakdown.md), not Expo work.
 
 ## Environments
 
@@ -66,3 +68,4 @@ If an API DTO changes:
 - Duplicate utilities, clients, or types.
 - Bypass `OtpProvider`, location privacy helpers, or admin audit.
 - Implement deferred phase features “while we are here”.
+- Extend parked Expo sprints (19–25) or treat native apps as launch work.

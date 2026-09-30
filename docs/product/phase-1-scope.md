@@ -54,10 +54,12 @@ Subscriptions, CRM, invoices, billing, marketplace checkout, booking, payments, 
 
 ## UX states
 
-Every member and admin surface: loading, empty, error, success. Token-driven UI. Map-first mobile discovery with bottom sheet and nearby cards — inspired by, not copied from, the reference.
+Every member and admin surface: loading, empty, error, success. Token-driven UI. Map-first **web** discovery with bottom sheet and nearby cards — inspired by, not copied from, the reference. Native apps wait until after web launch.
 
 ## Critical E2E (definition of done for the product)
 
 Member: Registration → OTP → profile → location → discovery → profile → connection → chat.
 
 Admin: Admin login → user search → verification → approve → audit log.
+
+Sprint 29 covers the launch-critical slices in Playwright with API mocks: member OTP → accept connection → chat, and staff 2FA → member search → identity approve → audit. Full registration/profile/location still uses the seeded demo and existing chrome specs.

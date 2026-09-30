@@ -1,5 +1,6 @@
 import { themeToCssText } from "@hasut/config";
 import type { ReactNode } from "react";
+import { PwaBoot } from "../components/pwa-boot";
 import { ThemeBoot } from "../components/theme-boot";
 import "./globals.css";
 
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body suppressHydrationWarning>
         <ThemeBoot />
+        <PwaBoot />
         {children}
       </body>
     </html>

@@ -1,4 +1,11 @@
-import { allowPinAutoplay, intersectsViewport, pickPinPreviews } from "./pin-playback";
+import {
+  allowPinAutoplay,
+  intersectsViewport,
+  pickPinPreviews,
+  PIN_PREVIEW_OVERRIDE_KEY,
+  readPinPreviewOverride,
+  writePinPreviewOverride,
+} from "./pin-playback";
 
 describe("allowPinAutoplay", () => {
   it("plays on an unconstrained connection", () => {
@@ -10,6 +17,30 @@ describe("allowPinAutoplay", () => {
     expect(allowPinAutoplay({ reducedMotion: false, type: "cellular" })).toBe(false);
     expect(allowPinAutoplay({ reducedMotion: true })).toBe(false);
     expect(allowPinAutoplay({ reducedMotion: false, effectiveType: "2g" })).toBe(false);
+    expect(allowPinAutoplay({ reducedMotion: false, type: "cellular", explicitAllow: true })).toBe(
+      true,
+    );
+  });
+});
+
+describe("pin preview override", () => {
+  it("stores a session opt-in without throwing when storage is missing", () => {
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+    };
+    expect(readPinPreviewOverride(storage)).toBe(false);
+    writePinPreviewOverride(storage, true);
+    expect(store.get(PIN_PREVIEW_OVERRIDE_KEY)).toBe("1");
+    writePinPreviewOverride(storage, false);
+    expect(readPinPreviewOverride(storage)).toBe(false);
+    writePinPreviewOverride(null, true);
   });
 });
 

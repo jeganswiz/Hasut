@@ -2,9 +2,11 @@
 
 HASUT is a location-intelligent professional and business network. Phase 1 delivers the **Local Discovery Network** MVP. Stories and live streaming are Phase 2. Marketplace, billing, CRM, and the creator economy stay deferred after that.
 
+**Active delivery:** member web, admin, and the Nest API. Native Expo (`apps/mobile`) is parked until after web launch. Responsive web is the phone experience until then. Sprint order: [sprint-breakdown.md](./product/sprint-breakdown.md).
+
 ## Current repository state
 
-Sprints 0–9 are implemented (Phase 1). Phase 2 stories/live: [phase-2-scope.md](./product/phase-2-scope.md).
+Sprints 0–18 (Phase 1 + Phase 2 presence on **web**) are implemented. Sprints 19–25 are a parked native track. Sprint 26 is shared API HLS infra. Sprints 27–30 (web presence polish, PWA install, HLS-origin E2E, Phase 1 critical Playwright, data-saver pin-preview opt-in) are implemented. See [phase-2-scope.md](./product/phase-2-scope.md).
 
 ## Read in this order
 

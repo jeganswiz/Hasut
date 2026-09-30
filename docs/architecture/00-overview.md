@@ -6,7 +6,7 @@
 
 ## What Phase 1 is
 
-HASUT Phase 1 is a **Local Discovery Network**. A member registers with phone OTP, creates a profile, sets an approximate location, discovers nearby people, professionals and businesses, connects, and chats. A member may become a professional (multiple categories, service area, current mode) or own a business. Admins operate users, catalog, verification, reports, support, theme, remote config, feature flags, and audit.
+HASUT Phase 1 is a **Local Discovery Network**. A member registers with phone OTP, creates a profile, sets an approximate location, discovers nearby people, professionals and businesses, connects, and chats. A member may become a professional (multiple categories, service area, current mode) or own a business. Admins operate users, catalog, verification, reports, support, theme, remote config, feature flags, and audit. Launch surfaces are **web + admin + API**; `apps/mobile` is parked until after web launch.
 
 HASUT is **not** a marketplace, booking engine, CRM, billing system, or live platform in Phase 1. Presence stories and live HLS are [Phase 2](../product/phase-2-scope.md) after Sprint 9. Other domains get extension points only.
 
@@ -15,7 +15,7 @@ HASUT is **not** a marketplace, booking engine, CRM, billing system, or live pla
 ```
 ┌─────────────┐  ┌─────────────┐  ┌──────────────┐
 │  apps/web   │  │ apps/mobile │  │  apps/admin  │
-│  Next.js    │  │ Expo SDK 57 │  │  Next.js     │
+│  Next.js    │  │ Expo parked │  │  Next.js     │
 └──────┬──────┘  └──────┬──────┘  └──────┬───────┘
        │                │                │
        │         packages/api-client     │
@@ -41,8 +41,8 @@ All product surfaces talk to **one API**. Admin is a separate Next.js app with a
 
 | App           | Role                                                                            |
 | ------------- | ------------------------------------------------------------------------------- |
-| `apps/web`    | Member web: discovery, profiles, connections, chat, support                     |
-| `apps/mobile` | Member mobile (Expo SDK 57 / Expo Go): map-first discovery                      |
+| `apps/web`    | Member web: discovery, profiles, connections, chat, support, presence (launch)  |
+| `apps/mobile` | Parked until after web launch (Expo SDK 57 shell; Sprints 19–25 history)        |
 | `apps/admin`  | Operations: users, catalog, verification, reports, support, theme, flags, audit |
 | `apps/api`    | Single backend. NestJS modules with enforced dependency direction               |
 

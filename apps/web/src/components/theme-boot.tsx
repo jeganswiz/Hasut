@@ -13,6 +13,10 @@ export function ThemeBoot() {
         if (node !== null) {
           node.textContent = themeToCssText(theme.tokens);
         }
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor !== null) {
+          themeColor.setAttribute("content", theme.tokens.primary);
+        }
       })
       .catch(() => {
         /* keep boot tokens */

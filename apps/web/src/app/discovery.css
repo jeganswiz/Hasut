@@ -171,6 +171,21 @@
   border-radius: var(--hasut-radius-button);
 }
 
+.map-avatar-pin.is-you {
+  box-shadow: 0 0 0 3px var(--hasut-color-accent);
+}
+
+.map-avatar-you {
+  position: absolute;
+  bottom: -8px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--hasut-color-accent);
+  color: var(--hasut-color-text);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
 .discovery-cluster {
   background: var(--hasut-color-primary);
   color: var(--hasut-color-text-on-primary);
@@ -205,8 +220,13 @@
   height: 44px;
   border-radius: 999px;
   background: var(--hasut-color-accent);
+  color: var(--hasut-color-text);
   border: 3px solid var(--hasut-color-surface);
-  display: block;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--hasut-color-accent) 28%, transparent);
 }
 

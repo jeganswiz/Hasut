@@ -1,3 +1,4 @@
+export { encodePcmWavTone } from "./demo-tone-wav";
 export { bucketDistanceMeters, formatDistanceLabel } from "./distance";
 export {
   containsExactCoordinateKeys,
@@ -31,7 +32,9 @@ export {
   allowPinAutoplay,
   intersectsViewport,
   isHlsDocument,
+  ownerPresenceCopy,
   pickPinPreviews,
   pinAutoplaySignalsFromNetwork,
+  showPinPreviewControl,
 } from "./pin-playback";
 export type { LayoutBox, PinAutoplaySignals, PinPreviewCandidate } from "./pin-playback";

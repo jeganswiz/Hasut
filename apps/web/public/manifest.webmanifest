@@ -1,15 +1,19 @@
 {
   "name": "HASUT",
   "short_name": "HASUT",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "browser"],
   "background_color": "#F8FAFC",
   "theme_color": "#6D28D9",
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -51,7 +51,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "apps/e2e/**/*.mjs"],
     languageOptions: {
       globals: {
         console: "readonly",
@@ -67,6 +67,19 @@ export default tseslint.config(
     },
     rules: {
       "no-console": "off",
+    },
+  },
+  {
+    files: ["**/public/sw.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: {
+        self: "readonly",
+        caches: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+        console: "readonly",
+      },
     },
   },
 );

@@ -2,6 +2,7 @@
 
 import type { AudioTrackView, StoryAudioSource } from "@hasut/types";
 import { RangeSelect, cssVar, formatClock, normalizeRange, type RangeValue } from "@hasut/ui";
+import { reachablePlaybackUrl } from "@hasut/utils";
 import { useMemo, useRef, useState } from "react";
 
 export interface AudioChoice {
@@ -62,6 +63,8 @@ export function AudioPicker({
 
   const visible = mood === "All" ? tracks : tracks.filter((track) => track.mood === mood);
   const bounds = { duration: value.durationSeconds, maxSpan: maxSegmentSeconds, minSpan: 1 };
+  const selectedLibrary =
+    value.source === "LIBRARY" ? tracks.find((track) => track.id === value.trackId) : undefined;
 
   function pickTrack(track: AudioTrackView): void {
     if (value.trackId === track.id) {
@@ -137,7 +140,11 @@ export function AudioPicker({
             ))}
           </div>
 
-          {visible.length === 0 ? (
+          {tracks.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 14, color: cssVar("mutedText") }}>
+              No playable HASUT tracks yet. You can still add your own audio.
+            </p>
+          ) : visible.length === 0 ? (
             <p style={{ margin: 0, fontSize: 14, color: cssVar("mutedText") }}>
               No HASUT tracks in this mood yet. You can still add your own audio.
             </p>
@@ -251,6 +258,15 @@ export function AudioPicker({
           style={{ display: "none" }}
         />
       </div>
+
+      {selectedLibrary !== undefined && reachablePlaybackUrl(selectedLibrary.audioUrl) ? (
+        <audio
+          controls
+          src={selectedLibrary.audioUrl}
+          preload="metadata"
+          aria-label={`${selectedLibrary.title} preview`}
+        />
+      ) : null}
 
       {value.source === "NONE" ? null : (
         <RangeSelect

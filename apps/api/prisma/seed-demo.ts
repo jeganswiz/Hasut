@@ -1,5 +1,6 @@
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { LOCATION_POLICY_DEFAULTS } from "@hasut/config";
-import { normalizeEmail, normalizePhoneE164, snapToGrid } from "@hasut/utils";
+import { encodePcmWavTone, normalizeEmail, normalizePhoneE164, snapToGrid } from "@hasut/utils";
 import { Prisma, type CurrentMode, type PrismaClient } from "@prisma/client";
 import { hash } from "argon2";
 
@@ -262,7 +263,7 @@ export async function seedDemoCatalog(prisma: PrismaClient): Promise<void> {
     actorId: priyaId,
   });
 
-  await seedAudioLibrary(prisma);
+  await seedAudioLibrary(prisma, adminId);
 
   const kabirProfessional = await prisma.professionalProfile.findUnique({
     where: { memberId: kabirId },
@@ -285,44 +286,124 @@ export async function seedDemoCatalog(prisma: PrismaClient): Promise<void> {
 }
 
 /**
- * Demo soundtracks for the story composer. The media ids are fixed so reseeding
- * does not pile up duplicates; they point at no uploaded object, so playback is
- * silent until a real file is attached from the admin console.
+ * Demo soundtracks for the story composer. When MinIO/S3 is reachable the seed
+ * writes a short playable WAV. When no object can be stored, the catalogue row
+ * stays but members see an empty library instead of silent titles.
  */
-async function seedAudioLibrary(prisma: PrismaClient): Promise<void> {
+async function seedAudioLibrary(prisma: PrismaClient, ownerMemberId: string): Promise<void> {
   const tracks = [
     {
       id: "1f2c4a10-0000-4000-8000-000000000001",
       title: "Marina Morning",
       artist: "HASUT Sound",
       mediaId: "1f2c4a10-0000-4000-8000-0000000000a1",
-      durationSeconds: 28,
+      durationSeconds: 8,
       mood: "Calm",
+      frequencyHz: 220,
+      objectKey: "seed/audio/marina-morning.wav",
     },
     {
       id: "1f2c4a10-0000-4000-8000-000000000002",
       title: "Workshop Hum",
       artist: "HASUT Sound",
       mediaId: "1f2c4a10-0000-4000-8000-0000000000a2",
-      durationSeconds: 45,
+      durationSeconds: 8,
       mood: "Focus",
+      frequencyHz: 165,
+      objectKey: "seed/audio/workshop-hum.wav",
     },
     {
       id: "1f2c4a10-0000-4000-8000-000000000003",
       title: "Pongal Drums",
       artist: "HASUT Sound",
       mediaId: "1f2c4a10-0000-4000-8000-0000000000a3",
-      durationSeconds: 36,
+      durationSeconds: 8,
       mood: "Festive",
+      frequencyHz: 330,
+      objectKey: "seed/audio/pongal-drums.wav",
     },
   ];
 
+  const bucket = process.env.S3_BUCKET?.trim() || "hasut-media";
+
   for (const track of tracks) {
+    const wav = Buffer.from(
+      encodePcmWavTone({
+        frequencyHz: track.frequencyHz,
+        durationSeconds: track.durationSeconds,
+      }),
+    );
+    const stored = await putSeedAudioObject(track.objectKey, wav);
+    if (stored) {
+      await prisma.mediaAsset.upsert({
+        where: { id: track.mediaId },
+        update: {
+          bucket,
+          objectKey: track.objectKey,
+          mimeType: "audio/wav",
+          byteSize: wav.byteLength,
+          purpose: "STORY_AUDIO",
+          status: "READY",
+        },
+        create: {
+          id: track.mediaId,
+          ownerMemberId,
+          bucket,
+          objectKey: track.objectKey,
+          mimeType: "audio/wav",
+          byteSize: wav.byteLength,
+          purpose: "STORY_AUDIO",
+          status: "READY",
+        },
+      });
+    }
     await prisma.audioTrack.upsert({
       where: { id: track.id },
-      update: { title: track.title, artist: track.artist, mood: track.mood },
-      create: { ...track, isActive: true },
+      update: {
+        title: track.title,
+        artist: track.artist,
+        mood: track.mood,
+        durationSeconds: track.durationSeconds,
+      },
+      create: {
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        mediaId: track.mediaId,
+        durationSeconds: track.durationSeconds,
+        mood: track.mood,
+        isActive: true,
+      },
     });
+  }
+}
+
+async function putSeedAudioObject(objectKey: string, body: Buffer): Promise<boolean> {
+  const endpoint = process.env.S3_ENDPOINT?.trim() ?? "";
+  const bucket = process.env.S3_BUCKET?.trim() ?? "";
+  const accessKeyId = process.env.S3_ACCESS_KEY?.trim() ?? "";
+  const secretAccessKey = process.env.S3_SECRET_KEY?.trim() ?? "";
+  if (endpoint.length === 0 || bucket.length === 0 || accessKeyId.length === 0) {
+    return false;
+  }
+  try {
+    const client = new S3Client({
+      region: process.env.S3_REGION?.trim() || "us-east-1",
+      endpoint,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== "false",
+      credentials: { accessKeyId, secretAccessKey },
+    });
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+        Body: body,
+        ContentType: "audio/wav",
+      }),
+    );
+    return true;
+  } catch {
+    return false;
   }
 }
 

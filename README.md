@@ -6,7 +6,7 @@ HASUT is inspired by Hebrew **חסות** (patronage, support, sponsorship, mutua
 
 ## Status
 
-**Sprints 0–9 complete (Phase 1).** Phase 2 stories and live HLS are implemented behind the `stories.live` flag. See [sprint breakdown](./docs/product/sprint-breakdown.md). Peer and chat payloads never include phone numbers. Paid subscriptions are not implemented.
+**Active delivery is web + admin + API.** Sprints 0–18 are implemented (Phase 1 and Phase 2 presence on web). Native Expo (`apps/mobile`) is parked until after web launch. Sprints 27–30 (presence polish, PWA, HLS-origin E2E, Phase 1 critical Playwright, pin-preview opt-in) are implemented. See [sprint breakdown](./docs/product/sprint-breakdown.md). Peer and chat payloads never include phone numbers. Paid subscriptions are not implemented.
 
 ## Quick start
 
@@ -43,7 +43,7 @@ Full setup: [docs/development/setup.md](./docs/development/setup.md)
 | `apps/api`    | NestJS modular monolith                                               |
 | `apps/web`    | Next.js member web                                                    |
 | `apps/admin`  | Next.js admin                                                         |
-| `apps/mobile` | Expo SDK 57 member mobile (Expo Go)                                   |
+| `apps/mobile` | Parked Expo SDK 57 shell (not part of launch)                         |
 | `packages/*`  | Shared types, validation, API client, auth storage, config, UI, utils |
 
 ```bash

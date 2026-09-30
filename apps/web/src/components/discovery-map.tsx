@@ -5,26 +5,14 @@ import type { DiscoveryCluster, DiscoveryMarker } from "@hasut/types";
 import { diffDiscoveryMarkers } from "@hasut/utils";
 import { useEffect, useRef, useState } from "react";
 import { isLivePlaylist } from "../lib/live-playlist";
-import { allowPinAutoplay, intersectsViewport, pickPinPreviews } from "../lib/pin-playback";
+import {
+  allowPinAutoplay,
+  browserPinSignals,
+  intersectsViewport,
+  pickPinPreviews,
+} from "../lib/pin-playback";
 
-function pinAutoplayAllowed(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  const connection = (
-    navigator as Navigator & {
-      connection?: { saveData?: boolean; type?: string; effectiveType?: string };
-    }
-  ).connection;
-  return allowPinAutoplay({
-    reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    saveData: connection?.saveData,
-    type: connection?.type,
-    effectiveType: connection?.effectiveType,
-  });
-}
-
-function markerHtml(marker: DiscoveryMarker, selected: boolean): string {
+function markerHtml(marker: DiscoveryMarker, selected: boolean, selfId: string | null): string {
   const ring =
     marker.ring === "live" ? "is-live" : marker.ring === "available" ? "is-available" : "";
   const photo =
@@ -37,8 +25,9 @@ function markerHtml(marker: DiscoveryMarker, selected: boolean): string {
       ? `<video muted playsinline loop data-hls="${marker.previewHlsUrl.replace(/"/g, "")}" data-kind="${marker.pinMediaKind}"></video>`
       : "";
   const live = marker.pinMediaKind === "LIVE" ? `<em>LIVE</em>` : "";
+  const you = marker.id === selfId ? `<span class="map-avatar-you">You</span>` : "";
   const label = selected ? `<strong>${marker.label}</strong>` : "";
-  return `<button class="map-avatar-pin ${ring}" type="button">${photo}${preview}${live}${label}</button>`;
+  return `<button class="map-avatar-pin ${ring}${marker.id === selfId ? " is-you" : ""}" type="button">${photo}${preview}${live}${you}${label}</button>`;
 }
 
 function uniqueTileChain(tileUrl: string, fallbackTileUrls: string[]): string[] {
@@ -64,6 +53,8 @@ export function DiscoveryMap({
   markers,
   clusters,
   selectedId,
+  selfId = null,
+  playPreviews = false,
   onSelect,
 }: {
   tileUrl: string;
@@ -75,6 +66,8 @@ export function DiscoveryMap({
   markers: DiscoveryMarker[];
   clusters: DiscoveryCluster[];
   selectedId: string | null;
+  selfId?: string | null;
+  playPreviews?: boolean;
   onSelect: (id: string) => void;
 }) {
   const mapNode = useRef<HTMLDivElement | null>(null);
@@ -174,7 +167,7 @@ export function DiscoveryMap({
           .marker([overlay.latitude, overlay.longitude], {
             icon: leaflet.divIcon({
               className: "",
-              html: `<a class="discovery-self" href="/story" aria-label="Add presence or edit profile"></a>`,
+              html: `<a class="discovery-self" href="/story" aria-label="Add presence">You</a>`,
               iconSize: [44, 44],
             }),
             zIndexOffset: 800,
@@ -210,7 +203,7 @@ export function DiscoveryMap({
         const selected = marker.id === selectedId;
         const icon = leaflet.divIcon({
           className: "",
-          html: markerHtml(marker, selected),
+          html: markerHtml(marker, selected, selfId),
           iconSize: [selected ? 72 : 48, selected ? 88 : 48],
         });
         const existing = markerLayers.current.get(marker.id);
@@ -251,7 +244,7 @@ export function DiscoveryMap({
         }
       }
     });
-  }, [clusters, mapReady, markers, selectedId]);
+  }, [clusters, mapReady, markers, selectedId, selfId]);
 
   useEffect(() => {
     function destroyPlayers(): void {
@@ -268,7 +261,7 @@ export function DiscoveryMap({
       if (
         document.hidden ||
         selectedId !== null ||
-        !pinAutoplayAllowed() ||
+        !allowPinAutoplay(browserPinSignals(playPreviews)) ||
         mapNode.current === null
       ) {
         return;
@@ -338,7 +331,7 @@ export function DiscoveryMap({
       map?.off("moveend", attach);
       destroyPlayers();
     };
-  }, [clusters, mapReady, markers, selectedId]);
+  }, [clusters, mapReady, markers, selectedId, playPreviews]);
 
   return <div ref={mapNode} className="discovery-map" />;
 }

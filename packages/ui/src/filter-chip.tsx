@@ -10,6 +10,7 @@ export function FilterChip({
     <button
       type="button"
       {...props}
+      aria-pressed={active}
       style={{
         border: `1px solid ${active ? cssVar("primary") : cssVar("border")}`,
         background: active ? cssVar("primary") : cssVar("surface"),

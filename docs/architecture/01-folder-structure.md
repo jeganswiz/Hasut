@@ -7,7 +7,7 @@ Hasut/
   apps/
     api/                      # NestJS modular monolith
     web/                      # Next.js member web
-    mobile/                   # Expo React Native
+    mobile/                   # Expo React Native (parked until after web launch)
     admin/                    # Next.js admin
   packages/
     ui/
@@ -110,7 +110,7 @@ apps/admin/src/
 
 Visual primitives come from `packages/ui`. Data access comes from `packages/api-client`. Do not fetch `apps/api` URLs with raw `fetch` scattered through components.
 
-## apps/mobile (Expo)
+## apps/mobile (Expo, parked until after web launch)
 
 ```
 apps/mobile/src/

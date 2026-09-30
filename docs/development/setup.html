@@ -290,8 +290,9 @@
           <p class="chip">Local development</p>
           <h1>Installation and setup</h1>
           <p>
-            HASUT is a pnpm monorepo. Redis, Postgres/PostGIS, and MinIO run in Docker. The API,
-            member web, and admin apps run on the host. Use <code>pnpm</code>, not npm, for
+            HASUT is a pnpm monorepo. Redis, Postgres/PostGIS, and MinIO run in Docker.
+            <code>pnpm dev:up</code> is the launch path: API, member web, and admin on the host.
+            Native Expo is parked until after web launch. Use <code>pnpm</code>, not npm, for
             workspace scripts.
           </p>
           <div class="meta">
@@ -604,12 +605,11 @@
               </tr>
               <tr>
                 <td>Expo default</td>
-                <td>Mobile (Expo)</td>
+                <td>Mobile (Expo) — parked</td>
                 <td>Metro, typically <code>8081</code> (SDK 57)</td>
                 <td>
-                  Not started by <code>dev:up</code>. Use
+                  Optional. Not part of launch. Not started by <code>dev:up</code>. If you opt in:
                   <code>pnpm --filter @hasut/mobile exec expo start --go --lan</code>
-                  so Expo Go can open the project.
                 </td>
               </tr>
             </tbody>
@@ -873,7 +873,7 @@
               <tr>
                 <td><code>EXPO_PUBLIC_API_URL</code></td>
                 <td><code>http://localhost:3001</code></td>
-                <td>Mobile API origin. On a device, use your LAN IP and port 3001.</td>
+                <td>Parked Expo client API origin. On a device, use your LAN IP and port 3001.</td>
               </tr>
             </tbody>
           </table>
@@ -895,8 +895,9 @@
             >
           </div>
           <p>
-            Mobile is Expo SDK 57 (current Expo Go). On a physical phone, set Metro and the API to
-            your PC LAN IPv4, then start Expo Go mode:
+            Native Expo is parked until after web launch. If you opt in, use Expo SDK 57 (current
+            Expo Go). On a physical phone, set Metro and the API to your PC LAN IPv4, then start
+            Expo Go mode:
           </p>
           <div class="cmd">
             <button type="button" data-copy>Copy</button>
@@ -955,8 +956,8 @@
             <code>NODE_ENV=test</code>. Pre-commit runs lint-staged (Prettier + ESLint) via Husky.
           </p>
           <p>
-            Workspace apps: <code>apps/api</code>, <code>apps/web</code>, <code>apps/admin</code>,
-            <code>apps/mobile</code>. Shared contracts live in <code>packages/types</code>,
+            Launch apps: <code>apps/api</code>, <code>apps/web</code>, <code>apps/admin</code>.
+            <code>apps/mobile</code> stays in the tree as a parked Expo shell. Shared contracts live in <code>packages/types</code>,
             <code>packages/validation</code>, and <code>packages/api-client</code> (Axios). Do not
             add a second HTTP client in the apps.
           </p>

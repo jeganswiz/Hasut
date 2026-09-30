@@ -58,7 +58,7 @@ pnpm db:migrate:deploy
 pnpm db:seed
 ```
 
-The seed loads configuration plus a demo neighborhood (members, professionals, businesses, connections, chats, and notifications).
+The seed loads configuration plus a demo neighborhood (members, professionals, businesses, connections, chats, and notifications). Story soundtracks play only when MinIO/S3 received the seeded WAV files and the API uses `MEDIA_STORAGE=s3`. Otherwise the composer shows an empty HASUT library.
 
 Local admin login at http://localhost:3002/login: `admin@hasut.local` / `Chennai-Patron-42`. The seeded admin has two-step verification on, so the password step is followed by a phone code — console OTP `123456`. Phone-only sign-in with `7010358490` still works. Set `ADMIN_BOOTSTRAP_PHONE` and `DEV_OTP_CODE` in `.env`.
 
@@ -66,14 +66,17 @@ Local admin login at http://localhost:3002/login: `admin@hasut.local` / `Chennai
 
 ## Run apps (manual)
 
+On a phone browser, HASUT can be installed as a PWA (Chromium install prompt, or Add to Home Screen on iOS). The service worker does not cache API or media.
+
+Launch path (`pnpm dev:up` or):
+
 ```bash
 pnpm --filter @hasut/api dev
 pnpm --filter @hasut/web dev
 pnpm --filter @hasut/admin dev
-pnpm --filter @hasut/mobile dev
 ```
 
-`apps/mobile` is Expo SDK 57 so it opens in current Expo Go. Windows cannot run the iOS Simulator; use Expo Go on a phone on the same Wi-Fi. Point Metro and the API at your PC's LAN IPv4 (not `localhost`):
+`apps/mobile` is **parked** until after web launch. Expo SDK 57 still opens in current Expo Go if you opt in. Windows cannot run the iOS Simulator; use Expo Go on a phone on the same Wi-Fi. Point Metro and the API at your PC's LAN IPv4 (not `localhost`):
 
 ```bash
 # PowerShell example — replace with ipconfig IPv4
