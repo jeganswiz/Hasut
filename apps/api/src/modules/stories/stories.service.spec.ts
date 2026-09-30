@@ -92,6 +92,29 @@ describe("StoriesService", () => {
     patrons.patronOwnersAmong.mockResolvedValue(new Set<string>());
   });
 
+  it("keeps a story active for the duration the member chose", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const stories = await service();
+    await stories.create("m1", { kind: "IMAGE", imageMediaId: "img-1", ttlHours: 8 }, "req");
+    expect(prisma.story.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          expiresAt: new Date("2026-01-01T08:00:00.000Z"),
+        }),
+      }),
+    );
+    jest.useRealTimers();
+  });
+
+  it("rejects a duration longer than the story policy", async () => {
+    configuration.getStoryPolicy.mockResolvedValue({ ...STORY_POLICY_DEFAULTS, storyTtlHours: 8 });
+    const stories = await service();
+    await expect(
+      stories.create("m1", { kind: "IMAGE", imageMediaId: "img-1", ttlHours: 12 }, "req"),
+    ).rejects.toBeInstanceOf(HasutHttpException);
+  });
+
   it("creates an image story when the phase-2 flag is on", async () => {
     const stories = await service();
     const created = await stories.create("m1", { kind: "IMAGE", imageMediaId: "img-1" }, "req");

@@ -37,7 +37,7 @@ export class StoriesController {
 
   @ApiBearerAuth()
   @Post("me/stories")
-  @ApiOperation({ summary: "Publish a 24h presence story" })
+  @ApiOperation({ summary: "Publish a presence story" })
   create(
     @CurrentUser("memberId") memberId: string,
     @Body(new ZodValidationPipe(storyCreateSchema)) body: z.infer<typeof storyCreateSchema>,

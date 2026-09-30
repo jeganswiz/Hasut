@@ -50,6 +50,13 @@ export interface DiscoveryCluster extends DiscoveryPin {
   kinds: DiscoveryKind[];
 }
 
+/** A live or posted story that can be opened from a map profile. */
+export interface DiscoveryPresence {
+  memberId: string;
+  kind: "LIVE" | "VIDEO" | "IMAGE" | null;
+  imageUrl: string | null;
+}
+
 export interface DiscoveryPreview {
   id: string;
   kind: DiscoveryKind;
@@ -71,6 +78,8 @@ export interface DiscoveryPreview {
     countryCode: string | null;
   } | null;
   href: string;
+  /** Set for a person who can have a story. Businesses stay null. */
+  presence: DiscoveryPresence | null;
 }
 
 export interface DiscoveryResult {
@@ -79,6 +88,8 @@ export interface DiscoveryResult {
   items: DiscoveryCard[];
   markers: DiscoveryMarker[];
   clusters: DiscoveryCluster[];
+  /** The signed-in member's own story, even though their pin is not in `markers`. */
+  selfPresence?: DiscoveryPresence | null;
 }
 
 export interface DiscoveryPolicyView {

@@ -24,6 +24,10 @@ export type StoryOriginalAudioMode = (typeof STORY_ORIGINAL_AUDIO_MODES)[number]
 
 export const STORY_CAPTION_MAX_LENGTH = 180;
 
+/** Hours a member can keep one story on the map. The policy cap can hide the longer choices. */
+export const STORY_TTL_HOUR_OPTIONS = [4, 8, 12, 24] as const;
+export type StoryTtlHours = (typeof STORY_TTL_HOUR_OPTIONS)[number];
+
 /**
  * Who may watch. `PATRONS` is HASUT's word for accepted connections — from
  * חסות, patronage — chosen deliberately instead of "follower", because the

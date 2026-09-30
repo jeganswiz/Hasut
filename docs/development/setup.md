@@ -58,7 +58,7 @@ pnpm db:migrate:deploy
 pnpm db:seed
 ```
 
-The seed loads configuration plus a demo neighborhood (members, professionals, businesses, connections, chats, and notifications). Story soundtracks play only when MinIO/S3 received the seeded WAV files and the API uses `MEDIA_STORAGE=s3`. Otherwise the composer shows an empty HASUT library.
+The seed loads configuration plus a demo neighborhood (members, professionals, businesses, connections, chats, and notifications). Story soundtracks play when the audio files are on the active storage. The default is server disk (`MEDIA_STORAGE=local`). `MEDIA_STORAGE=s3` seeds MinIO from the `S3_*` variables instead.
 
 Local admin login at http://localhost:3002/login: `admin@hasut.local` / `Chennai-Patron-42`. The seeded admin has two-step verification on, so the password step is followed by a phone code — console OTP `123456`. Phone-only sign-in with `7010358490` still works. Set `ADMIN_BOOTSTRAP_PHONE` and `DEV_OTP_CODE` in `.env`.
 
@@ -148,9 +148,9 @@ Email OTP, captcha, and SSO use the same pattern. Locally they stay off and sign
 
 Production boot refuses `EMAIL_PROVIDER=console` and `CAPTCHA_PROVIDER=none`, and refuses a provider whose keys are missing. Clients never read these directly — they call `GET /api/v1/auth/config` and adapt, which is why an empty client ID simply removes the button instead of rendering a broken one.
 
-`GEOCODER_PROVIDER` defaults to `console` (nearest-city approximation). `MEDIA_STORAGE=memory` is for local/test; production must use `s3`.
+`GEOCODER_PROVIDER` defaults to `console` (nearest-city approximation). `MEDIA_STORAGE=local` stores uploads on the API server and serves them over HTTP. `memory` is rejected in production. Admins change the live backend under Storage (server disk, S3, Backblaze B2, Wasabi, Cloudflare R2, DigitalOcean Spaces, or MinIO). If files already exist, the switch asks before copying them and keeps a per-file log.
 
-Optional discovery basemap keys: `MAPTILER_API_KEY` (MapTiler Dataviz primary) and `STADIA_API_KEY` (Stadia Alidade Smooth). Empty MapTiler key skips that layer; CARTO Positron is the last fallback. Admins pick the primary provider under Discovery without a redeploy.
+Optional discovery basemap keys: `MAPTILER_API_KEY` (MapTiler Satellite) and `STADIA_API_KEY` (Stadia Satellite). Empty keys skip those layers. Esri World Imagery is the satellite map when no key is set. Admins pick the primary provider under Discovery without a redeploy.
 
 ## Why these dependencies were added
 

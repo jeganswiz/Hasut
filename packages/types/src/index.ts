@@ -116,6 +116,7 @@ export type {
   DiscoveryPin,
   DiscoveryPolicyView,
   DiscoveryPresenceUpdated,
+  DiscoveryPresence,
   DiscoveryPreview,
   DiscoveryRankingWeightsView,
   DiscoveryResult,
@@ -146,6 +147,23 @@ export type {
   ProfileCompletion,
   PublicMemberProfile,
 } from "./profile";
+export {
+  STORAGE_BACKENDS,
+  STORAGE_MIGRATION_ITEM_STATUSES,
+  STORAGE_MIGRATION_STATUSES,
+  STORAGE_PROVIDER_CATALOG,
+} from "./storage";
+export type {
+  StorageBackendName,
+  StorageMigrationItemStatus,
+  StorageMigrationItemView,
+  StorageMigrationStatus,
+  StorageMigrationView,
+  StorageOverview,
+  StorageProfileView,
+  StorageProviderOption,
+  StorageSwitchResult,
+} from "./storage";
 export {
   CONNECTION_DIRECTIONS,
   CONNECTION_STATUSES,
@@ -180,6 +198,7 @@ export {
   STORY_AUDIENCES,
   STORY_AUDIO_SOURCES,
   STORY_CAPTION_MAX_LENGTH,
+  STORY_TTL_HOUR_OPTIONS,
   STORY_KINDS,
   STORY_MODERATION_STATUSES,
   STORY_ORIGINAL_AUDIO_MODES,
@@ -198,5 +217,6 @@ export type {
   StoryModerationStatus,
   StoryOriginalAudioMode,
   StoryPlaybackStatus,
+  StoryTtlHours,
   StoryView,
 } from "./stories";

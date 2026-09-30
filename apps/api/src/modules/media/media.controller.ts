@@ -25,7 +25,7 @@ export class MediaController {
     @Body(new ZodValidationPipe(mediaPresignSchema)) body: PresignBody,
     @Req() req: Request,
   ): Promise<MediaPresignResult> {
-    return this.media.presign(memberId, body, getRequestId(req));
+    return this.media.presign(memberId, body, getRequestId(req), requestPublicOrigin(req));
   }
 
   @Post("complete")
@@ -37,4 +37,21 @@ export class MediaController {
   ): Promise<MediaAssetView> {
     return this.media.complete(memberId, body.mediaId, getRequestId(req));
   }
+}
+
+function requestPublicOrigin(req: Request): string | null {
+  const hostHeader = req.headers["x-forwarded-host"] ?? req.headers.host;
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  if (host === undefined || host.trim().length === 0) {
+    return null;
+  }
+  const forwarded = req.headers["x-forwarded-proto"];
+  const proto =
+    typeof forwarded === "string" && forwarded.length > 0
+      ? forwarded.split(",")[0]?.trim()
+      : req.protocol;
+  if (proto !== "http" && proto !== "https") {
+    return null;
+  }
+  return `${proto}://${host}`;
 }

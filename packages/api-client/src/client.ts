@@ -75,6 +75,8 @@ import {
   type StoryOriginalAudioMode,
   type LiveSessionView,
   type ThemeTokens,
+  type StorageOverview,
+  type StorageSwitchResult,
 } from "@hasut/types";
 import { createRequestId, normalizeRequestId } from "@hasut/utils";
 import {
@@ -93,6 +95,8 @@ import {
   logoutResultSchema,
   mediaAssetViewSchema,
   mediaPresignResultSchema,
+  storageOverviewSchema,
+  storageSwitchResultSchema,
   otpChallengeReceiptSchema,
   ownerLocationSchema,
   ownerMemberProfileSchema,
@@ -210,6 +214,7 @@ export interface StoryCreateInput {
   audio?: StoryAudioInput;
   originalAudioMode?: StoryOriginalAudioMode;
   audience?: StoryAudience;
+  ttlHours?: 4 | 8 | 12 | 24;
   trimStartSeconds?: number;
   trimEndSeconds?: number | null;
 }
@@ -598,6 +603,50 @@ export class HasutApiClient {
       method: "POST",
       body: JSON.stringify(body),
     });
+    return result.data;
+  }
+
+  async getAdminStorage(): Promise<StorageOverview> {
+    const result = await this.request(storageOverviewSchema, "/api/v1/admin/storage", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async switchAdminStorage(body: {
+    provider: "local" | "s3" | "b2" | "wasabi" | "r2" | "spaces" | "minio";
+    endpoint?: string;
+    region?: string;
+    bucket?: string;
+    accessKey?: string;
+    secretKey?: string;
+    forcePathStyle?: boolean;
+    publicBaseUrl?: string;
+    localRoot?: string;
+    migrate?: boolean;
+  }): Promise<StorageSwitchResult> {
+    const result = await this.request(storageSwitchResultSchema, "/api/v1/admin/storage/switch", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async cancelAdminStorageMigration(migrationId: string): Promise<StorageOverview> {
+    const result = await this.request(
+      storageOverviewSchema,
+      `/api/v1/admin/storage/migrations/${migrationId}/cancel`,
+      { method: "POST" },
+    );
+    return result.data;
+  }
+
+  async retryAdminStorageMigration(migrationId: string): Promise<StorageOverview> {
+    const result = await this.request(
+      storageOverviewSchema,
+      `/api/v1/admin/storage/migrations/${migrationId}/retry`,
+      { method: "POST" },
+    );
     return result.data;
   }
 

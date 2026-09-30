@@ -73,6 +73,7 @@ model Member {
   location       MemberLocation?
   publicLocation MemberPublicLocation?
   mediaAssets           MediaAsset[]
+  storageMigrations     StorageMigration[]
   professionalProfile   ProfessionalProfile?
   verificationRequests  VerificationRequest[]
   businesses            Business[]
@@ -260,6 +261,31 @@ enum MediaStatus {
   REJECTED
 }
 
+enum StorageBackend {
+  LOCAL
+  S3
+  B2
+  WASABI
+  R2
+  SPACES
+  MINIO
+}
+
+enum StorageMigrationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum StorageMigrationItemStatus {
+  PENDING
+  COPIED
+  SKIPPED
+  FAILED
+}
+
 model CurrentMode {
   id        String    @id @default(uuid()) @db.Uuid
   code      String    @unique
@@ -300,18 +326,90 @@ model MediaAsset {
   height        Int?
   purpose       MediaPurpose
   status        MediaStatus  @default(PENDING_UPLOAD)
-  checksum      String?
-  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  owner         Member       @relation(fields: [ownerMemberId], references: [id], onDelete: Cascade)
-  profilePhotos   Profile[]
-  categoryIcons   Category[]
-  businessCovers  Business[]
-  chatMessages    Message[]
-  supportMessages SupportMessage[]
+  checksum         String?
+  storageProfileId String?      @map("storage_profile_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner            Member       @relation(fields: [ownerMemberId], references: [id], onDelete: Cascade)
+  storageProfile   StorageProfile? @relation(fields: [storageProfileId], references: [id], onDelete: Restrict)
+  profilePhotos    Profile[]
+  categoryIcons    Category[]
+  businessCovers   Business[]
+  chatMessages     Message[]
+  supportMessages  SupportMessage[]
 
   @@index([ownerMemberId, purpose, status])
+  @@index([storageProfileId])
+  @@index([objectKey])
   @@map("media_assets")
+}
+
+/// One active backend. Older rows stay so files that were not migrated still open.
+model StorageProfile {
+  id             String         @id @default(uuid()) @db.Uuid
+  provider       StorageBackend
+  label          String
+  endpoint       String         @default("")
+  region         String         @default("")
+  bucket         String
+  accessKeyEnc   String         @default("") @map("access_key_enc")
+  secretKeyEnc   String         @default("") @map("secret_key_enc")
+  forcePathStyle Boolean        @default(false) @map("force_path_style")
+  publicBaseUrl  String         @default("") @map("public_base_url")
+  localRoot      String         @default("") @map("local_root")
+  isActive       Boolean        @default(false) @map("is_active")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assets           MediaAsset[]
+  migrationsFrom   StorageMigration[] @relation("MigrationSource")
+  migrationsTo     StorageMigration[] @relation("MigrationTarget")
+
+  @@index([isActive])
+  @@map("storage_profiles")
+}
+
+model StorageMigration {
+  id           String                 @id @default(uuid()) @db.Uuid
+  fromProfileId String                @map("from_profile_id") @db.Uuid
+  toProfileId   String                @map("to_profile_id") @db.Uuid
+  actorId       String                @map("actor_id") @db.Uuid
+  status        StorageMigrationStatus @default(RUNNING)
+  totalCount    Int                   @default(0) @map("total_count")
+  copiedCount   Int                   @default(0) @map("copied_count")
+  failedCount   Int                   @default(0) @map("failed_count")
+  skippedCount  Int                   @default(0) @map("skipped_count")
+  errorMessage  String                @default("") @map("error_message")
+  startedAt     DateTime?             @map("started_at") @db.Timestamptz(6)
+  finishedAt    DateTime?             @map("finished_at") @db.Timestamptz(6)
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  fromProfile StorageProfile         @relation("MigrationSource", fields: [fromProfileId], references: [id], onDelete: Restrict)
+  toProfile   StorageProfile         @relation("MigrationTarget", fields: [toProfileId], references: [id], onDelete: Restrict)
+  actor       Member                 @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  items       StorageMigrationItem[]
+
+  @@index([status, createdAt])
+  @@map("storage_migrations")
+}
+
+model StorageMigrationItem {
+  id           String                     @id @default(uuid()) @db.Uuid
+  migrationId  String                     @map("migration_id") @db.Uuid
+  mediaAssetId String?                    @map("media_asset_id") @db.Uuid
+  objectKey    String                     @map("object_key")
+  status       StorageMigrationItemStatus @default(PENDING)
+  byteSize     Int                        @default(0) @map("byte_size")
+  errorMessage String                     @default("") @map("error_message")
+  createdAt    DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  migration StorageMigration @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+
+  @@unique([migrationId, objectKey])
+  @@index([migrationId, status])
+  @@map("storage_migration_items")
 }
 
 /// Exact personal point lives in PostGIS (`geog`); never selected on public APIs.

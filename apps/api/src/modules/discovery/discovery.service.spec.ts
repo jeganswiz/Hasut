@@ -33,6 +33,7 @@ describe("DiscoveryService", () => {
   const prisma = {
     memberPublicLocation: { findUnique: jest.fn() },
     category: { findMany: jest.fn() },
+    professionalProfile: { findMany: jest.fn(), findUnique: jest.fn() },
   };
 
   async function createService(): Promise<DiscoveryService> {
@@ -60,6 +61,8 @@ describe("DiscoveryService", () => {
     repository.findNearbyBusinesses.mockResolvedValue([]);
     media.photoUrl.mockResolvedValue(null);
     stories.pinMediaForMembers.mockResolvedValue(new Map());
+    prisma.professionalProfile.findMany.mockResolvedValue([]);
+    prisma.professionalProfile.findUnique.mockResolvedValue(null);
     locations.readExactPoint.mockResolvedValue(null);
   });
 

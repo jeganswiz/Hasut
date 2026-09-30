@@ -1,11 +1,17 @@
 "use client";
 
 import { HasutApiError } from "@hasut/api-client";
-import type { ConnectionView, PublicMemberProfile, ReportReasonView } from "@hasut/types";
+import type {
+  ConnectionView,
+  PublicMemberProfile,
+  ReportReasonView,
+  StoryView,
+} from "@hasut/types";
 import { Button, Surface, type SurfaceState } from "@hasut/ui";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppNav } from "../../../components/app-nav";
+import { ProfileStories } from "../../../components/profile-stories";
 import { createWebApiClient } from "../../../lib/api";
 import "../../social.css";
 
@@ -16,17 +22,20 @@ export default function MemberProfilePage() {
   const [connection, setConnection] = useState<ConnectionView | null>(null);
   const [reasons, setReasons] = useState<ReportReasonView[]>([]);
   const [reasonCode, setReasonCode] = useState("");
+  const [stories, setStories] = useState<StoryView[]>([]);
   const [message, setMessage] = useState("Loading profile…");
 
   const load = useCallback(async () => {
     try {
       const client = createWebApiClient();
-      const [data, lookup, reports] = await Promise.all([
+      const [data, lookup, reports, posted] = await Promise.all([
         client.getMember(params.id),
         client.getConnectionWith(params.id).catch(() => ({ connection: null })),
         client.getReportsPolicy(),
+        client.listMemberStories(params.id).catch(() => [] as StoryView[]),
       ]);
       setProfile(data);
+      setStories(posted);
       setConnection(lookup.connection);
       setReasons(reports.reasonCodes);
       setReasonCode(reports.reasonCodes[0]?.code ?? "");
@@ -58,7 +67,9 @@ export default function MemberProfilePage() {
         <p>{message}</p>
         {profile?.currentMode ? <p>{profile.currentMode.label}</p> : null}
         {profile?.approximateLocation ? <p>{profile.approximateLocation.label}</p> : null}
+        {stories.length > 0 ? <ProfileStories stories={stories} memberId={params.id} /> : null}
         <div className="actions">
+          <a href={`/stories/${params.id}`}>Watch presence</a>
           {connection === null ? <Button onClick={() => void connect()}>Connect</Button> : null}
           {connection?.status === "PENDING" && connection.direction === "OUTGOING" ? (
             <Button

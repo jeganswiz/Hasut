@@ -21,6 +21,7 @@ export type AdminSection =
   | "theme"
   | "flags"
   | "templates"
+  | "storage"
   | "audit"
   | "login";
 
@@ -92,6 +93,13 @@ const NAV: NavItem[] = [
     href: "/templates",
     id: "templates",
     label: "Templates",
+    group: "Configuration",
+    roles: ["ADMIN"],
+  },
+  {
+    href: "/storage",
+    id: "storage",
+    label: "Storage",
     group: "Configuration",
     roles: ["ADMIN"],
   },

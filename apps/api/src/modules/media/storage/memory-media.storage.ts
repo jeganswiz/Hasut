@@ -33,6 +33,19 @@ export class MemoryMediaStorage implements MediaStorage {
     this.objects.set(objectKey, { contentType, contentLength: copy.length });
   }
 
+  async remove(objectKey: string): Promise<void> {
+    this.objects.delete(objectKey);
+    this.bodies.delete(objectKey);
+  }
+
+  async list(): Promise<Array<{ key: string; size: number }>> {
+    return [...this.bodies.entries()].map(([key, body]) => ({ key, size: body.length }));
+  }
+
+  async probe(): Promise<void> {
+    return undefined;
+  }
+
   publicUrl(objectKey: string): string {
     return `memory://${objectKey}`;
   }

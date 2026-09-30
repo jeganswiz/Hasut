@@ -144,6 +144,7 @@ export class ConfigurationService {
   async getPublicDiscoveryPolicy(): Promise<DiscoveryPolicyView> {
     const policy = await this.getDiscoveryPolicy();
     const location = await this.getLocationPolicy();
+    // Resolved URLs are satellite imagery (MapTiler, Stadia, or Esri).
     const tiles = resolveMapTileChain({
       primary: policy.mapProvider,
       customTileUrl: policy.mapCustomTileUrl,

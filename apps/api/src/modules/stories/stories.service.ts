@@ -1,15 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { StoryPolicy } from "@hasut/config";
-import type {
-  MemberRole,
-  PinMediaKind,
-  StoryAudience,
-  StoryAudioSource,
-  StoryAudioView,
-  StoryComposerConfig,
-  StoryOriginalAudioMode,
-  StoryPlaybackStatus,
-  StoryView,
+import {
+  STORY_TTL_HOUR_OPTIONS,
+  type MemberRole,
+  type PinMediaKind,
+  type StoryAudience,
+  type StoryAudioSource,
+  type StoryAudioView,
+  type StoryComposerConfig,
+  type StoryOriginalAudioMode,
+  type StoryPlaybackStatus,
+  type StoryView,
 } from "@hasut/types";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -48,6 +49,7 @@ export interface StoryCreateInput {
   };
   originalAudioMode?: StoryOriginalAudioMode;
   audience?: StoryAudience;
+  ttlHours?: number;
   trimStartSeconds?: number;
   trimEndSeconds?: number | null;
 }
@@ -134,6 +136,7 @@ export class StoriesService {
     }
 
     const policy = await this.configuration.getStoryPolicy();
+    const ttlHours = this.resolveTtlHours(input.ttlHours, policy);
     await this.assertPublishBudget(memberId, policy);
     const caption = this.resolveCaption(input.caption ?? "", policy);
     const captionColor = this.resolveCaptionColor(input.captionColor ?? null, policy);
@@ -163,7 +166,7 @@ export class StoriesService {
         hlsUrl: hls.hlsUrl,
         previewHlsUrl: hls.previewHlsUrl,
         playbackStatus: input.kind === "VIDEO" ? "PENDING" : "READY",
-        expiresAt: new Date(Date.now() + policy.storyTtlHours * HOUR_MS),
+        expiresAt: new Date(Date.now() + ttlHours * HOUR_MS),
       },
     });
     await this.audit.record({
@@ -180,9 +183,25 @@ export class StoriesService {
         originalAudioMode: created.originalAudioMode,
         hasCaption: caption.length > 0,
         trimmed: trim.endSeconds !== null || trim.startSeconds > 0,
+        ttlHours,
       },
     });
     return this.toView(created);
+  }
+
+  private resolveTtlHours(requested: number | undefined, policy: StoryPolicy): number {
+    if (requested === undefined) {
+      return policy.storyTtlHours;
+    }
+    const allowed = (STORY_TTL_HOUR_OPTIONS as readonly number[]).includes(requested);
+    if (!allowed || requested > policy.storyTtlHours) {
+      throw new HasutHttpException(
+        "VALIDATION_ERROR",
+        "Choose a story duration the map allows",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return requested;
   }
 
   private resolveCaption(caption: string, policy: StoryPolicy): string {

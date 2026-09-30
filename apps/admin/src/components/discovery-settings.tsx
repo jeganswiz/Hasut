@@ -139,8 +139,8 @@ export function DiscoverySettings() {
           <fieldset className="admin-fieldset">
             <legend>Basemap</legend>
             <p className="hint">
-              Primary tiles, then up to two fallbacks. MapTiler needs MAPTILER_API_KEY; Stadia can
-              run without a key and still accepts STADIA_API_KEY; CARTO is last resort.
+              Satellite tiles, then up to two satellite fallbacks. MapTiler and Stadia need their
+              API keys. Esri World Imagery is the satellite layer when those keys are empty.
             </p>
             <div className="admin-choice-list" role="radiogroup" aria-label="Basemap provider">
               {MAP_BASEMAP_OPTIONS.map((option) => (

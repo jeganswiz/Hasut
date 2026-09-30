@@ -147,11 +147,18 @@ export {
   supportTicketViewSchema,
 } from "./support";
 export {
+  MEDIA_UPLOAD_MAX_BYTES,
   mediaAssetViewSchema,
   mediaCompleteSchema,
   mediaPresignResultSchema,
   mediaPresignSchema,
 } from "./media";
+export {
+  storageMigrationViewSchema,
+  storageOverviewSchema,
+  storageSwitchResultSchema,
+  storageSwitchSchema,
+} from "./storage";
 export {
   currentModeListSchema,
   modeWriteSchema,

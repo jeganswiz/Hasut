@@ -20,7 +20,7 @@ export type MediaStatus = (typeof MEDIA_STATUSES)[number];
 export const GEOCODER_PROVIDERS = ["console", "nominatim"] as const;
 export type GeocoderProviderName = (typeof GEOCODER_PROVIDERS)[number];
 
-export const MEDIA_STORAGE_PROVIDERS = ["memory", "s3"] as const;
+export const MEDIA_STORAGE_PROVIDERS = ["memory", "local", "s3"] as const;
 export type MediaStorageProviderName = (typeof MEDIA_STORAGE_PROVIDERS)[number];
 
 export interface CurrentModeView {

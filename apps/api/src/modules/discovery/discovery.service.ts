@@ -4,6 +4,7 @@ import type {
   DiscoveryKind,
   DiscoveryMarker,
   DiscoveryPolicyView,
+  DiscoveryPresence,
   DiscoveryPreview,
   DiscoveryResult,
 } from "@hasut/types";
@@ -52,13 +53,16 @@ export class DiscoveryService {
         kinds: cluster.kinds,
       }),
     );
-    const pinMedia = await this.stories.pinMediaForMembers(
-      collected.display.filter((row) => row.kind === "MEMBER").map((row) => row.id),
-      viewerId,
-    );
+    const owners = await this.memberIdsForRows(collected.display);
+    const storyIds = new Set(owners.values());
+    if (viewerId !== null) {
+      storyIds.add(viewerId);
+    }
+    const pinMedia = await this.stories.pinMediaForMembers([...storyIds], viewerId);
     const markers = collected.display.map((row, index): DiscoveryMarker => {
       const card = items[index];
-      const media = row.kind === "MEMBER" ? pinMedia.get(row.id) : undefined;
+      const ownerId = owners.get(row.id);
+      const media = ownerId === undefined ? undefined : pinMedia.get(ownerId);
       const pinMediaKind = media?.kind ?? "PROFILE";
       return {
         id: row.id,
@@ -68,7 +72,7 @@ export class DiscoveryService {
         selected: false,
         pinLat: row.pinLat,
         pinLng: row.pinLng,
-        photoUrl: media?.imageUrl ?? card?.photoUrl ?? null,
+        photoUrl: card?.photoUrl ?? media?.imageUrl ?? null,
         initials: initialsFromName(row.title),
         available: row.available,
         ring: pinMediaKind === "LIVE" ? "live" : row.available ? "available" : "idle",
@@ -83,6 +87,7 @@ export class DiscoveryService {
       items,
       markers,
       clusters,
+      selfPresence: this.presenceFor(viewerId, pinMedia),
     };
   }
 
@@ -109,6 +114,10 @@ export class DiscoveryService {
       throw new HasutHttpException("NOT_FOUND", "Nearby result not found", HttpStatus.NOT_FOUND);
     }
     const card = await this.toCard(row);
+    const owners = await this.memberIdsForRows([row]);
+    const ownerId = owners.get(row.id) ?? null;
+    const pinMedia =
+      ownerId === null ? new Map() : await this.stories.pinMediaForMembers([ownerId], viewerId);
     return {
       id: card.id,
       kind: card.kind,
@@ -133,6 +142,7 @@ export class DiscoveryService {
               countryCode: row.countryCode,
             },
       href: card.href,
+      presence: this.presenceFor(ownerId, pinMedia),
     };
   }
 
@@ -268,6 +278,43 @@ export class DiscoveryService {
     const requested: DiscoveryKind[] =
       kinds === undefined || kinds.length === 0 ? ["PROFESSIONAL", "BUSINESS", "MEMBER"] : kinds;
     return includeMembers ? requested : requested.filter((kind) => kind !== "MEMBER");
+  }
+
+  private async memberIdsForRows(rows: RankedNearby[]): Promise<Map<string, string>> {
+    const owners = new Map<string, string>();
+    const professionalIds = rows.filter((row) => row.kind === "PROFESSIONAL").map((row) => row.id);
+    if (professionalIds.length > 0) {
+      const profiles = await this.prisma.professionalProfile.findMany({
+        where: { id: { in: professionalIds } },
+        select: { id: true, memberId: true },
+      });
+      for (const profile of profiles) {
+        owners.set(profile.id, profile.memberId);
+      }
+    }
+    for (const row of rows) {
+      if (row.kind === "MEMBER") {
+        owners.set(row.id, row.id);
+      }
+    }
+    return owners;
+  }
+
+  private presenceFor(
+    memberId: string | null,
+    pinMedia: Map<string, { kind: string; imageUrl: string | null }>,
+  ): DiscoveryPresence | null {
+    if (memberId === null) {
+      return null;
+    }
+    const media = pinMedia.get(memberId);
+    if (
+      media === undefined ||
+      (media.kind !== "LIVE" && media.kind !== "VIDEO" && media.kind !== "IMAGE")
+    ) {
+      return { memberId, kind: null, imageUrl: null };
+    }
+    return { memberId, kind: media.kind, imageUrl: media.imageUrl };
   }
 
   private async categoryFamily(categoryId?: string): Promise<Set<string> | undefined> {

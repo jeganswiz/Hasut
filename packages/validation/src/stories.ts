@@ -4,6 +4,7 @@ import {
   STORY_AUDIO_SOURCES,
   STORY_CAPTION_MAX_LENGTH,
   STORY_KINDS,
+  STORY_TTL_HOUR_OPTIONS,
   STORY_MODERATION_STATUSES,
   STORY_ORIGINAL_AUDIO_MODES,
   STORY_PLAYBACK_STATUSES,
@@ -81,6 +82,13 @@ export const storyCreateSchema = z
     audio: storyAudioInputSchema.optional(),
     originalAudioMode: storyOriginalAudioModeSchema.default("KEEP"),
     audience: storyAudienceSchema.default("EVERYONE"),
+    ttlHours: z
+      .number()
+      .int()
+      .refine((value) => (STORY_TTL_HOUR_OPTIONS as readonly number[]).includes(value), {
+        message: "Choose 4, 8, 12, or 24 hours",
+      })
+      .optional(),
     trimStartSeconds: z.number().nonnegative().max(3600).default(0),
     trimEndSeconds: z.number().positive().max(3600).nullable().optional(),
   })

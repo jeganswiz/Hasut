@@ -62,11 +62,11 @@ WebSocket: authenticated `/ws/v1/discovery`. Clients emit `presence.sync` after 
 
 ## Discovery basemap
 
-Leaflet on web uses a three-layer raster chain from configuration, not a hardcoded Carto URL in the map component:
+Leaflet on web uses a three-layer satellite chain from configuration, not a street style in the map component:
 
-1. **MapTiler Dataviz** when `MAPTILER_API_KEY` is set (admin can still select it as primary).
-2. **Stadia Alidade Smooth** (`STADIA_API_KEY` optional).
-3. **CARTO Positron** as last resort.
+1. **MapTiler Satellite** when `MAPTILER_API_KEY` is set (admin can still select it as primary).
+2. **Stadia Satellite** when `STADIA_API_KEY` is set.
+3. **Esri World Imagery** when those keys are empty, and as the last resort.
 
 `GET /api/v1/config/discovery` returns `mapProvider`, resolved `mapTileUrl`, `mapFallbackTileUrls` (up to two), and `mapAttribution`. The web map switches URL on Leaflet `tileerror`. Admins set `mapProvider` and an optional custom XYZ template (`{z}/{x}/{y}`) on `PATCH /api/v1/admin/discovery/policy`. Pins, clusters, and snap policy are unchanged.
 

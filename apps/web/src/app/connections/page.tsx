@@ -6,6 +6,7 @@ import { Button, Surface, type SurfaceState } from "@hasut/ui";
 import { useCallback, useEffect, useState } from "react";
 import { AppNav } from "../../components/app-nav";
 import { createWebApiClient } from "../../lib/api";
+import { isUnauthenticated, redirectToLogin } from "../../lib/member-nav";
 import "../social.css";
 
 export default function ConnectionsPage() {
@@ -21,6 +22,10 @@ export default function ConnectionsPage() {
       setState(data.length === 0 ? "empty" : "success");
       setMessage(data.length === 0 ? "No connection requests yet." : `${data.length} connections`);
     } catch (error) {
+      if (isUnauthenticated(error)) {
+        redirectToLogin("/connections");
+        return;
+      }
       setState("error");
       setMessage(error instanceof HasutApiError ? error.message : "Unable to load connections.");
     }

@@ -6,11 +6,14 @@ import type {
   OwnerLocation,
   OwnerMemberProfile,
   ServiceOfferingView,
+  StoryView,
 } from "@hasut/types";
 import { Button, Surface, type SurfaceState } from "@hasut/ui";
 import { useCallback, useEffect, useState } from "react";
 import { AppNav } from "../../components/app-nav";
+import { ProfileStories } from "../../components/profile-stories";
 import { createWebApiClient } from "../../lib/api";
+import { isUnauthenticated, redirectToLogin } from "../../lib/member-nav";
 
 export default function MePage() {
   const [state, setState] = useState<SurfaceState>("loading");
@@ -19,6 +22,7 @@ export default function MePage() {
   const [location, setLocation] = useState<OwnerLocation | null>(null);
   const [modes, setModes] = useState<CurrentModeView[]>([]);
   const [offerings, setOfferings] = useState<ServiceOfferingView[]>([]);
+  const [stories, setStories] = useState<StoryView[]>([]);
 
   const load = useCallback(async () => {
     setState("loading");
@@ -33,12 +37,14 @@ export default function MePage() {
       setLocation(loc);
       setModes(catalog);
       const listed = await client.listMyServices().catch(() => []);
+      const posted = await client.listMyStories().catch(() => []);
       setOfferings(listed);
+      setStories(posted);
       setState("success");
       setMessage("Edit your public profile and approximate location. Phone stays private.");
     } catch (error) {
-      if (error instanceof HasutApiError && error.envelope.error.code === "UNAUTHENTICATED") {
-        window.location.assign("/login?next=/me");
+      if (isUnauthenticated(error)) {
+        redirectToLogin("/me");
         return;
       }
       setState("error");
@@ -138,9 +144,18 @@ export default function MePage() {
         ))}
         <a href="/offer-a-service">Offer a service</a>
       </Surface>
-      <p>
-        <a href="/story">Add a presence story</a>
-      </p>
+      {state === "success" && profile !== null ? (
+        <Surface state={stories.length === 0 ? "empty" : "success"} title="Presence">
+          {stories.length === 0 ? (
+            <p>No active story yet.</p>
+          ) : (
+            <ProfileStories stories={stories} memberId={profile.id} />
+          )}
+          <p>
+            <a href="/story">Add a presence story</a>
+          </p>
+        </Surface>
+      ) : null}
     </main>
   );
 }

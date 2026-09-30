@@ -1,14 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { MediaAssetView, MediaPresignResult, MediaPurpose } from "@hasut/types";
-import { HttpStatus, Inject, Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
-import type { ApiEnv } from "../../config/env";
 import { AuditService } from "../audit/audit.service";
 import { ConfigurationService } from "../configuration/configuration.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { MEDIA_STORAGE, type MediaStorage, type StoredObjectMeta } from "./storage/media-storage";
-import { MemoryMediaStorage } from "./storage/memory-media.storage";
+import type { StoredObjectMeta } from "./storage/media-storage";
+import { StorageRegistry } from "./storage/storage-registry.service";
 
 @Injectable()
 export class MediaService {
@@ -16,14 +14,14 @@ export class MediaService {
     private readonly prisma: PrismaService,
     private readonly configuration: ConfigurationService,
     private readonly audit: AuditService,
-    private readonly config: ConfigService<ApiEnv, true>,
-    @Inject(MEDIA_STORAGE) private readonly storage: MediaStorage,
+    private readonly storage: StorageRegistry,
   ) {}
 
   async presign(
     ownerMemberId: string,
     input: { purpose: MediaPurpose; mimeType: string; byteSize: number },
     requestId: string,
+    uploadOrigin: string | null = null,
   ): Promise<MediaPresignResult> {
     const policy = await this.configuration.getMediaPolicy();
     if (!policy.allowedMimeTypes.includes(input.mimeType)) {
@@ -39,25 +37,25 @@ export class MediaService {
 
     const mediaId = randomUUID();
     const objectKey = `${input.purpose.toLowerCase()}/${ownerMemberId}/${mediaId}`;
-    const bucket = this.config.get("S3_BUCKET", { infer: true });
+    const presign = await this.storage.presign(
+      objectKey,
+      input.mimeType,
+      policy.presignTtlSeconds,
+      uploadOrigin,
+    );
     const created = await this.prisma.mediaAsset.create({
       data: {
         id: mediaId,
         ownerMemberId,
-        bucket,
+        bucket: presign.profile.bucket,
         objectKey,
         mimeType: input.mimeType,
         byteSize: input.byteSize,
         purpose: input.purpose,
         status: "PENDING_UPLOAD",
+        storageProfileId: presign.profile.id,
       },
     });
-
-    const presign = await this.storage.presignPut(
-      objectKey,
-      input.mimeType,
-      policy.presignTtlSeconds,
-    );
     await this.audit.record({
       actorId: ownerMemberId,
       action: "MEDIA_PRESIGNED",
@@ -87,10 +85,6 @@ export class MediaService {
     }
 
     const policy = await this.configuration.getMediaPolicy();
-    if (this.storage instanceof MemoryMediaStorage) {
-      this.storage.complete(asset.objectKey, asset.mimeType, asset.byteSize);
-    }
-
     const head = await this.storage.head(asset.objectKey);
     if (head === null) {
       throw new HasutHttpException(
@@ -212,7 +206,7 @@ export class MediaService {
   }
 
   objectUrl(objectKey: string): string {
-    return this.storage.publicUrl(objectKey);
+    return this.storage.activePublicUrl(objectKey);
   }
 
   headObject(objectKey: string): Promise<StoredObjectMeta | null> {
@@ -224,27 +218,32 @@ export class MediaService {
       return null;
     }
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaId } });
-    if (asset === null || asset.status !== "READY") {
+    if (asset === null || asset.status !== "READY" || asset.purpose === "VERIFICATION") {
       return null;
     }
-    return this.storage.publicUrl(asset.objectKey);
+    return this.storage.urlForProfile(asset.storageProfileId, asset.objectKey);
   }
 
-  toView(asset: {
+  async toView(asset: {
     id: string;
     purpose: MediaPurpose;
     status: "PENDING_UPLOAD" | "READY" | "REJECTED";
     mimeType: string;
     byteSize: number;
     objectKey: string;
-  }): MediaAssetView {
+    storageProfileId?: string | null;
+  }): Promise<MediaAssetView> {
+    const url =
+      asset.status === "READY" && asset.purpose !== "VERIFICATION"
+        ? await this.storage.urlForProfile(asset.storageProfileId ?? null, asset.objectKey)
+        : null;
     return {
       id: asset.id,
       purpose: asset.purpose,
       status: asset.status,
       mimeType: asset.mimeType,
       byteSize: asset.byteSize,
-      url: asset.status === "READY" ? this.storage.publicUrl(asset.objectKey) : null,
+      url,
     };
   }
 }

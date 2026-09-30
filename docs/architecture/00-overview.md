@@ -32,19 +32,19 @@ HASUT is **not** a marketplace, booking engine, CRM, billing system, or live pla
           ┌─────────────┼──────────────┐
           ▼             ▼              ▼
      PostgreSQL     Object storage    OTP provider
-     + PostGIS      (S3-compatible)   (MSG91 → Twilio)
+     + PostGIS      (admin-selected)  (MSG91 → Twilio)
 ```
 
 All product surfaces talk to **one API**. Admin is a separate Next.js app with a stricter role gate; it does not own a second database or a second domain model.
 
 ## Applications
 
-| App           | Role                                                                            |
-| ------------- | ------------------------------------------------------------------------------- |
-| `apps/web`    | Member web: discovery, profiles, connections, chat, support, presence (launch)  |
-| `apps/mobile` | Parked until after web launch (Expo SDK 57 shell; Sprints 19–25 history)        |
-| `apps/admin`  | Operations: users, catalog, verification, reports, support, theme, flags, audit |
-| `apps/api`    | Single backend. NestJS modules with enforced dependency direction               |
+| App           | Role                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| `apps/web`    | Member web: discovery, profiles, connections, chat, support, presence (launch)           |
+| `apps/mobile` | Parked until after web launch (Expo SDK 57 shell; Sprints 19–25 history)                 |
+| `apps/admin`  | Operations: users, catalog, verification, reports, support, theme, flags, storage, audit |
+| `apps/api`    | Single backend. NestJS modules with enforced dependency direction                        |
 
 ## Shared packages
 

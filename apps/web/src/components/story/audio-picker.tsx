@@ -3,7 +3,7 @@
 import type { AudioTrackView, StoryAudioSource } from "@hasut/types";
 import { RangeSelect, cssVar, formatClock, normalizeRange, type RangeValue } from "@hasut/ui";
 import { reachablePlaybackUrl } from "@hasut/utils";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface AudioChoice {
   source: StoryAudioSource;
@@ -29,6 +29,8 @@ export interface AudioPickerProps {
   value: AudioChoice;
   onChange: (next: AudioChoice) => void;
   disabled?: boolean;
+  /** 0–1 mix for the in-studio preview. Publishing still uses keep, mute, or layer. */
+  previewVolume?: number;
 }
 
 function readAudioDuration(objectUrl: string): Promise<number | null> {
@@ -52,16 +54,30 @@ export function AudioPicker({
   value,
   onChange,
   disabled = false,
+  previewVolume = 1,
 }: AudioPickerProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const previewRef = useRef<HTMLAudioElement | null>(null);
   const [mood, setMood] = useState<string>("All");
+  const [query, setQuery] = useState("");
 
   const moods = useMemo(() => {
     const unique = new Set(tracks.map((track) => track.mood));
     return ["All", ...[...unique].sort((a, b) => a.localeCompare(b))];
   }, [tracks]);
 
-  const visible = mood === "All" ? tracks : tracks.filter((track) => track.mood === mood);
+  useEffect(() => {
+    if (previewRef.current !== null) {
+      previewRef.current.volume = previewVolume;
+    }
+  }, [previewVolume]);
+
+  const visible = tracks.filter((track) => {
+    const moodMatches = mood === "All" || track.mood === mood;
+    const needle = query.trim().toLowerCase();
+    const text = `${track.title} ${track.artist} ${track.mood}`.toLowerCase();
+    return moodMatches && (needle.length === 0 || text.includes(needle));
+  });
   const bounds = { duration: value.durationSeconds, maxSpan: maxSegmentSeconds, minSpan: 1 };
   const selectedLibrary =
     value.source === "LIBRARY" ? tracks.find((track) => track.id === value.trackId) : undefined;
@@ -114,6 +130,15 @@ export function AudioPicker({
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>HASUT Music</p>
+      <input
+        className="ps-input"
+        value={query}
+        disabled={disabled || !libraryEnabled}
+        placeholder="Search songs, moods or artists..."
+        aria-label="Search songs, moods or artists"
+        onChange={(event) => setQuery(event.target.value)}
+      />
       {libraryEnabled ? (
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -199,6 +224,7 @@ export function AudioPicker({
                         }}
                       >
                         {formatClock(track.durationSeconds)}
+                        {selected ? "  ✓" : ""}
                       </span>
                     </button>
                   </li>
@@ -213,6 +239,7 @@ export function AudioPicker({
         </p>
       )}
 
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>My audio</p>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button
           type="button"
@@ -261,6 +288,7 @@ export function AudioPicker({
 
       {selectedLibrary !== undefined && reachablePlaybackUrl(selectedLibrary.audioUrl) ? (
         <audio
+          ref={previewRef}
           controls
           src={selectedLibrary.audioUrl}
           preload="metadata"

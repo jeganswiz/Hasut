@@ -6,6 +6,7 @@ import { Button, Surface, type SurfaceState } from "@hasut/ui";
 import { useCallback, useEffect, useState } from "react";
 import { AppNav } from "../../components/app-nav";
 import { createWebApiClient } from "../../lib/api";
+import { isUnauthenticated, redirectToLogin } from "../../lib/member-nav";
 import "../social.css";
 
 export default function NotificationsPage() {
@@ -29,6 +30,10 @@ export default function NotificationsPage() {
           : `${counts.notifications} unread notifications · ${counts.messages} unread messages`,
       );
     } catch (error) {
+      if (isUnauthenticated(error)) {
+        redirectToLogin("/notifications");
+        return;
+      }
       setState("error");
       setMessage(error instanceof HasutApiError ? error.message : "Unable to load notifications.");
     }

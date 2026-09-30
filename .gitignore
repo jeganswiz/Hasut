@@ -34,6 +34,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# Local object storage
+apps/api/var/
+
 # Test / cache
 .eslintcache
 .cache

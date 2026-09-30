@@ -191,7 +191,9 @@ Implemented. Authoring on the Activity tab reaches the bar the product asked for
 - **Bug fixed:** `storyCreateSchema` accepted `trimStartSeconds` / `trimEndSeconds` and `liveStartSchema` accepted `title`, but neither reached the database — the service never took the fields and the columns did not exist. Both now round-trip, with regression tests.
 - API: `StoriesService` validates caption length, palette membership, trim span, and audio span against `story.policy`; `AudioLibraryService` serves the member-facing catalogue and the staff CRUD. Caption text stays out of the audit trail — entries record `hasCaption`, not the words.
 - `packages/ui`: `RangeSelect` (two-handle scrubber over two native range inputs, so keyboard and screen readers work), `ColorSwatches`, and `SegmentedTabs` (the old `AuthTabs`, renamed now that stories use it too). Range maths lives in a pure `range-select.logic` module with its own tests.
-- Web: `/story` gains Activity / Live tabs, a live caption overlay on the preview, palette swatches, a mood-filtered audio picker with segment selection, and a trim scrubber. Live now sends its title.
+- Map pins keep the profile photo inside a fixed circle. An active story adds a purple gradient ring on your pin and on other people. Me and a member profile show that story as a small ring, and the story image cannot expand over the map.
+- Web nav: the signed-in profile opens an account menu (profile, post a story, my story, connections, inbox, alerts, log out). After log out the avatar is replaced by the sign-in icon. Map and support stay public. Posting a story, connections, inbox, alerts, chat, and Me require a session and send a signed-out visitor to sign-in.
+- Web: `/story` is a Presence Studio. The preview stays in view, with edit, text, sound, audience, and presence controls beside it on desktop and in a bottom tool row on a narrow screen. A video shows its length on the frame. The caption sits on the picture only after the member starts typing, and can be dragged and resized there. Crop draws a dotted frame with corner handles. Photo crop, rotation, brightness, contrast, blur, and place marks are written into the uploaded image. Caption text and colour, trim, soundtrack, original-audio mode, audience, and live sessions still use the existing APIs. Each story can stay active for 4, 8, 12, or 24 hours, never longer than `storyTtlHours`. Map profiles and the member page always offer Watch presence, and show the story image when one is active. Preview volume and caption placement are studio-only.
 - Admin: `/stories/audio` curates the catalogue; the moderation queue shows caption, live title, and how a story will sound.
 
 ## Sprint 12 — Live and audience
@@ -231,7 +233,7 @@ Implemented. A new video stays `PENDING` until a 240p playlist is stored at a pu
 - `buildStoryTranscodePlan` is the ffmpeg argument list: trim window, `KEEP` / `MUTE` / `OVERLAY`, and a 240p VOD playlist. Caption text is not an argument. `KEEP` ignores a stored extra track, matching the viewer.
 - `StoryPlaybackService` reads the uploaded video (and added audio when the mode needs it), runs the plan, and writes `story-hls/{id}/index.m3u8` plus segments. It sets `playbackStatus` to `READY` and points both playback URLs at that playlist only when the object is public `http(s)`.
 - `FFMPEG_PATH` empty (the local default) does not start the worker, so stories stay pending. A failed transcode is not retried until the process restarts. There is still no member endpoint to mark a story ready.
-- Memory storage has no public URL, so the worker stays idle there even if ffmpeg is installed. S3 (or any storage whose `publicUrl` is `http(s)`) is what publishes the pin.
+- Server disk and every admin-selected backend publish an `http(s)` file URL, so the worker can run when `FFMPEG_PATH` is set. A `memory://` URL is not used for uploads.
 
 ## Sprint 16 — Live camera ingest
 

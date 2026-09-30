@@ -1,13 +1,14 @@
 "use client";
 
+import { apiErrorMessage, hasutErrorCode } from "@hasut/api-client";
 import type { AudioTrackView, StoryComposerConfig, StoryView } from "@hasut/types";
-import { SegmentedTabs, Surface, cssVar, type SurfaceState } from "@hasut/ui";
+import { Surface, type SurfaceState } from "@hasut/ui";
 import { useEffect, useState } from "react";
 import { AppNav } from "../../components/app-nav";
 import { LiveComposer } from "../../components/story/live-composer";
 import { StoryComposer } from "../../components/story/story-composer";
 import { createWebApiClient } from "../../lib/api";
-import { apiErrorMessage, hasutErrorCode } from "@hasut/api-client";
+import { redirectToLogin } from "../../lib/member-nav";
 
 type Tab = "activity" | "live";
 
@@ -41,8 +42,7 @@ export default function StoryComposerPage() {
         }
         const code = hasutErrorCode(error);
         if (code === "UNAUTHENTICATED") {
-          setState("empty");
-          setMessage("Sign in to add a presence.");
+          redirectToLogin("/story");
           return;
         }
         if (code === "FORBIDDEN") {
@@ -60,41 +60,46 @@ export default function StoryComposerPage() {
   }, []);
 
   return (
-    <main>
+    <main className="presence-page">
       <AppNav />
-      <h1>Presence story</h1>
-      <p style={{ color: cssVar("mutedText"), marginTop: 0 }}>
-        A 24-hour presence on the discovery map. This is not a social feed.
+      <h1>Presence Story</h1>
+      <p className="ps-lede">
+        Share what you&apos;re working on, where you are, and what&apos;s happening — in real time.
       </p>
-
-      <div style={{ maxWidth: 360, marginBottom: 16 }}>
-        <SegmentedTabs
-          label="Story section"
-          tabs={[
-            { id: "activity", label: "Activity" },
-            { id: "live", label: "Live" },
-          ]}
-          active={tab}
-          onChange={setTab}
-        />
+      <div className="ps-modes" role="tablist" aria-label="Story section">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "activity"}
+          className={tab === "activity" ? "is-active" : ""}
+          onClick={() => setTab("activity")}
+        >
+          Activity
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "live"}
+          className={tab === "live" ? "is-active" : ""}
+          onClick={() => setTab("live")}
+        >
+          Live
+        </button>
       </div>
-
-      <Surface state={state} title={tab === "activity" ? "Compose" : "Go live"}>
-        {state !== "success" || config === null ? (
+      {state !== "success" || config === null ? (
+        <Surface state={state} title={tab === "activity" ? "Activity" : "Live presence"}>
           <p>{message}</p>
-        ) : tab === "activity" ? (
-          <>
-            <StoryComposer config={config} tracks={tracks} onPublished={setPublished} />
-            {published === null ? null : (
-              <p style={{ marginTop: 16, fontSize: 14, color: cssVar("mutedText") }}>
-                Live until {new Date(published.expiresAt).toLocaleTimeString()}.
-              </p>
-            )}
-          </>
-        ) : (
-          <LiveComposer patronCount={config.patronCount} />
-        )}
-      </Surface>
+        </Surface>
+      ) : tab === "activity" ? (
+        <>
+          <StoryComposer config={config} tracks={tracks} onPublished={setPublished} />
+          {published === null ? null : (
+            <p className="hint">Live until {new Date(published.expiresAt).toLocaleTimeString()}.</p>
+          )}
+        </>
+      ) : (
+        <LiveComposer patronCount={config.patronCount} onClose={() => setTab("activity")} />
+      )}
     </main>
   );
 }

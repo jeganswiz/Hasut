@@ -15,6 +15,7 @@ import { AppModule } from "./app.module";
 import { requestIdMiddleware } from "./common/middleware/request-id.middleware";
 import type { ApiEnv } from "./config/env";
 import { HealthService } from "./modules/health/health.service";
+import { MediaDelivery, registerMediaHttpRoutes } from "./modules/media/media-delivery";
 import { createHlsProxyMiddleware } from "./modules/stories/hls-proxy";
 import { flushSentry, initSentry } from "./observability/sentry";
 
@@ -112,8 +113,11 @@ async function bootstrap(): Promise<void> {
   const health = app.get(HealthService);
   const http = app.getHttpAdapter().getInstance() as {
     get: (path: string, handler: (req: Request, res: Response) => void) => void;
+    put: (path: string, handler: (req: Request, res: Response) => void) => void;
     use: (path: string, handler: (req: Request, res: Response) => void) => void;
   };
+  // Binary upload and file bytes stay outside the JSON envelope.
+  registerMediaHttpRoutes(http, app.get(MediaDelivery), apiPrefix);
 
   http.get("/health", (req, res) => {
     const requestId = normalizeRequestId(req.header(REQUEST_ID_HEADER));

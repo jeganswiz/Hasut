@@ -45,6 +45,8 @@ export {
 export type { DiscoveryPolicy, DiscoveryRankingWeights } from "./discovery";
 export {
   CARTO_POSITRON_TILE_URL,
+  ESRI_WORLD_IMAGERY_ATTRIBUTION,
+  ESRI_WORLD_IMAGERY_TILE_URL,
   MAP_BASEMAP_CATALOG,
   MAP_BASEMAP_OPTIONS,
   OSM_MAP_ATTRIBUTION,

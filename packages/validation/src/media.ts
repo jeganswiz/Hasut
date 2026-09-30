@@ -1,10 +1,13 @@
 import { MEDIA_PURPOSES, MEDIA_STATUSES } from "@hasut/types";
 import { z } from "zod";
 
+/** Matches the largest presigned upload the API will accept. */
+export const MEDIA_UPLOAD_MAX_BYTES = 20_971_520;
+
 export const mediaPresignSchema = z.object({
   purpose: z.enum(MEDIA_PURPOSES),
   mimeType: z.string().min(1).max(128),
-  byteSize: z.number().int().positive().max(20_971_520),
+  byteSize: z.number().int().positive().max(MEDIA_UPLOAD_MAX_BYTES),
 });
 
 export const mediaCompleteSchema = z.object({

@@ -11,10 +11,30 @@ import {
   intersectsViewport,
   pickPinPreviews,
 } from "../lib/pin-playback";
+import { hasStoryRing } from "../lib/story-ring";
+
+function youMarkerHtml(
+  photoUrl: string | null,
+  memberId: string | null,
+  hasStory: boolean,
+): string {
+  const safe = photoUrl === null ? "" : photoUrl.replace(/"/g, "");
+  const photo = safe.length > 0 ? `<img alt="" src="${safe}" />` : "<span>You</span>";
+  const href = memberId !== null && hasStory ? `/stories/${memberId}` : "/story";
+  const label = hasStory ? "Watch your presence" : "Your presence";
+  const ring = hasStory ? " has-story" : "";
+  return `<a class="discovery-self${ring}" href="${href}" aria-label="${label}">${photo}</a>`;
+}
 
 function markerHtml(marker: DiscoveryMarker, selected: boolean, selfId: string | null): string {
-  const ring =
-    marker.ring === "live" ? "is-live" : marker.ring === "available" ? "is-available" : "";
+  const story = hasStoryRing(marker.pinMediaKind);
+  const ring = story
+    ? "has-story"
+    : marker.ring === "live"
+      ? "is-live"
+      : marker.ring === "available"
+        ? "is-available"
+        : "";
   const photo =
     marker.photoUrl !== null
       ? `<img alt="" src="${marker.photoUrl.replace(/"/g, "")}" />`
@@ -54,6 +74,8 @@ export function DiscoveryMap({
   clusters,
   selectedId,
   selfId = null,
+  selfPhotoUrl = null,
+  selfHasStory = false,
   playPreviews = false,
   onSelect,
 }: {
@@ -67,6 +89,8 @@ export function DiscoveryMap({
   clusters: DiscoveryCluster[];
   selectedId: string | null;
   selfId?: string | null;
+  selfPhotoUrl?: string | null;
+  selfHasStory?: boolean;
   playPreviews?: boolean;
   onSelect: (id: string) => void;
 }) {
@@ -166,9 +190,10 @@ export function DiscoveryMap({
         selfLayer.current = leaflet
           .marker([overlay.latitude, overlay.longitude], {
             icon: leaflet.divIcon({
-              className: "",
-              html: `<a class="discovery-self" href="/story" aria-label="Add presence">You</a>`,
-              iconSize: [44, 44],
+              className: "discovery-self-wrap",
+              html: youMarkerHtml(selfPhotoUrl, selfId, selfHasStory),
+              iconSize: [48, 48],
+              iconAnchor: [24, 24],
             }),
             zIndexOffset: 800,
           })
@@ -176,8 +201,17 @@ export function DiscoveryMap({
         return;
       }
       selfLayer.current.setLatLng([overlay.latitude, overlay.longitude]);
+      selfLayer.current.setIcon(
+        leaflet.divIcon({
+          className: "",
+          html: youMarkerHtml(selfPhotoUrl, selfId, selfHasStory),
+          iconSize: [48, 48],
+          iconAnchor: [24, 24],
+          className: "discovery-self-wrap",
+        }),
+      );
     });
-  }, [mapReady, overlay]);
+  }, [mapReady, overlay, selfHasStory, selfId, selfPhotoUrl]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -202,7 +236,7 @@ export function DiscoveryMap({
       for (const marker of [...diff.add, ...diff.update]) {
         const selected = marker.id === selectedId;
         const icon = leaflet.divIcon({
-          className: "",
+          className: "map-pin-wrap",
           html: markerHtml(marker, selected, selfId),
           iconSize: [selected ? 72 : 48, selected ? 88 : 48],
         });

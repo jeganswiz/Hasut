@@ -8,6 +8,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppNav } from "../../../components/app-nav";
 import { createWebApiClient } from "../../../lib/api";
+import { isUnauthenticated, redirectToLogin } from "../../../lib/member-nav";
 import { webTokenStorage } from "../../../lib/token-storage";
 import "../../social.css";
 
@@ -41,6 +42,10 @@ export default function ConversationPage() {
 
   useEffect(() => {
     void loadHistory().catch((error: unknown) => {
+      if (isUnauthenticated(error)) {
+        redirectToLogin(`/conversations/${conversationId}`);
+        return;
+      }
       setState("error");
       setMessage(error instanceof HasutApiError ? error.message : "Unable to load this chat.");
     });

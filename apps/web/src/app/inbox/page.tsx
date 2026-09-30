@@ -6,6 +6,7 @@ import { Surface, type SurfaceState } from "@hasut/ui";
 import { useEffect, useState } from "react";
 import { AppNav } from "../../components/app-nav";
 import { createWebApiClient } from "../../lib/api";
+import { isUnauthenticated, redirectToLogin } from "../../lib/member-nav";
 import "../social.css";
 
 export default function InboxPage() {
@@ -22,6 +23,10 @@ export default function InboxPage() {
         setMessage(data.length === 0 ? "No conversations yet." : `${data.length} conversations`);
       })
       .catch((error: unknown) => {
+        if (isUnauthenticated(error)) {
+          redirectToLogin("/inbox");
+          return;
+        }
         setState("error");
         setMessage(error instanceof HasutApiError ? error.message : "Unable to load inbox.");
       });

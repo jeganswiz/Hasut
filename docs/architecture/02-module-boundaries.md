@@ -23,7 +23,7 @@ Never create a parallel `User` vs `Tasker` identity. Capability is `member_roles
 | `audit`         | Append-only admin audit records                                                             | Own business workflows                      |
 | `auth`          | OTP orchestration, sessions, refresh rotation, logout                                       | Own profile fields                          |
 | `users`         | Member lifecycle, status, suspend/restore, roles                                            | Own professional catalog                    |
-| `media`         | Presigned upload, metadata, virus/type/size checks                                          | Store bytes in Postgres                     |
+| `media`         | Presigned upload, metadata, type/size checks, admin storage switch and file migration       | Store bytes in Postgres                     |
 | `categories`    | Admin-managed taxonomy tree                                                                 | Hardcode names in code                      |
 | `locations`     | Store exact points, derive approximate public location, service areas, distance             | Return exact personal coords on public APIs |
 | `profiles`      | Personal profile, current mode, status text                                                 | Rank discovery                              |

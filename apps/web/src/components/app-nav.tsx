@@ -4,24 +4,31 @@ import type { OwnerMemberProfile } from "@hasut/types";
 import { Avatar, HasutLogo } from "@hasut/ui";
 import { initialsFromName } from "@hasut/utils";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createWebApiClient } from "../lib/api";
 import {
   CHROME_HEIGHT_MAX,
   chromeScrollState,
   type ChromeScrollState,
 } from "../lib/discovery-chrome";
+import { isMemberPath, showWhenSignedIn, type NavSession } from "../lib/member-nav";
 import { loadNavProfile } from "../lib/session-profile";
 import { webTokenStorage } from "../lib/token-storage";
 import { NavIcon, type NavIconName } from "./nav-icons";
 
-const LINKS: Array<{ href: string; label: string; icon: NavIconName; tab?: boolean }> = [
+const LINKS: Array<{
+  href: string;
+  label: string;
+  icon: NavIconName;
+  tab?: boolean;
+  auth?: boolean;
+}> = [
   { href: "/", label: "Map", icon: "map", tab: true },
-  { href: "/connections", label: "Connections", icon: "connections", tab: true },
-  { href: "/inbox", label: "Inbox", icon: "inbox", tab: true },
-  { href: "/notifications", label: "Alerts", icon: "alerts", tab: true },
-  { href: "/me", label: "Me", icon: "me", tab: true },
-  { href: "/story", label: "Story", icon: "story" },
+  { href: "/connections", label: "Connections", icon: "connections", tab: true, auth: true },
+  { href: "/inbox", label: "Inbox", icon: "inbox", tab: true, auth: true },
+  { href: "/notifications", label: "Alerts", icon: "alerts", tab: true, auth: true },
+  { href: "/me", label: "Me", icon: "me", tab: true, auth: true },
+  { href: "/story", label: "Story", icon: "story", auth: true },
   { href: "/support", label: "Support", icon: "support" },
 ];
 
@@ -30,7 +37,9 @@ export function AppNav() {
   const [unread, setUnread] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [profile, setProfile] = useState<OwnerMemberProfile | null>(null);
-  const [session, setSession] = useState<"unknown" | "guest" | "member">("unknown");
+  const [session, setSession] = useState<NavSession>("unknown");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const [chrome, setChrome] = useState<ChromeScrollState>({
     height: CHROME_HEIGHT_MAX,
     solid: false,
@@ -42,10 +51,6 @@ export function AppNav() {
       .theme()
       .then((theme) => setLogoUrl(theme.logoUrl))
       .catch(() => setLogoUrl(null));
-    void createWebApiClient()
-      .getUnreadCount()
-      .then((data) => setUnread(data.notifications + data.messages))
-      .catch(() => setUnread(0));
     void loadNavProfile({
       getAccessToken: () => webTokenStorage.getAccessToken(),
       getRefreshToken: () => webTokenStorage.getRefreshToken(),
@@ -58,8 +63,43 @@ export function AppNav() {
     }).then((next) => {
       setProfile(next);
       setSession(next === null ? "guest" : "member");
+      if (next === null) {
+        setUnread(0);
+        return;
+      }
+      void createWebApiClient()
+        .getUnreadCount()
+        .then((data) => setUnread(data.notifications + data.messages))
+        .catch(() => setUnread(0));
     });
   }, []);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && menuRef.current !== null && !menuRef.current.contains(target)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     let frame = 0;
@@ -84,17 +124,74 @@ export function AppNav() {
     };
   }, []);
 
+  async function logout(): Promise<void> {
+    try {
+      await createWebApiClient().logout();
+    } catch {
+      // A failed revoke still ends the browser session.
+    }
+    await webTokenStorage.clear();
+    setProfile(null);
+    setSession("guest");
+    setUnread(0);
+    setMenuOpen(false);
+    if (isMemberPath(pathname)) {
+      window.location.assign("/login");
+    }
+  }
+
+  const links = LINKS.filter((link) => showWhenSignedIn(link.auth === true, session));
+  const tabLinks = links.filter((link) => link.tab === true);
   const account =
     session === "member" && profile !== null ? (
-      <a className="nav-profile" href="/me" aria-label={`${profile.displayName} profile`}>
-        <Avatar
-          photoUrl={profile.photoUrl}
-          initials={initialsFromName(profile.displayName)}
-          size={32}
-          label={profile.displayName}
-        />
-        <span className="nav-profile-name">{profile.displayName}</span>
-      </a>
+      <div className="nav-account" ref={menuRef}>
+        <button
+          type="button"
+          className="nav-profile"
+          aria-label={`${profile.displayName} account menu`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <Avatar
+            photoUrl={profile.photoUrl}
+            initials={initialsFromName(profile.displayName)}
+            size={32}
+            label={profile.displayName}
+          />
+          <span className="nav-profile-name">{profile.displayName}</span>
+        </button>
+        {menuOpen ? (
+          <div className="nav-menu" role="menu">
+            <a role="menuitem" href="/me">
+              Profile
+            </a>
+            <a role="menuitem" href="/story">
+              Post a story
+            </a>
+            <a role="menuitem" href={`/stories/${profile.id}`}>
+              My story
+            </a>
+            <a role="menuitem" href="/connections">
+              Connections
+            </a>
+            <a role="menuitem" href="/inbox">
+              Inbox
+            </a>
+            <a role="menuitem" href="/notifications">
+              Alerts
+            </a>
+            <button
+              type="button"
+              role="menuitem"
+              className="nav-menu-logout"
+              onClick={() => void logout()}
+            >
+              Log out
+            </button>
+          </div>
+        ) : null}
+      </div>
     ) : (
       <a
         className="nav-icon"
@@ -119,7 +216,7 @@ export function AppNav() {
         </a>
         <div className="app-chrome-tools">
           <nav className="app-nav-desktop" aria-label="Primary">
-            {LINKS.map((link) => (
+            {links.map((link) => (
               <NavLink
                 key={link.href}
                 href={link.href}
@@ -139,8 +236,12 @@ export function AppNav() {
           </div>
         </div>
       </header>
-      <nav className="app-tabs" aria-label="Member">
-        {LINKS.filter((link) => link.tab === true).map((link) => (
+      <nav
+        className="app-tabs"
+        aria-label="Member"
+        style={{ gridTemplateColumns: `repeat(${Math.max(tabLinks.length, 1)}, 1fr)` }}
+      >
+        {tabLinks.map((link) => (
           <NavLink
             key={link.href}
             href={link.href}

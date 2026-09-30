@@ -1,7 +1,7 @@
 "use client";
 
 import { cssVar } from "@hasut/ui";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState, type RefObject } from "react";
 
 export interface PickedMedia {
   file: File;
@@ -15,6 +15,11 @@ export interface MediaPickerProps {
   value: PickedMedia | null;
   onChange: (next: PickedMedia | null) => void;
   disabled?: boolean;
+  /** Drop zone only. The studio frame renders the chosen file. */
+  chrome?: "full" | "drop";
+  inputRef?: RefObject<HTMLInputElement | null>;
+  /** One picker for both photos and videos. The caller decides the kind from the file. */
+  acceptBoth?: boolean;
 }
 
 const ACCEPT: Record<MediaPickerProps["kind"], string> = {
@@ -37,28 +42,42 @@ function readDuration(objectUrl: string): Promise<number | null> {
   });
 }
 
-export function MediaPicker({ kind, value, onChange, disabled = false }: MediaPickerProps) {
+export function MediaPicker({
+  kind,
+  value,
+  onChange,
+  disabled = false,
+  chrome = "full",
+  inputRef: inputRefProp,
+  acceptBoth = false,
+}: MediaPickerProps) {
   const inputId = useId();
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const localInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = inputRefProp ?? localInputRef;
   const [dragging, setDragging] = useState(false);
-
-  // Object URLs are a leak if the picked file changes without revoking them.
-  useEffect(() => {
-    const url = value?.objectUrl;
-    return () => {
-      if (url !== undefined) {
-        URL.revokeObjectURL(url);
-      }
-    };
-  }, [value?.objectUrl]);
 
   async function accept(file: File | undefined): Promise<void> {
     if (file === undefined) {
       return;
     }
     const objectUrl = URL.createObjectURL(file);
-    const durationSeconds = kind === "VIDEO" ? await readDuration(objectUrl) : null;
+    const durationSeconds = file.type.startsWith("video/") ? await readDuration(objectUrl) : null;
     onChange({ file, objectUrl, durationSeconds });
+  }
+
+  if (value !== null && chrome === "drop") {
+    return (
+      <input
+        id={inputId}
+        ref={inputRef}
+        type="file"
+        accept={acceptBoth ? `${ACCEPT.IMAGE},${ACCEPT.VIDEO}` : ACCEPT[kind]}
+        disabled={disabled}
+        aria-label={kind === "IMAGE" ? "Story photo" : "Story video"}
+        onChange={(event) => void accept(event.target.files?.[0])}
+        className="ps-hidden-file"
+      />
+    );
   }
 
   if (value !== null) {
@@ -126,22 +145,33 @@ export function MediaPicker({ kind, value, onChange, disabled = false }: MediaPi
         void accept(event.dataTransfer.files[0]);
       }}
       style={{
-        aspectRatio: "9 / 16",
-        maxHeight: 420,
+        aspectRatio: chrome === "drop" ? "auto" : "9 / 16",
+        maxHeight: chrome === "drop" ? "none" : 420,
+        height: chrome === "drop" ? "100%" : undefined,
         display: "grid",
         placeItems: "center",
         gap: 8,
         padding: 16,
         textAlign: "center",
-        borderRadius: cssVar("cardRadius"),
-        border: `2px dashed ${dragging ? cssVar("primary") : cssVar("border")}`,
-        background: dragging ? cssVar("background") : cssVar("surface"),
+        borderRadius: chrome === "drop" ? 0 : cssVar("cardRadius"),
+        border:
+          chrome === "drop"
+            ? "none"
+            : `2px dashed ${dragging ? cssVar("primary") : cssVar("border")}`,
+        background: dragging
+          ? cssVar("background")
+          : chrome === "drop"
+            ? "transparent"
+            : cssVar("surface"),
         transition: "border-color 140ms ease, background 140ms ease",
       }}
     >
       <div style={{ display: "grid", gap: 8, justifyItems: "center" }}>
-        <p style={{ margin: 0, color: cssVar("mutedText"), fontSize: 14 }}>
-          Drag a {kind === "IMAGE" ? "photo" : "video"} here, or
+        <p style={{ margin: 0, color: cssVar("text"), fontWeight: 700, fontSize: 16 }}>
+          Drop your photo or video here
+        </p>
+        <p style={{ margin: 0, color: cssVar("mutedText"), fontSize: 13 }}>
+          {kind === "IMAGE" ? "JPEG, PNG, or WebP" : "MP4, WebM, or QuickTime"}
         </p>
         <button
           type="button"
@@ -164,7 +194,7 @@ export function MediaPicker({ kind, value, onChange, disabled = false }: MediaPi
           id={inputId}
           ref={inputRef}
           type="file"
-          accept={ACCEPT[kind]}
+          accept={acceptBoth ? `${ACCEPT.IMAGE},${ACCEPT.VIDEO}` : ACCEPT[kind]}
           disabled={disabled}
           aria-label={kind === "IMAGE" ? "Story photo" : "Story video"}
           onChange={(event) => void accept(event.target.files?.[0])}

@@ -1,6 +1,6 @@
 "use client";
 
-import type { DiscoveryCard, DiscoveryPreview } from "@hasut/types";
+import type { DiscoveryCard, DiscoveryMarker, DiscoveryPreview } from "@hasut/types";
 import { BottomSheet, FilterChip, NearbyCard, ServiceCard } from "@hasut/ui";
 import { ownerPresenceCopy, showPinPreviewControl } from "@hasut/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import {
   type SearchSuggestion,
   type ToastNote,
 } from "../lib/discovery-chrome";
+import { hasStoryRing } from "../lib/story-ring";
 import { useDiscoveryMapController } from "../lib/use-discovery-map";
 import { AppNav } from "./app-nav";
 import { DiscoveryMap } from "./discovery-map";
@@ -29,6 +30,7 @@ export function DiscoveryExperience() {
   const discovery = useDiscoveryMapController();
   const [toasts, setToasts] = useState<ToastNote[]>([]);
   const [selfId, setSelfId] = useState<string | null>(null);
+  const [selfPhotoUrl, setSelfPhotoUrl] = useState<string | null>(null);
   const [playPreviews, setPlayPreviews] = useState(false);
   const [pinSignals, setPinSignals] = useState(() => browserPinSignals(false));
   const toastTimers = useRef<number[]>([]);
@@ -37,7 +39,11 @@ export function DiscoveryExperience() {
     selfId === null
       ? null
       : (discovery.result?.markers.find((marker) => marker.id === selfId) ?? null);
-  const presenceHint = ownerPresenceCopy(selfId !== null, selfMarker?.pinMediaKind ?? null);
+  const selfPresence = discovery.result?.selfPresence ?? null;
+  const presenceHint = ownerPresenceCopy(
+    selfId !== null,
+    selfPresence?.kind ?? selfMarker?.pinMediaKind ?? null,
+  );
   const cards = discovery.result?.items ?? [];
   const services = discovery.result?.items.filter((item) => item.kind === "PROFESSIONAL") ?? [];
   const demoActive =
@@ -74,6 +80,7 @@ export function DiscoveryExperience() {
       .then((mine) => {
         if (!cancelled) {
           setSelfId(mine.id);
+          setSelfPhotoUrl(mine.photoUrl);
         }
       })
       .catch(() => undefined);
@@ -130,6 +137,8 @@ export function DiscoveryExperience() {
           clusters={discovery.result?.clusters ?? []}
           selectedId={discovery.selectedId}
           selfId={selfId}
+          selfPhotoUrl={selfPhotoUrl}
+          selfHasStory={hasStoryRing(selfPresence?.kind)}
           playPreviews={playPreviews}
           onSelect={discovery.setSelectedId}
         />
@@ -233,11 +242,35 @@ export function DiscoveryExperience() {
           {selfId !== null ? (
             <p>
               <a href="/story">Add presence</a>
+              {" · "}
+              <a href={`/stories/${selfId}`}>Watch presence</a>
             </p>
+          ) : null}
+          {hasStoryRing(selfPresence?.kind) && selfPresence !== null ? (
+            <a
+              className="story-ring"
+              href={`/stories/${selfPresence.memberId}`}
+              aria-label="Your story"
+            >
+              {selfPresence.imageUrl !== null ? (
+                <img src={selfPresence.imageUrl} alt="" />
+              ) : (
+                <span>Story</span>
+              )}
+            </a>
           ) : null}
           {presenceHint.length > 0 ? <p>{presenceHint}</p> : null}
           {selected !== null ? (
-            <PreviewCard item={selected} preview={discovery.preview} ownerId={selfId} />
+            <PreviewCard
+              item={selected}
+              preview={discovery.preview}
+              marker={
+                discovery.result?.markers.find(
+                  (marker) => marker.id === selected.id && marker.kind === selected.kind,
+                ) ?? null
+              }
+              ownerId={selfId}
+            />
           ) : null}
           <NativeScroller className="discovery-row" label="Nearby places">
             {cards.map((item) => (
@@ -275,20 +308,31 @@ export function DiscoveryExperience() {
 function PreviewCard({
   item,
   preview,
+  marker,
   ownerId,
 }: {
   item: DiscoveryCard;
   preview: DiscoveryPreview | null;
+  marker: DiscoveryMarker | null;
   ownerId: string | null;
 }) {
   const title = preview?.title ?? item.title;
   const subtitle = preview?.subtitle ?? item.subtitle;
   const location = preview?.approximateLocation?.label;
+  const watchMemberId = preview?.presence?.memberId ?? (item.kind === "MEMBER" ? item.id : null);
+  const storyImage =
+    preview?.presence?.imageUrl ??
+    (marker !== null && marker.pinMediaKind !== "PROFILE" ? marker.photoUrl : null);
   return (
     <div className="discovery-preview">
       <h2 style={{ margin: "0 0 8px" }}>{title}</h2>
       <p style={{ margin: "0 0 8px" }}>{subtitle}</p>
       {location !== undefined ? <p>{location}</p> : null}
+      {watchMemberId !== null && (storyImage !== null || hasStoryRing(preview?.presence?.kind)) ? (
+        <a className="story-ring" href={`/stories/${watchMemberId}`} aria-label="Watch presence">
+          {storyImage !== null ? <img src={storyImage} alt="" /> : <span>Story</span>}
+        </a>
+      ) : null}
       <p>
         {preview?.distanceBucket ?? item.distanceBucket}
         {(preview?.verified ?? item.verified) ? " · Verified" : ""}
@@ -296,10 +340,10 @@ function PreviewCard({
       </p>
       <p>
         <a href={preview?.href ?? item.href}>Open full profile</a>
-        {item.kind === "MEMBER" ? (
+        {watchMemberId !== null ? (
           <>
             {" · "}
-            <a href={`/stories/${item.id}`}>Watch presence</a>
+            <a href={`/stories/${watchMemberId}`}>Watch presence</a>
           </>
         ) : null}
         {ownerId !== null && item.id === ownerId ? (

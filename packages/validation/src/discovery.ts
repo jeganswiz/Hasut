@@ -77,6 +77,14 @@ export const discoveryResultSchema = z.object({
   items: z.array(discoveryCardSchema),
   markers: z.array(discoveryMarkerSchema),
   clusters: z.array(discoveryClusterSchema),
+  selfPresence: z
+    .object({
+      memberId: z.string().uuid(),
+      kind: z.enum(["LIVE", "VIDEO", "IMAGE"]).nullable(),
+      imageUrl: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const discoveryPreviewSchema = z.object({
@@ -102,6 +110,13 @@ export const discoveryPreviewSchema = z.object({
     })
     .nullable(),
   href: z.string().min(1),
+  presence: z
+    .object({
+      memberId: z.string().uuid(),
+      kind: z.enum(["LIVE", "VIDEO", "IMAGE"]).nullable(),
+      imageUrl: z.string().nullable(),
+    })
+    .nullable(),
 });
 
 export const discoveryPolicyViewSchema = z.object({

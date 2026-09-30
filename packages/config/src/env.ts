@@ -56,7 +56,13 @@ export const apiEnvSchema = z
     FACEBOOK_APP_ID: z.string().optional().default(""),
     FACEBOOK_APP_SECRET: z.string().optional().default(""),
     GEOCODER_PROVIDER: z.enum(GEOCODER_PROVIDERS).default("console"),
-    MEDIA_STORAGE: z.enum(MEDIA_STORAGE_PROVIDERS).default("memory"),
+    MEDIA_STORAGE: z.enum(MEDIA_STORAGE_PROVIDERS).default("local"),
+    /** Empty uses a folder under the API process. Admin can point this elsewhere. */
+    MEDIA_LOCAL_ROOT: z.string().optional().default(""),
+    /** Public origin for file URLs. Empty uses http://127.0.0.1:$PORT. */
+    API_PUBLIC_URL: z.string().optional().default(""),
+    /** Encrypts storage keys at rest. Empty derives a key from the access-token secret. */
+    STORAGE_CREDENTIALS_KEY: z.string().optional().default(""),
     MAPTILER_API_KEY: z.string().optional().default(""),
     STADIA_API_KEY: z.string().optional().default(""),
     LIVE_HLS_BASE_URL: z.string().optional().default(""),

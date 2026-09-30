@@ -90,7 +90,7 @@ export function AudioLibraryPanel() {
         mimeType: file.type.length > 0 ? file.type : "application/octet-stream",
         byteSize: file.size,
       });
-      await fetch(presign.uploadUrl, { method: "PUT", headers: presign.headers, body: file });
+      await client.uploadPresigned(presign.uploadUrl, file, presign.headers);
       await client.completeMedia({ mediaId: presign.mediaId });
       await client.createAudioTrack({
         title: title.trim(),

@@ -16,7 +16,7 @@ describe("parseApiEnv", () => {
     expect(env.NODE_ENV).toBe("development");
     expect(env.OTP_PROVIDER).toBe("console");
     expect(env.GEOCODER_PROVIDER).toBe("console");
-    expect(env.MEDIA_STORAGE).toBe("memory");
+    expect(env.MEDIA_STORAGE).toBe("local");
     expect(env.MAPTILER_API_KEY).toBe("");
     expect(env.STADIA_API_KEY).toBe("");
     expect(env.FFMPEG_PATH).toBe("");
