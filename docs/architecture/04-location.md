@@ -70,6 +70,14 @@ Leaflet on web uses a three-layer satellite chain from configuration, not a stre
 
 `GET /api/v1/config/discovery` returns `mapProvider`, resolved `mapTileUrl`, `mapFallbackTileUrls` (up to two), and `mapAttribution`. The web map switches URL on Leaflet `tileerror`. Admins set `mapProvider` and an optional custom XYZ template (`{z}/{x}/{y}`) on `PATCH /api/v1/admin/discovery/policy`. Pins, clusters, and snap policy are unchanged.
 
+## Route
+
+A road path is drawn on top of whichever basemap is showing, including a fallback tile. The tiles do not calculate the path.
+
+`POST /api/v1/discovery/route` takes the viewer's own origin and a discovery target id. The destination is that result's public pin (snapped for people and professionals, the listed point for a business). The response is a road line, distance, and duration. It does not return a private latitude or longitude.
+
+Routers are tried in order: MapTiler when `MAPTILER_API_KEY` is set, Stadia when `STADIA_API_KEY` is set, then the public OSRM router so an Esri-only map still has a path. The same line is drawn on every satellite layer. The line refreshes when the viewer's accepted location changes. Exact coordinates are not logged.
+
 ## Service area
 
 A professional sets:

@@ -1,3 +1,4 @@
+import { fetchMapRoute } from "@hasut/config";
 import type {
   DiscoveryCard,
   DiscoveryCluster,
@@ -7,6 +8,8 @@ import type {
   DiscoveryPresence,
   DiscoveryPreview,
   DiscoveryResult,
+  DiscoveryRoute,
+  DiscoveryStoryFace,
 } from "@hasut/types";
 import { isValidWgs84, snapToGrid, initialsFromName } from "@hasut/utils";
 import { HttpStatus, Injectable } from "@nestjs/common";
@@ -88,6 +91,54 @@ export class DiscoveryService {
       markers,
       clusters,
       selfPresence: this.presenceFor(viewerId, pinMedia),
+      storyFaces: this.storyFaces(collected.display, owners, items, pinMedia),
+    };
+  }
+
+  async routeTo(
+    viewerId: string | null,
+    input: {
+      latitude: number;
+      longitude: number;
+      radiusMeters?: number;
+      targetKind: DiscoveryKind;
+      targetId: string;
+    },
+  ): Promise<DiscoveryRoute> {
+    const collected = await this.collect(viewerId, {
+      latitude: input.latitude,
+      longitude: input.longitude,
+      radiusMeters: input.radiusMeters,
+    });
+    const target = collected.display.find(
+      (row) => row.id === input.targetId && row.kind === input.targetKind,
+    );
+    if (target === undefined) {
+      throw new HasutHttpException(
+        "NOT_FOUND",
+        "That place is outside the current distance.",
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const keys = this.configuration.mapRouteKeys();
+    const leg = await fetchMapRoute({
+      origin: { latitude: input.latitude, longitude: input.longitude },
+      destination: { latitude: target.pinLat, longitude: target.pinLng },
+      maptilerApiKey: keys.maptilerApiKey,
+      stadiaApiKey: keys.stadiaApiKey,
+    });
+    if (leg === null) {
+      throw new HasutHttpException(
+        "SERVICE_UNAVAILABLE",
+        "No route is available between these places.",
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return {
+      provider: leg.provider,
+      distanceMeters: Math.round(leg.distanceMeters),
+      durationSeconds: Math.round(leg.durationSeconds),
+      coordinates: leg.coordinates,
     };
   }
 
@@ -298,6 +349,35 @@ export class DiscoveryService {
       }
     }
     return owners;
+  }
+
+  private storyFaces(
+    rows: RankedNearby[],
+    owners: Map<string, string>,
+    items: DiscoveryCard[],
+    pinMedia: Map<string, { kind: string; imageUrl: string | null }>,
+  ): DiscoveryStoryFace[] {
+    const faces: DiscoveryStoryFace[] = [];
+    const seen = new Set<string>();
+    rows.forEach((row, index) => {
+      const memberId = owners.get(row.id);
+      if (memberId === undefined || seen.has(memberId)) {
+        return;
+      }
+      const presence = this.presenceFor(memberId, pinMedia);
+      if (presence === null || presence.kind === null) {
+        return;
+      }
+      seen.add(memberId);
+      const card = items[index];
+      faces.push({
+        memberId,
+        label: card?.title ?? row.title,
+        imageUrl: presence.imageUrl ?? card?.photoUrl ?? null,
+        kind: presence.kind,
+      });
+    });
+    return faces;
   }
 
   private presenceFor(

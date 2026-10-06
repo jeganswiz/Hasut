@@ -73,6 +73,8 @@ export {
   discoveryPresenceUpdatedSchema,
   discoveryPreviewSchema,
   discoveryQuerySchema,
+  discoveryRouteRequestSchema,
+  discoveryRouteSchema,
   discoveryRankingPatchSchema,
   discoveryRankingWeightsViewSchema,
   discoveryResultSchema,

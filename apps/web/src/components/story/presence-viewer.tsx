@@ -5,6 +5,7 @@ import { Button, SegmentedTabs, cssVar } from "@hasut/ui";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { isLivePlaylist, LIVE_PLAYLIST_POLL_MS } from "../../lib/live-playlist";
 import { loopWithin, mutesOriginalAudio, storyAudioSrc } from "../../lib/story-playback";
+import { storyWatchHoldMs } from "../../lib/story-ring";
 
 type Tab = "activity" | "live";
 
@@ -75,11 +76,40 @@ function StoryStage({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const advanced = useRef(false);
+  const onNextRef = useRef(onNext);
+  onNextRef.current = onNext;
+  const [progress, setProgress] = useState(0);
   const audioSrc = storyAudioSrc(story);
   const preparing = story.kind === "VIDEO" && story.playbackStatus === "PENDING";
   const hlsUrl = preparing ? null : (story.hlsUrl ?? story.previewHlsUrl);
 
   useHls(videoRef, hlsUrl);
+
+  useEffect(() => {
+    advanced.current = false;
+    setProgress(0);
+    if (story.kind === "VIDEO") {
+      return;
+    }
+    const started = performance.now();
+    const hold = storyWatchHoldMs(story.trimStartSeconds, story.trimEndSeconds);
+    let frame = 0;
+    const tick = (now: number): void => {
+      const next = Math.min(1, (now - started) / hold);
+      setProgress(next);
+      if (next < 1) {
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
+      if (!advanced.current && index < total - 1) {
+        advanced.current = true;
+        onNextRef.current();
+      }
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [index, story, total]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -92,6 +122,11 @@ function StoryStage({
       const next = loopWithin(video.currentTime, story.trimStartSeconds, story.trimEndSeconds);
       if (next !== video.currentTime) {
         video.currentTime = next;
+      }
+      const end = story.trimEndSeconds ?? video.duration;
+      const span = end - story.trimStartSeconds;
+      if (Number.isFinite(span) && span > 0) {
+        setProgress(Math.min(1, (video.currentTime - story.trimStartSeconds) / span));
       }
     };
     video.addEventListener("timeupdate", onTime);
@@ -122,57 +157,62 @@ function StoryStage({
 
   return (
     <div style={{ display: "grid", gap: 12, width: "100%", maxWidth: 360 }}>
-      <StageFrame>
-        {story.imageUrl !== null ? (
-          // Local or signed CDN URL; next/image is not configured for every host.
-          <img
-            src={story.imageUrl}
-            alt=""
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          />
-        ) : null}
-        {preparing ? (
-          <p
-            style={{
-              margin: 0,
-              padding: 24,
-              color: cssVar("textOnPrimary"),
-              textAlign: "center",
-            }}
-          >
-            Preparing playback
-          </p>
-        ) : null}
-        {hlsUrl !== null ? (
-          <video
-            ref={videoRef}
-            controls
-            playsInline
-            autoPlay
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          />
-        ) : null}
-        {story.caption.trim().length === 0 ? null : (
-          <p
-            style={{
-              position: "absolute",
-              left: 16,
-              right: 16,
-              bottom: 24,
-              margin: 0,
-              padding: "8px 12px",
-              borderRadius: cssVar("radius"),
-              background: "color-mix(in srgb, var(--hasut-color-text) 55%, transparent)",
-              color: story.captionColor ?? cssVar("textOnPrimary"),
-              fontWeight: 700,
-              textAlign: "center",
-              wordBreak: "break-word",
-            }}
-          >
-            {story.caption}
-          </p>
-        )}
-      </StageFrame>
+      <div
+        className="story-watch"
+        style={{ ["--watch" as string]: String(Math.round(progress * 100)) }}
+      >
+        <StageFrame>
+          {story.imageUrl !== null ? (
+            // Local or signed CDN URL; next/image is not configured for every host.
+            <img
+              src={story.imageUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
+          ) : null}
+          {preparing ? (
+            <p
+              style={{
+                margin: 0,
+                padding: 24,
+                color: cssVar("textOnPrimary"),
+                textAlign: "center",
+              }}
+            >
+              Preparing playback
+            </p>
+          ) : null}
+          {hlsUrl !== null ? (
+            <video
+              ref={videoRef}
+              controls
+              playsInline
+              autoPlay
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
+          ) : null}
+          {story.caption.trim().length === 0 ? null : (
+            <p
+              style={{
+                position: "absolute",
+                left: 16,
+                right: 16,
+                bottom: 24,
+                margin: 0,
+                padding: "8px 12px",
+                borderRadius: cssVar("radius"),
+                background: "color-mix(in srgb, var(--hasut-color-text) 55%, transparent)",
+                color: story.captionColor ?? cssVar("textOnPrimary"),
+                fontWeight: 700,
+                textAlign: "center",
+                wordBreak: "break-word",
+              }}
+            >
+              {story.caption}
+            </p>
+          )}
+        </StageFrame>
+      </div>
       {audioSrc === null ? null : <audio ref={audioRef} src={audioSrc} hidden />}
       {story.audio.title === null || audioSrc === null ? null : (
         <p style={{ margin: 0, fontSize: 13, color: cssVar("mutedText") }}>{story.audio.title}</p>

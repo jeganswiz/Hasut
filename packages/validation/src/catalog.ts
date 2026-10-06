@@ -21,6 +21,7 @@ export const categoryWriteSchema = z.object({
   appliesTo: categoryAppliesToSchema.optional().default("ALL"),
   isActive: z.boolean().optional().default(true),
   sortOrder: z.number().int().min(0).max(10_000).optional().default(100),
+  iconMediaId: z.string().uuid().nullable().optional(),
 });
 
 export const categoryPatchSchema = categoryWriteSchema
@@ -36,6 +37,7 @@ export const categoryViewSchema: z.ZodType<CategoryView> = z.lazy(() =>
     appliesTo: categoryAppliesToSchema,
     isActive: z.boolean(),
     sortOrder: z.number(),
+    iconUrl: z.string().nullable().optional(),
     children: z.array(categoryViewSchema),
   }),
 );

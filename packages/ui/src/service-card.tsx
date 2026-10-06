@@ -1,3 +1,4 @@
+import { NameMark } from "./name-mark";
 import { cssVar } from "./tokens";
 import { Rating } from "./rating";
 
@@ -6,6 +7,7 @@ export function ServiceCard({
   categoryLabel,
   rating,
   photoUrl,
+  coverUrl = null,
   providerName,
   onOpen,
 }: {
@@ -13,9 +15,13 @@ export function ServiceCard({
   categoryLabel: string | null;
   rating: number | null;
   photoUrl: string | null;
+  /** Category picture when one is stored. Otherwise a picture made from the category name. */
+  coverUrl?: string | null;
   providerName: string;
   onOpen?: () => void;
 }) {
+  const cover = coverUrl ?? (categoryLabel === null ? photoUrl : null);
+  const coverName = categoryLabel ?? title;
   return (
     <article
       style={{
@@ -26,12 +32,15 @@ export function ServiceCard({
         overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          height: 110,
-          background: photoUrl === null ? cssVar("secondary") : `center / cover url(${photoUrl})`,
-        }}
-      />
+      {cover !== null && cover.length > 0 ? (
+        <img
+          src={cover}
+          alt=""
+          style={{ display: "block", width: "100%", height: 110, objectFit: "cover" }}
+        />
+      ) : (
+        <NameMark name={coverName} height={110} />
+      )}
       <div style={{ padding: 12 }}>
         <Rating value={rating} />
         {categoryLabel !== null ? (

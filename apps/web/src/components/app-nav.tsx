@@ -4,7 +4,7 @@ import type { OwnerMemberProfile } from "@hasut/types";
 import { Avatar, HasutLogo } from "@hasut/ui";
 import { initialsFromName } from "@hasut/utils";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createWebApiClient } from "../lib/api";
 import {
   CHROME_HEIGHT_MAX,
@@ -32,7 +32,7 @@ const LINKS: Array<{
   { href: "/support", label: "Support", icon: "support" },
 ];
 
-export function AppNav() {
+export function AppNav({ search }: { search?: ReactNode }) {
   const pathname = usePathname();
   const [unread, setUnread] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -214,6 +214,7 @@ export function AppNav() {
           <HasutLogo src={logoUrl} />
           <span>HASUT</span>
         </a>
+        {search}
         <div className="app-chrome-tools">
           <nav className="app-nav-desktop" aria-label="Primary">
             {links.map((link) => (

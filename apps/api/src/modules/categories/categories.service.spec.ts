@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { AuditService } from "../audit/audit.service";
+import { MediaService } from "../media/media.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CategoriesService } from "./categories.service";
 
@@ -19,6 +20,7 @@ describe("CategoriesService", () => {
     professionalCategory: { count: jest.fn() },
   };
   const audit = { record: jest.fn() };
+  const media = { photoUrl: jest.fn() };
 
   async function createService(): Promise<CategoriesService> {
     const moduleRef = await Test.createTestingModule({
@@ -26,6 +28,7 @@ describe("CategoriesService", () => {
         CategoriesService,
         { provide: PrismaService, useValue: prisma },
         { provide: AuditService, useValue: audit },
+        { provide: MediaService, useValue: media },
       ],
     }).compile();
     return moduleRef.get(CategoriesService);
@@ -34,6 +37,7 @@ describe("CategoriesService", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     audit.record.mockResolvedValue(undefined);
+    media.photoUrl.mockResolvedValue(null);
   });
 
   it("creates a parent and child category", async () => {

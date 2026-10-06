@@ -3,6 +3,24 @@ import { z } from "zod";
 
 export const discoveryKindSchema = z.enum(DISCOVERY_KINDS);
 
+export const discoveryRouteRequestSchema = z.object({
+  latitude: z.number().gte(-90).lte(90),
+  longitude: z.number().gte(-180).lte(180),
+  radiusMeters: z.number().int().positive().optional(),
+  targetKind: discoveryKindSchema,
+  targetId: z.string().uuid(),
+});
+
+export const discoveryRouteSchema = z.object({
+  provider: z.enum(["maptiler", "stadia", "osrm"]),
+  distanceMeters: z.number().nonnegative(),
+  durationSeconds: z.number().nonnegative(),
+  coordinates: z
+    .array(z.tuple([z.number(), z.number()]))
+    .min(2)
+    .max(4_000),
+});
+
 export const discoveryQuerySchema = z.object({
   latitude: z.coerce.number().gte(-90).lte(90).optional(),
   longitude: z.coerce.number().gte(-180).lte(180).optional(),
@@ -84,6 +102,16 @@ export const discoveryResultSchema = z.object({
       imageUrl: z.string().nullable(),
     })
     .nullable()
+    .optional(),
+  storyFaces: z
+    .array(
+      z.object({
+        memberId: z.string().uuid(),
+        label: z.string(),
+        imageUrl: z.string().nullable(),
+        kind: z.enum(["LIVE", "VIDEO", "IMAGE"]),
+      }),
+    )
     .optional(),
 });
 

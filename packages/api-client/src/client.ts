@@ -34,6 +34,7 @@ import {
   type DiscoveryPreview,
   type DiscoveryRankingWeightsView,
   type DiscoveryResult,
+  type DiscoveryRoute,
   type MapBasemapProvider,
   type PublicBusiness,
   type BlockView,
@@ -113,6 +114,7 @@ import {
   discoveryPreviewSchema,
   discoveryRankingWeightsViewSchema,
   discoveryResultSchema,
+  discoveryRouteSchema,
   publicBusinessSchema,
   blockListSchema,
   blockViewSchema,
@@ -698,6 +700,7 @@ export class HasutApiClient {
     appliesTo?: "PROFESSIONAL" | "BUSINESS" | "SERVICE" | "ALL";
     isActive?: boolean;
     sortOrder?: number;
+    iconMediaId?: string | null;
   }): Promise<CategoryView> {
     const result = await this.request(categoryViewSchema, "/api/v1/admin/categories", {
       method: "POST",
@@ -715,6 +718,7 @@ export class HasutApiClient {
       appliesTo?: "PROFESSIONAL" | "BUSINESS" | "SERVICE" | "ALL";
       isActive?: boolean;
       sortOrder?: number;
+      iconMediaId?: string | null;
     },
   ): Promise<CategoryView> {
     const result = await this.request(
@@ -866,6 +870,20 @@ export class HasutApiClient {
       `/api/v1/discovery/nearby${toQuery(query)}`,
       { method: "GET" },
     );
+    return result.data;
+  }
+
+  async routeTo(input: {
+    latitude: number;
+    longitude: number;
+    radiusMeters?: number;
+    targetKind: DiscoveryKind;
+    targetId: string;
+  }): Promise<DiscoveryRoute> {
+    const result = await this.request(discoveryRouteSchema, "/api/v1/discovery/route", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
     return result.data;
   }
 

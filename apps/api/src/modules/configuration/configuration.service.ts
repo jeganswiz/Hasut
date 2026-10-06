@@ -141,6 +141,13 @@ export class ConfigurationService {
     return readDiscoveryPolicy(row?.valueJson);
   }
 
+  mapRouteKeys(): { maptilerApiKey: string; stadiaApiKey: string } {
+    return {
+      maptilerApiKey: this.config.get("MAPTILER_API_KEY", { infer: true }),
+      stadiaApiKey: this.config.get("STADIA_API_KEY", { infer: true }),
+    };
+  }
+
   async getPublicDiscoveryPolicy(): Promise<DiscoveryPolicyView> {
     const policy = await this.getDiscoveryPolicy();
     const location = await this.getLocationPolicy();

@@ -2,6 +2,7 @@ export { BottomSheet } from "./bottom-sheet";
 export { Button } from "./button";
 export type { ButtonProps } from "./button";
 export { FilterChip } from "./filter-chip";
+export { NameMark, nameInitials, nameMarkHue } from "./name-mark";
 export { NearbyCard } from "./nearby-card";
 export { Rating } from "./rating";
 export { SearchBar } from "./search-bar";

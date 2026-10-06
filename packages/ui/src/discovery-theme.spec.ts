@@ -4,6 +4,8 @@ import { join } from "node:path";
 const FILES = [
   "nearby-card.tsx",
   "service-card.tsx",
+  "name-mark.tsx",
+  "surface.tsx",
   "search-bar.tsx",
   "filter-chip.tsx",
   "rating.tsx",

@@ -117,9 +117,11 @@ export type {
   DiscoveryPolicyView,
   DiscoveryPresenceUpdated,
   DiscoveryPresence,
+  DiscoveryStoryFace,
   DiscoveryPreview,
   DiscoveryRankingWeightsView,
   DiscoveryResult,
+  DiscoveryRoute,
   MapBasemapProvider,
   PublicBusiness,
 } from "./discovery";

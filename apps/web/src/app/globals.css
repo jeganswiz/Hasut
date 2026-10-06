@@ -2,6 +2,27 @@
   --chrome-height: 72px;
 }
 
+.hasut-skeleton {
+  display: block;
+  background: linear-gradient(
+    100deg,
+    var(--hasut-color-border) 20%,
+    color-mix(in srgb, var(--hasut-color-primary) 18%, var(--hasut-color-surface)) 50%,
+    var(--hasut-color-border) 80%
+  );
+  background-size: 200% 100%;
+  animation: hasut-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes hasut-skeleton {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100dvh;
@@ -81,6 +102,7 @@ main {
   align-items: center;
   gap: 4px;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .app-brand {
@@ -229,6 +251,21 @@ main {
   white-space: nowrap;
   font-size: 14px;
   font-weight: 700;
+}
+
+.story-watch {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  padding: 4px;
+  box-sizing: border-box;
+  border-radius: calc(var(--hasut-radius-card) + 4px);
+  background: conic-gradient(
+    from -90deg,
+    var(--hasut-color-primary),
+    var(--hasut-color-secondary) calc(var(--watch, 0) * 1%),
+    var(--hasut-color-border) calc(var(--watch, 0) * 1%)
+  );
 }
 
 .story-ring-row {

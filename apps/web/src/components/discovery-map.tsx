@@ -3,7 +3,7 @@
 import { OSM_MAP_ATTRIBUTION, advanceBasemapIndex } from "@hasut/config";
 import type { DiscoveryCluster, DiscoveryMarker } from "@hasut/types";
 import { diffDiscoveryMarkers } from "@hasut/utils";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { isLivePlaylist } from "../lib/live-playlist";
 import {
   allowPinAutoplay,
@@ -77,6 +77,10 @@ export function DiscoveryMap({
   selfPhotoUrl = null,
   selfHasStory = false,
   playPreviews = false,
+  route = null,
+  callout = null,
+  onClearRoute,
+  onLocate,
   onSelect,
 }: {
   tileUrl: string;
@@ -92,6 +96,12 @@ export function DiscoveryMap({
   selfPhotoUrl?: string | null;
   selfHasStory?: boolean;
   playPreviews?: boolean;
+  /** Road line as [longitude, latitude]. Drawn on every basemap, including fallbacks. */
+  route?: Array<[number, number]> | null;
+  /** Card drawn above the selected pin. Stays on the map while it moves. */
+  callout?: ReactNode;
+  onClearRoute: () => void;
+  onLocate: () => void;
   onSelect: (id: string) => void;
 }) {
   const mapNode = useRef<HTMLDivElement | null>(null);
@@ -99,10 +109,17 @@ export function DiscoveryMap({
   const markerLayers = useRef(new Map<string, import("leaflet").Marker>());
   const clusterLayers = useRef(new Map<string, import("leaflet").Marker>());
   const selfLayer = useRef<import("leaflet").Marker | null>(null);
+  const routeLayers = useRef<Array<import("leaflet").Polyline>>([]);
   const pinPlayers = useRef<Array<{ destroy: () => void }>>([]);
   const readyPlaylists = useRef(new Set<string>());
   const onSelectRef = useRef(onSelect);
   const [mapReady, setMapReady] = useState(false);
+  const [anchor, setAnchor] = useState<{
+    x: number;
+    y: number;
+    caret: number;
+    below: boolean;
+  } | null>(null);
   const ready = tileUrl.length > 0 && center !== null;
   const tileKey = `${tileUrl}|${fallbackTileUrls.join("|")}|${attribution}`;
 
@@ -203,11 +220,10 @@ export function DiscoveryMap({
       selfLayer.current.setLatLng([overlay.latitude, overlay.longitude]);
       selfLayer.current.setIcon(
         leaflet.divIcon({
-          className: "",
+          className: "discovery-self-wrap",
           html: youMarkerHtml(selfPhotoUrl, selfId, selfHasStory),
           iconSize: [48, 48],
           iconAnchor: [24, 24],
-          className: "discovery-self-wrap",
         }),
       );
     });
@@ -367,7 +383,166 @@ export function DiscoveryMap({
     };
   }, [clusters, mapReady, markers, selectedId, playPreviews]);
 
-  return <div ref={mapNode} className="discovery-map" />;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || map === null) {
+      return;
+    }
+    let cancelled = false;
+    void import("leaflet").then((leaflet) => {
+      if (cancelled || mapRef.current === null) {
+        return;
+      }
+      for (const layer of routeLayers.current) {
+        layer.remove();
+      }
+      routeLayers.current = [];
+      if (route === null || route.length < 2) {
+        return;
+      }
+      const latLngs = route.map(
+        ([longitude, latitude]) => [latitude, longitude] as [number, number],
+      );
+      const casing = leaflet.polyline(latLngs, {
+        className: "discovery-route-casing",
+        weight: 8,
+        interactive: false,
+      });
+      const line = leaflet.polyline(latLngs, {
+        className: "discovery-route",
+        weight: 5,
+        interactive: false,
+      });
+      casing.addTo(map);
+      line.addTo(map);
+      routeLayers.current = [casing, line];
+      map.fitBounds(line.getBounds(), { padding: [48, 48], maxZoom: 16 });
+    });
+    return () => {
+      cancelled = true;
+      for (const layer of routeLayers.current) {
+        layer.remove();
+      }
+      routeLayers.current = [];
+    };
+  }, [mapReady, route]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || map === null) {
+      return;
+    }
+    const visible = callout !== null;
+    function place(): void {
+      if (map === null || selectedId === null || !visible) {
+        setAnchor(null);
+        return;
+      }
+      const marker = markers.find((item) => item.id === selectedId);
+      if (marker === undefined) {
+        setAnchor(null);
+        return;
+      }
+      const point = map.latLngToContainerPoint([marker.pinLat, marker.pinLng]);
+      const size = map.getSize();
+      const cardWidth = Math.min(340, size.x - 32);
+      const half = cardWidth / 2;
+      const x = Math.min(size.x - half - 16, Math.max(half + 16, point.x));
+      const below = point.y < 300;
+      setAnchor({ x, y: point.y, caret: point.x - x, below });
+    }
+    place();
+    map.on("move", place);
+    map.on("zoom", place);
+    return () => {
+      map.off("move", place);
+      map.off("zoom", place);
+    };
+  }, [callout, mapReady, markers, selectedId]);
+
+  const calloutStyle: CSSProperties = {
+    left: anchor?.x ?? 0,
+    top: anchor?.y ?? 0,
+    ["--caret" as string]: `${anchor?.caret ?? 0}px`,
+  };
+
+  function zoomBy(delta: number): void {
+    mapRef.current?.setZoom(mapRef.current.getZoom() + delta);
+  }
+
+  function focusHere(): void {
+    const map = mapRef.current;
+    const point = overlay ?? center;
+    if (map !== null && point !== null) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      map.flyTo([point.latitude, point.longitude], Math.max(map.getZoom(), 15), {
+        duration: reduce ? 0 : 0.45,
+      });
+    }
+    onLocate();
+  }
+
+  const routeVisible = route !== null && route.length >= 2;
+
+  return (
+    <>
+      <div ref={mapNode} className="discovery-map" />
+      <div className="map-tools">
+        {routeVisible ? (
+          <button type="button" className="map-tool map-tool-clear" onClick={onClearRoute}>
+            Clear route
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="map-tool"
+          aria-label="Current location"
+          onClick={focusHere}
+        >
+          <LocateIcon />
+        </button>
+        <div className="map-zoom">
+          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>
+            <PlusIcon />
+          </button>
+          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>
+            <MinusIcon />
+          </button>
+        </div>
+      </div>
+      {anchor !== null && callout !== null ? (
+        <div className={anchor.below ? "map-callout is-below" : "map-callout"} style={calloutStyle}>
+          {callout}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function LocateIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21" />
+      <circle cx="12" cy="12" r="7" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 6v12M6 12h12" />
+    </svg>
+  );
+}
+
+function MinusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 12h12" />
+    </svg>
+  );
 }
 
 async function rememberReadyPlaylist(ready: Set<string>, url: string): Promise<void> {

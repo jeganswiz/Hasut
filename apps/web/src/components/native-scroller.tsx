@@ -10,10 +10,13 @@ export function NativeScroller({
   children,
   className,
   label,
+  wheel = false,
 }: {
   children: ReactNode;
   className?: string;
   label?: string;
+  /** A vertical mouse wheel pans this horizontal strip. */
+  wheel?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -32,18 +35,25 @@ export function NativeScroller({
       if (el.scrollWidth <= el.clientWidth) {
         return;
       }
-      const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
-      if (!horizontal) {
+      const verticalWheel = Math.abs(event.deltaY) >= Math.abs(event.deltaX);
+      if (verticalWheel && !wheel && !event.shiftKey) {
         return;
       }
-      const delta =
-        event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX || event.deltaY;
+      const delta = verticalWheel ? event.deltaY : event.deltaX;
+      if (delta === 0) {
+        return;
+      }
       el.scrollLeft += delta;
       event.preventDefault();
     };
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === "touch" || event.button !== 0) {
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const scrollbarHeight = el.offsetHeight - el.clientHeight;
+      if (scrollbarHeight > 0 && event.clientY >= rect.bottom - scrollbarHeight) {
         return;
       }
       tracking = true;
@@ -98,7 +108,7 @@ export function NativeScroller({
       el.removeEventListener("pointerup", endDrag);
       el.removeEventListener("pointercancel", endDrag);
     };
-  }, []);
+  }, [wheel]);
 
   const classNames = className === undefined ? "native-scroll-x" : `native-scroll-x ${className}`;
   return (

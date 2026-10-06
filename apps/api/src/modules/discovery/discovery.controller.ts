@@ -4,13 +4,15 @@ import type {
   DiscoveryPreview,
   DiscoveryRankingWeightsView,
   DiscoveryResult,
+  DiscoveryRoute,
 } from "@hasut/types";
 import {
   discoveryPolicyPatchSchema,
   discoveryQuerySchema,
   discoveryRankingPatchSchema,
+  discoveryRouteRequestSchema,
 } from "@hasut/validation";
-import { Body, Controller, Get, Param, Patch, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { z } from "zod";
 import { OptionalUser } from "../../common/decorators/optional-user.decorator";
@@ -21,6 +23,7 @@ import { ConfigurationService } from "../configuration/configuration.service";
 import { DiscoveryService } from "./discovery.service";
 
 type DiscoveryQuery = z.infer<typeof discoveryQuerySchema>;
+type DiscoveryRouteRequest = z.infer<typeof discoveryRouteRequestSchema>;
 type PolicyPatch = z.infer<typeof discoveryPolicyPatchSchema>;
 type RankingPatch = z.infer<typeof discoveryRankingPatchSchema>;
 
@@ -40,6 +43,16 @@ export class DiscoveryController {
     @Query(new ZodValidationPipe(discoveryQuerySchema)) query: DiscoveryQuery,
   ): Promise<DiscoveryResult> {
     return this.discovery.nearby(memberId, query);
+  }
+
+  @Public()
+  @Post("discovery/route")
+  @ApiOperation({ summary: "Road path from the viewer to a public discovery pin" })
+  route(
+    @OptionalUser("memberId") memberId: string | null,
+    @Body(new ZodValidationPipe(discoveryRouteRequestSchema)) body: DiscoveryRouteRequest,
+  ): Promise<DiscoveryRoute> {
+    return this.discovery.routeTo(memberId, body);
   }
 
   @Public()

@@ -4,6 +4,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import type { Category } from "@prisma/client";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { AuditService } from "../audit/audit.service";
+import { MediaService } from "../media/media.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 export interface CategoryWriteInput {
@@ -13,6 +14,7 @@ export interface CategoryWriteInput {
   appliesTo?: CategoryAppliesTo;
   isActive?: boolean;
   sortOrder?: number;
+  iconMediaId?: string | null;
 }
 
 @Injectable()
@@ -20,6 +22,7 @@ export class CategoriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly media: MediaService,
   ) {}
 
   async listPublic(appliesTo?: CategoryAppliesTo): Promise<CategoryView[]> {
@@ -30,14 +33,14 @@ export class CategoriesService {
       },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
-    return this.toTree(rows);
+    return this.toTree(rows, await this.iconMap(rows));
   }
 
   async listAdmin(): Promise<CategoryView[]> {
     const rows = await this.prisma.category.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
-    return this.toTree(rows);
+    return this.toTree(rows, await this.iconMap(rows));
   }
 
   async create(
@@ -57,6 +60,7 @@ export class CategoriesService {
         appliesTo: input.appliesTo ?? "ALL",
         isActive: input.isActive ?? true,
         sortOrder: input.sortOrder ?? 100,
+        iconMediaId: input.iconMediaId ?? null,
       },
     });
     await this.audit.record({
@@ -104,6 +108,7 @@ export class CategoriesService {
         appliesTo: input.appliesTo ?? existing.appliesTo,
         isActive: input.isActive ?? existing.isActive,
         sortOrder: input.sortOrder ?? existing.sortOrder,
+        ...(input.iconMediaId !== undefined ? { iconMediaId: input.iconMediaId } : {}),
       },
     });
     await this.audit.record({
@@ -171,9 +176,11 @@ export class CategoriesService {
       where: { parentId: categoryId },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
+    const icons = await this.iconMap([row, ...children]);
     return this.toView(
       row,
-      children.map((child) => this.toView(child, [])),
+      children.map((child) => this.toView(child, [], icons.get(child.id) ?? null)),
+      icons.get(row.id) ?? null,
     );
   }
 
@@ -240,10 +247,21 @@ export class CategoriesService {
     return resolved;
   }
 
-  private toTree(rows: Category[]): CategoryView[] {
+  private async iconMap(
+    rows: Array<{ id: string; iconMediaId?: string | null }>,
+  ): Promise<Map<string, string | null>> {
+    const entries = await Promise.all(
+      rows.map(
+        async (row) => [row.id, await this.media.photoUrl(row.iconMediaId ?? null)] as const,
+      ),
+    );
+    return new Map(entries);
+  }
+
+  private toTree(rows: Category[], icons: Map<string, string | null>): CategoryView[] {
     const nodes = new Map<string, CategoryView>();
     for (const row of rows) {
-      nodes.set(row.id, this.toView(row, []));
+      nodes.set(row.id, this.toView(row, [], icons.get(row.id) ?? null));
     }
     const roots: CategoryView[] = [];
     for (const row of rows) {
@@ -260,7 +278,11 @@ export class CategoriesService {
     return roots;
   }
 
-  private toView(row: Category, children: CategoryView[]): CategoryView {
+  private toView(
+    row: Category,
+    children: CategoryView[],
+    iconUrl: string | null = null,
+  ): CategoryView {
     return {
       id: row.id,
       parentId: row.parentId,
@@ -269,6 +291,7 @@ export class CategoriesService {
       appliesTo: row.appliesTo,
       isActive: row.isActive,
       sortOrder: row.sortOrder,
+      iconUrl,
       children,
     };
   }

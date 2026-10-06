@@ -26,6 +26,7 @@ describe("DiscoveryService", () => {
     getDiscoveryPolicy: jest.fn(),
     getDiscoveryRankingWeights: jest.fn(),
     getLocationPolicy: jest.fn(),
+    mapRouteKeys: jest.fn(),
   };
   const locations = { readExactPoint: jest.fn() };
   const media = { photoUrl: jest.fn() };
@@ -64,6 +65,7 @@ describe("DiscoveryService", () => {
     prisma.professionalProfile.findMany.mockResolvedValue([]);
     prisma.professionalProfile.findUnique.mockResolvedValue(null);
     locations.readExactPoint.mockResolvedValue(null);
+    configuration.mapRouteKeys.mockReturnValue({ maptilerApiKey: "", stadiaApiKey: "" });
   });
 
   it("ranks PostGIS repository rows and never exposes exact coordinate keys", async () => {
@@ -109,6 +111,111 @@ describe("DiscoveryService", () => {
     expect(result.markers[0]?.initials).toBe("AS");
     expect(containsExactCoordinateKeys(result)).toBe(false);
     expect(JSON.stringify(result)).not.toMatch(/"latitude"|"longitude"|"exact"/);
+  });
+
+  it("lists nearby active stories for the map row", async () => {
+    const memberId = "11111111-1111-4111-8111-111111111111";
+    repository.findNearbyMembers.mockResolvedValue([
+      {
+        id: memberId,
+        kind: "MEMBER",
+        title: "Ada Lovelace",
+        subtitle: "Nearby",
+        photoMediaId: null,
+        categoryLabel: null,
+        categoryIds: [],
+        availability: "AVAILABLE",
+        modeCode: null,
+        verified: false,
+        rating: null,
+        reviewCount: 0,
+        distanceMeters: 400,
+        pinLat: 12.97,
+        pinLng: 77.59,
+        updatedAt: new Date(),
+        locationLabel: "Bengaluru",
+        city: "Bengaluru",
+        region: "Karnataka",
+        country: "India",
+        countryCode: "IN",
+      },
+    ]);
+    stories.pinMediaForMembers.mockResolvedValue(
+      new Map([
+        [memberId, { kind: "IMAGE", imageUrl: "https://cdn.example/a.jpg", previewHlsUrl: null }],
+      ]),
+    );
+    const service = await createService();
+    const result = await service.nearby(null, { latitude: 12.97, longitude: 77.59 });
+    expect(result.storyFaces).toEqual([
+      {
+        memberId,
+        label: "Ada Lovelace",
+        imageUrl: "https://cdn.example/a.jpg",
+        kind: "IMAGE",
+      },
+    ]);
+  });
+
+  it("routes to the public pin without naming exact coordinates", async () => {
+    repository.findNearbyProfessionals.mockResolvedValue([
+      {
+        id: PRO_ID,
+        kind: "PROFESSIONAL",
+        title: "AC Service",
+        subtitle: "Esther",
+        photoMediaId: null,
+        categoryLabel: "Home services",
+        categoryIds: [],
+        availability: "AVAILABLE",
+        modeCode: null,
+        verified: true,
+        rating: 4.3,
+        reviewCount: 12,
+        distanceMeters: 200,
+        pinLat: 12.9716,
+        pinLng: 77.5946,
+        updatedAt: new Date(),
+        locationLabel: "Bengaluru, Karnataka, India",
+        city: "Bengaluru",
+        region: "Karnataka",
+        country: "India",
+        countryCode: "IN",
+      },
+    ]);
+    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        code: "Ok",
+        routes: [
+          {
+            distance: 1500.2,
+            duration: 200.4,
+            geometry: {
+              coordinates: [
+                [77.59, 12.97],
+                [77.6, 12.98],
+              ],
+            },
+          },
+        ],
+      }),
+    } as Response);
+    try {
+      const service = await createService();
+      const route = await service.routeTo(null, {
+        latitude: 12.97,
+        longitude: 77.59,
+        targetKind: "PROFESSIONAL",
+        targetId: PRO_ID,
+      });
+      expect(route.distanceMeters).toBe(1500);
+      expect(route.durationSeconds).toBe(200);
+      expect(route.coordinates).toHaveLength(2);
+      expect(containsExactCoordinateKeys(route)).toBe(false);
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 
   it("uses a stored point when the client omits coordinates", async () => {

@@ -28,6 +28,8 @@ export interface CategoryView {
   appliesTo: CategoryAppliesTo;
   isActive: boolean;
   sortOrder: number;
+  /** Public picture when an admin attached one. Missing means the app draws a stand-in from the name. */
+  iconUrl?: string | null;
   children: CategoryView[];
 }
 

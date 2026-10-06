@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { AppNav } from "../../../components/app-nav";
 import { PresenceViewer } from "../../../components/story/presence-viewer";
 import { createWebApiClient } from "../../../lib/api";
+import { markStoryWatched } from "../../../lib/story-ring";
 
 export default function StoryViewerPage() {
   const params = useParams<{ memberId: string }>();
@@ -25,6 +26,9 @@ export default function StoryViewerPage() {
       .then(([nextStories, nextLive]) => {
         setStories(nextStories);
         setLive(nextLive);
+        if (nextStories.length > 0 || nextLive !== null) {
+          markStoryWatched(window.localStorage, params.memberId);
+        }
         const empty = nextStories.length === 0 && nextLive === null;
         setState(empty ? "empty" : "success");
         setMessage(empty ? "No active story. The map pin still shows their profile." : "");

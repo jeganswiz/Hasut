@@ -57,6 +57,14 @@ export interface DiscoveryPresence {
   imageUrl: string | null;
 }
 
+/** One face in the map story row. Only members with an active story are included. */
+export interface DiscoveryStoryFace {
+  memberId: string;
+  label: string;
+  imageUrl: string | null;
+  kind: "LIVE" | "VIDEO" | "IMAGE";
+}
+
 export interface DiscoveryPreview {
   id: string;
   kind: DiscoveryKind;
@@ -82,6 +90,14 @@ export interface DiscoveryPreview {
   presence: DiscoveryPresence | null;
 }
 
+export interface DiscoveryRoute {
+  provider: "maptiler" | "stadia" | "osrm";
+  distanceMeters: number;
+  durationSeconds: number;
+  /** Road line as [longitude, latitude], ending at the public pin. */
+  coordinates: Array<[number, number]>;
+}
+
 export interface DiscoveryResult {
   originLabel: string | null;
   radiusMeters: number;
@@ -90,6 +106,8 @@ export interface DiscoveryResult {
   clusters: DiscoveryCluster[];
   /** The signed-in member's own story, even though their pin is not in `markers`. */
   selfPresence?: DiscoveryPresence | null;
+  /** Nearby members who have an active story, in map order. The viewer's own face is not included. */
+  storyFaces?: DiscoveryStoryFace[];
 }
 
 export interface DiscoveryPolicyView {

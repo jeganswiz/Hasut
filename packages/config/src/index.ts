@@ -58,6 +58,14 @@ export {
 } from "./map-basemaps";
 export type { MapBasemapCatalogEntry, MapTileChain, MapTileChainInput } from "./map-basemaps";
 export {
+  MAP_ROUTE_PROVIDERS,
+  fetchMapRoute,
+  mapRouteProviderOrder,
+  mapRouteUrl,
+  parseMapRouteResponse,
+} from "./map-routing";
+export type { MapRouteLeg, MapRoutePoint, MapRouteProvider } from "./map-routing";
+export {
   MESSAGING_POLICY_CONFIG_KEY,
   MESSAGING_POLICY_DEFAULTS,
   NOTIFICATION_TEMPLATE_KEYS,

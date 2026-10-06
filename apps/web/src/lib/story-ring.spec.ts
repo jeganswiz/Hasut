@@ -1,4 +1,10 @@
-import { hasStoryRing } from "./story-ring";
+import {
+  buildStoryTray,
+  hasStoryRing,
+  markStoryWatched,
+  readWatchedStoryIds,
+  storyWatchHoldMs,
+} from "./story-ring";
 
 describe("story ring", () => {
   it("marks an active story and leaves a plain profile unmarked", () => {
@@ -7,5 +13,40 @@ describe("story ring", () => {
     expect(hasStoryRing("LIVE")).toBe(true);
     expect(hasStoryRing("PROFILE")).toBe(false);
     expect(hasStoryRing(null)).toBe(false);
+  });
+
+  it("uses the trim window for the watch sweep, otherwise one short pass", () => {
+    expect(storyWatchHoldMs(0, 8)).toBe(8000);
+    expect(storyWatchHoldMs(2, 2)).toBe(5000);
+    expect(storyWatchHoldMs(0, null)).toBe(5000);
+  });
+
+  it("remembers a watched story on this browser", () => {
+    const saved = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        saved.set(key, value);
+      },
+    };
+    expect(readWatchedStoryIds(storage)).toEqual([]);
+    markStoryWatched(storage, "member-1");
+    markStoryWatched(storage, "member-1");
+    expect(readWatchedStoryIds(storage)).toEqual(["member-1"]);
+  });
+
+  it("puts the signed-in member first and keeps other active stories", () => {
+    const tray = buildStoryTray({
+      selfId: "me",
+      selfLabel: "You",
+      selfImageUrl: "/me.jpg",
+      selfKind: "IMAGE",
+      faces: [
+        { memberId: "me", label: "You again", imageUrl: null, kind: "IMAGE" },
+        { memberId: "ada", label: "Ada", imageUrl: "/ada.jpg", kind: "VIDEO" },
+      ],
+    });
+    expect(tray.map((face) => face.memberId)).toEqual(["me", "ada"]);
+    expect(tray[0]?.self).toBe(true);
   });
 });

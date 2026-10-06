@@ -9,6 +9,7 @@ const FRONTEND_FILES = [
   "src/components/nav-icons.tsx",
   "src/components/native-scroller.tsx",
   "src/components/toast-stack.tsx",
+  "src/components/story-tray.tsx",
   "src/lib/use-discovery-map.ts",
   "src/lib/discovery-chrome.ts",
   "src/app/discovery.css",
@@ -25,5 +26,9 @@ describe("web discovery source", () => {
     expect(source).toContain("ownerPresenceCopy");
     expect(source).toContain("Add presence");
     expect(source).toContain("Play previews");
+    expect(source).toContain("Find product, service, professionals, businesses");
+    expect(source).toContain("Find nearby");
+    expect(source).toContain("nav-search-thrill");
+    expect(source).toContain("var(--hasut-color-primary)");
   });
 });

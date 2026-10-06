@@ -17,6 +17,7 @@ interface CategoryForm {
   appliesTo: CategoryAppliesTo;
   sortOrder: number;
   isActive: boolean;
+  iconMediaId: string | null;
 }
 
 const emptyForm: CategoryForm = {
@@ -26,6 +27,7 @@ const emptyForm: CategoryForm = {
   appliesTo: "ALL",
   sortOrder: 100,
   isActive: true,
+  iconMediaId: null,
 };
 
 export function CategoryManager() {
@@ -34,6 +36,7 @@ export function CategoryManager() {
   const [tree, setTree] = useState<CategoryView[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CategoryForm>(emptyForm);
+  const [iconFile, setIconFile] = useState<File | null>(null);
 
   const load = useCallback(async () => {
     const token = await adminTokenStorage.getAccessToken();
@@ -72,10 +75,23 @@ export function CategoryManager() {
   }, [load]);
 
   const flat = useMemo(() => flattenCategories(tree), [tree]);
+  const editing = editingId === null ? undefined : flat.find((node) => node.id === editingId);
 
   async function save(): Promise<void> {
     setState("loading");
     try {
+      const client = createAdminApiClient();
+      let iconMediaId = form.iconMediaId;
+      if (iconFile !== null) {
+        const presign = await client.presignMedia({
+          purpose: "BUSINESS",
+          mimeType: iconFile.type.length > 0 ? iconFile.type : "image/jpeg",
+          byteSize: iconFile.size,
+        });
+        await client.uploadPresigned(presign.uploadUrl, iconFile, presign.headers);
+        await client.completeMedia({ mediaId: presign.mediaId });
+        iconMediaId = presign.mediaId;
+      }
       const payload = {
         name: form.name,
         slug: form.slug.length > 0 ? form.slug : undefined,
@@ -83,14 +99,15 @@ export function CategoryManager() {
         appliesTo: form.appliesTo,
         sortOrder: form.sortOrder,
         isActive: form.isActive,
+        ...(iconMediaId !== null ? { iconMediaId } : {}),
       };
-      const client = createAdminApiClient();
       if (editingId === null) {
         await client.createCategory(payload);
       } else {
         await client.patchCategory(editingId, payload);
       }
       setForm(emptyForm);
+      setIconFile(null);
       setEditingId(null);
       await load();
     } catch (error) {
@@ -123,7 +140,9 @@ export function CategoryManager() {
       appliesTo: node.appliesTo,
       sortOrder: node.sortOrder,
       isActive: node.isActive,
+      iconMediaId: null,
     });
+    setIconFile(null);
   }
 
   return (
@@ -132,6 +151,15 @@ export function CategoryManager() {
       <ul className="category-list">
         {flat.map((node) => (
           <li key={node.id} style={{ marginLeft: node.depth * 16 }}>
+            {node.iconUrl !== null && node.iconUrl !== undefined && node.iconUrl.length > 0 ? (
+              <img
+                src={node.iconUrl}
+                alt=""
+                width={28}
+                height={28}
+                style={{ borderRadius: 6, objectFit: "cover" }}
+              />
+            ) : null}{" "}
             <strong>{node.name}</strong>{" "}
             <span className="hint">
               {node.slug} · {node.appliesTo}
@@ -221,6 +249,28 @@ export function CategoryManager() {
             }
           />
         </label>
+        <label>
+          Picture
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => setIconFile(event.target.files?.[0] ?? null)}
+          />
+          {editing?.iconUrl !== null &&
+          editing?.iconUrl !== undefined &&
+          editing.iconUrl.length > 0 ? (
+            <img
+              src={editing.iconUrl}
+              alt=""
+              width={48}
+              height={48}
+              style={{ display: "block", borderRadius: 8, objectFit: "cover", marginTop: 8 }}
+            />
+          ) : null}
+          <span className="hint">
+            Optional. Shown with this category. Without a picture, the app draws one from the name.
+          </span>
+        </label>
         <label className="admin-check">
           <input
             type="checkbox"
@@ -239,6 +289,7 @@ export function CategoryManager() {
             onClick={() => {
               setEditingId(null);
               setForm(emptyForm);
+              setIconFile(null);
             }}
           >
             Clear
