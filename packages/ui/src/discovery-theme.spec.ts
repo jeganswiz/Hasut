@@ -16,6 +16,6 @@ describe("discovery UI primitives", () => {
   it("use theme tokens instead of hardcoded purple or gold", () => {
     const source = FILES.map((file) => readFileSync(join(__dirname, file), "utf8")).join("\n");
     expect(source).not.toMatch(/#6D28D9|#EAB308|#7C3AED|#FBBF24/i);
-    expect(source).toContain("cssVar(");
+    expect(source).toMatch(/bg-primary|text-primary|text-accent|border-border/);
   });
 });

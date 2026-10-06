@@ -142,7 +142,15 @@ describe("DiscoveryService", () => {
     ]);
     stories.pinMediaForMembers.mockResolvedValue(
       new Map([
-        [memberId, { kind: "IMAGE", imageUrl: "https://cdn.example/a.jpg", previewHlsUrl: null }],
+        [
+          memberId,
+          {
+            kind: "IMAGE",
+            imageUrl: "https://cdn.example/a.jpg",
+            previewHlsUrl: null,
+            storyIds: ["22222222-2222-4222-8222-222222222222"],
+          },
+        ],
       ]),
     );
     const service = await createService();
@@ -153,6 +161,7 @@ describe("DiscoveryService", () => {
         label: "Ada Lovelace",
         imageUrl: "https://cdn.example/a.jpg",
         kind: "IMAGE",
+        storyIds: ["22222222-2222-4222-8222-222222222222"],
       },
     ]);
   });

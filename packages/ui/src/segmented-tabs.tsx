@@ -1,6 +1,6 @@
 "use client";
 
-import { cssVar } from "./tokens";
+import { cn } from "./lib/utils";
 
 export interface SegmentedTabsProps<T extends string> {
   tabs: ReadonlyArray<{ id: T; label: string }>;
@@ -20,15 +20,8 @@ export function SegmentedTabs<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
-        gap: 4,
-        padding: 4,
-        background: cssVar("background"),
-        border: `1px solid ${cssVar("border")}`,
-        borderRadius: cssVar("radius"),
-      }}
+      className="grid gap-1 rounded-sm border border-border bg-background p-1"
+      style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
     >
       {tabs.map((tab) => {
         const selected = tab.id === active;
@@ -39,17 +32,12 @@ export function SegmentedTabs<T extends string>({
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
-            style={{
-              minHeight: 40,
-              fontSize: 14,
-              fontWeight: selected ? 600 : 500,
-              color: selected ? cssVar("textOnPrimary") : cssVar("mutedText"),
-              background: selected ? cssVar("primary") : "transparent",
-              border: "none",
-              borderRadius: cssVar("radius"),
-              cursor: "pointer",
-              transition: "background 160ms ease, color 160ms ease",
-            }}
+            className={cn(
+              "min-h-10 rounded-sm border-0 text-sm transition-colors",
+              selected
+                ? "bg-primary font-semibold text-primary-foreground"
+                : "bg-transparent font-medium text-muted-foreground",
+            )}
           >
             {tab.label}
           </button>

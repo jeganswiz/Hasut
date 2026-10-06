@@ -69,6 +69,7 @@ import {
   type ReviewView,
   type ServiceOfferingView,
   type StoryView,
+  type StoryViewerList,
   type AudioTrackView,
   type StoryAudience,
   type StoryAudioSource,
@@ -159,7 +160,12 @@ import {
   reviewListSchema,
   reviewViewSchema,
   reviewAggregateViewSchema,
+  storyLikeStateSchema,
   storyListSchema,
+  storyReplyResultSchema,
+  storyShareResultSchema,
+  storyViewRecordSchema,
+  storyViewerListSchema,
   storyViewSchema,
   storyComposerConfigSchema,
   audioTrackListSchema,
@@ -955,7 +961,6 @@ export class HasutApiClient {
     minRadiusMeters?: number;
     maxRadiusMeters?: number;
     radiusOptionsMeters?: number[];
-    clusterCellMeters?: number;
     includeMembers?: boolean;
     mapProvider?: MapBasemapProvider;
     mapCustomTileUrl?: string;
@@ -1552,6 +1557,52 @@ export class HasutApiClient {
 
   async listMyStories(): Promise<StoryView[]> {
     const result = await this.request(storyListSchema, "/api/v1/me/stories", { method: "GET" });
+    return result.data;
+  }
+
+  async recordStoryView(storyId: string): Promise<{ recorded: boolean }> {
+    const result = await this.request(storyViewRecordSchema, `/api/v1/stories/${storyId}/seen`, {
+      method: "POST",
+    });
+    return result.data;
+  }
+
+  async toggleStoryLike(storyId: string): Promise<{ liked: boolean }> {
+    const result = await this.request(storyLikeStateSchema, `/api/v1/stories/${storyId}/like`, {
+      method: "POST",
+    });
+    return result.data;
+  }
+
+  async storyLikeState(storyId: string): Promise<{ liked: boolean }> {
+    const result = await this.request(storyLikeStateSchema, `/api/v1/stories/${storyId}/like`, {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listStoryViewers(storyId: string): Promise<StoryViewerList> {
+    const result = await this.request(
+      storyViewerListSchema,
+      `/api/v1/me/stories/${storyId}/viewers`,
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async replyToStory(storyId: string, text: string): Promise<{ sent: true }> {
+    const result = await this.request(storyReplyResultSchema, `/api/v1/stories/${storyId}/reply`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    });
+    return result.data;
+  }
+
+  async shareStory(storyId: string, memberIds: string[]): Promise<{ sent: number }> {
+    const result = await this.request(storyShareResultSchema, `/api/v1/stories/${storyId}/share`, {
+      method: "POST",
+      body: JSON.stringify({ memberIds }),
+    });
     return result.data;
   }
 

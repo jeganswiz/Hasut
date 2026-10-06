@@ -1,5 +1,5 @@
+import { Button } from "./button";
 import { NameMark } from "./name-mark";
-import { cssVar } from "./tokens";
 import { Rating } from "./rating";
 
 export function ServiceCard({
@@ -23,57 +23,22 @@ export function ServiceCard({
   const cover = coverUrl ?? (categoryLabel === null ? photoUrl : null);
   const coverName = categoryLabel ?? title;
   return (
-    <article
-      style={{
-        minWidth: 220,
-        background: cssVar("surface"),
-        border: `1px solid ${cssVar("border")}`,
-        borderRadius: cssVar("cardRadius"),
-        overflow: "hidden",
-      }}
-    >
+    <article className="min-w-[220px] overflow-hidden rounded-lg border border-border bg-card">
       {cover !== null && cover.length > 0 ? (
-        <img
-          src={cover}
-          alt=""
-          style={{ display: "block", width: "100%", height: 110, objectFit: "cover" }}
-        />
+        <img src={cover} alt="" className="block h-[110px] w-full object-cover" />
       ) : (
         <NameMark name={coverName} height={110} />
       )}
-      <div style={{ padding: 12 }}>
+      <div className="p-3">
         <Rating value={rating} />
         {categoryLabel !== null ? (
-          <p
-            style={{
-              color: cssVar("primary"),
-              fontWeight: 700,
-              textTransform: "uppercase",
-              fontSize: 12,
-            }}
-          >
-            {categoryLabel}
-          </p>
+          <p className="text-xs font-bold uppercase text-primary">{categoryLabel}</p>
         ) : null}
-        <h3 style={{ margin: "4px 0 8px", fontSize: 16 }}>{title}</h3>
-        <p style={{ color: cssVar("mutedText"), margin: 0 }}>{providerName}</p>
-        <button
-          type="button"
-          onClick={onOpen}
-          style={{
-            marginTop: 12,
-            width: "100%",
-            border: 0,
-            background: cssVar("primary"),
-            color: cssVar("textOnPrimary"),
-            borderRadius: cssVar("buttonRadius"),
-            padding: "10px 12px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
+        <h3 className="my-1 text-base">{title}</h3>
+        <p className="m-0 text-muted-foreground">{providerName}</p>
+        <Button type="button" className="mt-3 w-full" onClick={onOpen}>
           View profile
-        </button>
+        </Button>
       </div>
     </article>
   );

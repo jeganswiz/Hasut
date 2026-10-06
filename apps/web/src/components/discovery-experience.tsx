@@ -18,7 +18,8 @@ import {
   type SearchSuggestion,
   type ToastNote,
 } from "../lib/discovery-chrome";
-import { hasStoryRing } from "../lib/story-ring";
+import { profileRingClass, profileRingState } from "../lib/story-ring";
+import { useWatchedStoryIds } from "../lib/use-watched-stories";
 import { useDiscoveryMapController } from "../lib/use-discovery-map";
 import { AppNav } from "./app-nav";
 import { DiscoveryMap } from "./discovery-map";
@@ -46,6 +47,14 @@ export function DiscoveryExperience() {
       ? null
       : (discovery.result?.markers.find((marker) => marker.id === selfId) ?? null);
   const selfPresence = discovery.result?.selfPresence ?? null;
+  const watchedStoryIds = useWatchedStoryIds();
+  const selfRingClass = profileRingClass(
+    profileRingState({
+      live: (selfPresence?.kind ?? selfMarker?.pinMediaKind) === "LIVE",
+      storyIds: selfPresence?.storyIds ?? selfMarker?.storyIds ?? [],
+      watchedStoryIds,
+    }),
+  );
   const presenceHint = ownerPresenceCopy(
     selfId !== null,
     selfPresence?.kind ?? selfMarker?.pinMediaKind ?? null,
@@ -198,11 +207,11 @@ export function DiscoveryExperience() {
           overlay={discovery.overlayCoords}
           panCellId={discovery.panCellId}
           markers={discovery.result?.markers ?? []}
-          clusters={discovery.result?.clusters ?? []}
           selectedId={discovery.selectedId}
           selfId={selfId}
           selfPhotoUrl={selfPhotoUrl}
-          selfHasStory={hasStoryRing(selfPresence?.kind)}
+          selfRingClass={selfRingClass}
+          watchedStoryIds={watchedStoryIds}
           playPreviews={playPreviews}
           route={route?.coordinates ?? null}
           onClearRoute={clearRoute}
@@ -317,7 +326,9 @@ export function DiscoveryExperience() {
             selfLabel={selfName}
             selfImageUrl={selfPresence?.imageUrl ?? selfPhotoUrl}
             selfKind={selfPresence?.kind ?? null}
+            selfStoryIds={selfPresence?.storyIds ?? []}
             faces={discovery.result?.storyFaces ?? []}
+            watchedStoryIds={watchedStoryIds}
             hint={presenceHint}
           />
           <NativeScroller className="discovery-row" label="Nearby places">

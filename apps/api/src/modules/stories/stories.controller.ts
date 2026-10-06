@@ -4,12 +4,15 @@ import type {
   LiveSessionView,
   StoryComposerConfig,
   StoryView,
+  StoryViewerList,
 } from "@hasut/types";
 import {
   audioTrackUpsertSchema,
   liveStartSchema,
   storyCreateSchema,
   storyModerateSchema,
+  storyReplySchema,
+  storyShareSchema,
 } from "@hasut/validation";
 import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -23,6 +26,7 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { AudioLibraryService } from "./audio-library.service";
 import { LiveService } from "./live.service";
 import { StoriesService } from "./stories.service";
+import { StoryReactionsService } from "./story-reactions.service";
 
 const audioTrackActiveSchema = z.object({ isActive: z.boolean() });
 
@@ -31,6 +35,7 @@ const audioTrackActiveSchema = z.object({ isActive: z.boolean() });
 export class StoriesController {
   constructor(
     private readonly stories: StoriesService,
+    private readonly reactions: StoryReactionsService,
     private readonly live: LiveService,
     private readonly audio: AudioLibraryService,
   ) {}
@@ -93,6 +98,68 @@ export class StoriesController {
   @ApiOperation({ summary: "HASUT cloud soundtracks a member can attach" })
   listAudio(): Promise<AudioTrackView[]> {
     return this.audio.listActive();
+  }
+
+  @ApiBearerAuth()
+  @Post("stories/:storyId/seen")
+  @ApiOperation({ summary: "Record that the signed-in member opened this story" })
+  recordView(
+    @CurrentUser("memberId") viewerId: string,
+    @Param("storyId") storyId: string,
+  ): Promise<{ recorded: boolean }> {
+    return this.reactions.recordView(viewerId, storyId);
+  }
+
+  @ApiBearerAuth()
+  @Post("stories/:storyId/like")
+  @ApiOperation({ summary: "Like or unlike a story" })
+  toggleLike(
+    @CurrentUser("memberId") memberId: string,
+    @Param("storyId") storyId: string,
+  ): Promise<{ liked: boolean }> {
+    return this.reactions.toggleLike(memberId, storyId);
+  }
+
+  @ApiBearerAuth()
+  @Get("stories/:storyId/like")
+  @ApiOperation({ summary: "Whether the signed-in member likes this story" })
+  likeState(
+    @CurrentUser("memberId") memberId: string,
+    @Param("storyId") storyId: string,
+  ): Promise<{ liked: boolean }> {
+    return this.reactions.likeState(memberId, storyId);
+  }
+
+  @ApiBearerAuth()
+  @Get("me/stories/:storyId/viewers")
+  @ApiOperation({ summary: "Who viewed the signed-in member's story, with likes marked" })
+  listViewers(
+    @CurrentUser("memberId") ownerId: string,
+    @Param("storyId") storyId: string,
+  ): Promise<StoryViewerList> {
+    return this.reactions.listViewers(ownerId, storyId);
+  }
+
+  @ApiBearerAuth()
+  @Post("stories/:storyId/reply")
+  @ApiOperation({ summary: "Send a message to the story owner" })
+  reply(
+    @CurrentUser("memberId") memberId: string,
+    @Param("storyId") storyId: string,
+    @Body(new ZodValidationPipe(storyReplySchema)) body: { text: string },
+  ): Promise<{ sent: true }> {
+    return this.reactions.reply(memberId, storyId, body.text);
+  }
+
+  @ApiBearerAuth()
+  @Post("stories/:storyId/share")
+  @ApiOperation({ summary: "Send this story to accepted connections" })
+  share(
+    @CurrentUser("memberId") memberId: string,
+    @Param("storyId") storyId: string,
+    @Body(new ZodValidationPipe(storyShareSchema)) body: { memberIds: string[] },
+  ): Promise<{ sent: number }> {
+    return this.reactions.share(memberId, storyId, body.memberIds);
   }
 
   @ApiBearerAuth()

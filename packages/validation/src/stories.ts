@@ -167,6 +167,44 @@ export const storyViewSchema = z.object({
 
 export const storyListSchema = z.array(storyViewSchema);
 
+export const storyReplySchema = z.object({
+  text: z.string().trim().min(1).max(2_000),
+});
+
+export const storyShareSchema = z.object({
+  memberIds: z.array(z.string().uuid()).min(1).max(20),
+});
+
+export const storyLikeStateSchema = z.object({
+  liked: z.boolean(),
+});
+
+export const storyViewRecordSchema = z.object({
+  recorded: z.boolean(),
+});
+
+export const storyReplyResultSchema = z.object({
+  sent: z.literal(true),
+});
+
+export const storyShareResultSchema = z.object({
+  sent: z.number().int().nonnegative(),
+});
+
+export const storyViewerListSchema = z.object({
+  viewers: z.array(
+    z.object({
+      member: z.object({
+        id: z.string().uuid(),
+        displayName: z.string(),
+        photoUrl: z.string().nullable(),
+      }),
+      liked: z.boolean(),
+      viewedAt: z.string(),
+    }),
+  ),
+});
+
 export const audioTrackViewSchema = z.object({
   id: z.string().min(1),
   title: z.string(),

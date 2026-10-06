@@ -6,19 +6,35 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from "rea
 import { isLivePlaylist, LIVE_PLAYLIST_POLL_MS } from "../../lib/live-playlist";
 import { loopWithin, mutesOriginalAudio, storyAudioSrc } from "../../lib/story-playback";
 import { storyWatchHoldMs } from "../../lib/story-ring";
+import { StoryActions } from "./story-actions";
 
 type Tab = "activity" | "live";
 
 export function PresenceViewer({
   stories,
   live,
+  ownerId,
+  viewerId,
+  onStorySeen,
 }: {
   stories: StoryView[];
   live: LiveSessionView | null;
+  ownerId: string;
+  viewerId: string | null;
+  onStorySeen?: (storyId: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>(live !== null ? "live" : "activity");
   const [index, setIndex] = useState(0);
   const current = stories[index] ?? null;
+  const onStorySeenRef = useRef(onStorySeen);
+  onStorySeenRef.current = onStorySeen;
+
+  useEffect(() => {
+    if (tab !== "activity" || current === null) {
+      return;
+    }
+    onStorySeenRef.current?.(current.id);
+  }, [current, tab, viewerId]);
 
   useEffect(() => {
     if (live === null && tab === "live") {
@@ -49,10 +65,12 @@ export function PresenceViewer({
           No active story. The map pin still shows their profile.
         </p>
       ) : (
-        <StoryStage
+        <StoryPlayback
           story={current}
           index={index}
           total={stories.length}
+          ownerId={ownerId}
+          viewerId={viewerId}
           onBack={() => setIndex((value) => Math.max(0, value - 1))}
           onNext={() => setIndex((value) => Math.min(stories.length - 1, value + 1))}
         />
@@ -61,16 +79,20 @@ export function PresenceViewer({
   );
 }
 
-function StoryStage({
+function StoryPlayback({
   story,
   index,
   total,
+  ownerId,
+  viewerId,
   onBack,
   onNext,
 }: {
   story: StoryView;
   index: number;
   total: number;
+  ownerId: string;
+  viewerId: string | null;
   onBack: () => void;
   onNext: () => void;
 }) {
@@ -156,12 +178,25 @@ function StoryStage({
   }, [audioSrc, story]);
 
   return (
-    <div style={{ display: "grid", gap: 12, width: "100%", maxWidth: 360 }}>
-      <div
-        className="story-watch"
-        style={{ ["--watch" as string]: String(Math.round(progress * 100)) }}
-      >
+    <div className="story-stage">
+      <div className="story-frame-wrap">
         <StageFrame>
+          <div className="story-progress" aria-hidden="true">
+            {Array.from({ length: total }, (_, bar) => (
+              <span className="story-progress-track" key={bar}>
+                <span
+                  style={{
+                    width:
+                      bar < index
+                        ? "100%"
+                        : bar === index
+                          ? `${Math.round(progress * 100)}%`
+                          : "0%",
+                  }}
+                />
+              </span>
+            ))}
+          </div>
           {story.imageUrl !== null ? (
             // Local or signed CDN URL; next/image is not configured for every host.
             <img
@@ -197,7 +232,7 @@ function StoryStage({
                 position: "absolute",
                 left: 16,
                 right: 16,
-                bottom: 24,
+                bottom: 64,
                 margin: 0,
                 padding: "8px 12px",
                 borderRadius: cssVar("radius"),
@@ -213,6 +248,7 @@ function StoryStage({
           )}
         </StageFrame>
       </div>
+      <StoryActions storyId={story.id} ownerId={ownerId} viewerId={viewerId} />
       {audioSrc === null ? null : <audio ref={audioRef} src={audioSrc} hidden />}
       {story.audio.title === null || audioSrc === null ? null : (
         <p style={{ margin: 0, fontSize: 13, color: cssVar("mutedText") }}>{story.audio.title}</p>

@@ -1,5 +1,5 @@
 import type { DiscoveryPolicy, DiscoveryRankingWeights } from "@hasut/config";
-import { bucketDistanceMeters, snapToGrid } from "@hasut/utils";
+import { bucketDistanceMeters } from "@hasut/utils";
 import type { NearbyRow } from "./discovery.repository";
 
 export interface RankedNearby extends NearbyRow {
@@ -55,50 +55,6 @@ export function rankNearbyRows(
       };
     })
     .sort((a, b) => b.score - a.score || a.distanceMeters - b.distanceMeters);
-}
-
-export function clusterRanked(
-  rows: RankedNearby[],
-  cellSizeMeters: number,
-): Array<{
-  cellId: string;
-  pinLat: number;
-  pinLng: number;
-  count: number;
-  kinds: RankedNearby["kind"][];
-}> {
-  const groups = new Map<string, RankedNearby[]>();
-  for (const row of rows) {
-    const snapped = snapToGrid({ latitude: row.pinLat, longitude: row.pinLng }, cellSizeMeters);
-    const current = groups.get(snapped.cellId) ?? [];
-    current.push(row);
-    groups.set(snapped.cellId, current);
-  }
-  const clusters: Array<{
-    cellId: string;
-    pinLat: number;
-    pinLng: number;
-    count: number;
-    kinds: RankedNearby["kind"][];
-  }> = [];
-  for (const [cellId, items] of groups) {
-    if (items.length < 2) {
-      continue;
-    }
-    const first = items[0];
-    if (first === undefined) {
-      continue;
-    }
-    const snapped = snapToGrid({ latitude: first.pinLat, longitude: first.pinLng }, cellSizeMeters);
-    clusters.push({
-      cellId,
-      pinLat: snapped.latitude,
-      pinLng: snapped.longitude,
-      count: items.length,
-      kinds: [...new Set(items.map((item) => item.kind))],
-    });
-  }
-  return clusters;
 }
 
 function categoryRelevance(

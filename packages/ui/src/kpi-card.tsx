@@ -1,5 +1,12 @@
-import type { CSSProperties, ReactNode } from "react";
-import { cssVar } from "./tokens";
+import type { ReactNode } from "react";
+import { cn } from "./lib/utils";
+
+const TONE = {
+  primary: "bg-primary",
+  secondary: "bg-secondary",
+  success: "bg-success",
+  warning: "bg-warning",
+} as const;
 
 export function KpiCard({
   label,
@@ -10,23 +17,18 @@ export function KpiCard({
   label: string;
   value: string | number;
   hint?: ReactNode;
-  tone?: "primary" | "secondary" | "success" | "warning";
+  tone?: keyof typeof TONE;
 }) {
-  const style: CSSProperties = {
-    background: cssVar(tone),
-    color: cssVar("textOnPrimary"),
-    borderRadius: cssVar("cardRadius"),
-    padding: "20px 18px",
-    minHeight: 112,
-    display: "grid",
-    gap: 8,
-    alignContent: "space-between",
-  };
   return (
-    <article style={style}>
-      <p style={{ margin: 0, opacity: 0.85, fontSize: 13, fontWeight: 600 }}>{label}</p>
-      <p style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em" }}>{value}</p>
-      {hint ? <p style={{ margin: 0, opacity: 0.85, fontSize: 12 }}>{hint}</p> : null}
+    <article
+      className={cn(
+        "grid min-h-28 content-between gap-2 rounded-lg p-5 text-primary-foreground",
+        TONE[tone],
+      )}
+    >
+      <p className="m-0 text-[13px] font-semibold opacity-85">{label}</p>
+      <p className="m-0 text-[28px] font-bold tracking-tight">{value}</p>
+      {hint ? <p className="m-0 text-xs opacity-85">{hint}</p> : null}
     </article>
   );
 }

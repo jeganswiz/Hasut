@@ -163,7 +163,6 @@ export class ConfigurationService {
       minRadiusMeters: policy.minRadiusMeters,
       maxRadiusMeters: policy.maxRadiusMeters,
       radiusOptionsMeters: policy.radiusOptionsMeters,
-      clusterCellMeters: policy.clusterCellMeters,
       includeMembers: policy.includeMembers,
       availableCodes: policy.availableCodes,
       availableModeCodes: policy.availableModeCodes,

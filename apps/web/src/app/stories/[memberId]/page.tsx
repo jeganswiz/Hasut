@@ -16,19 +16,19 @@ export default function StoryViewerPage() {
   const [message, setMessage] = useState("Loading presence…");
   const [stories, setStories] = useState<StoryView[]>([]);
   const [live, setLive] = useState<LiveSessionView | null>(null);
+  const [viewerId, setViewerId] = useState<string | null>(null);
 
   useEffect(() => {
     const client = createWebApiClient();
     void Promise.all([
       client.listMemberStories(params.memberId),
       client.getMemberLive(params.memberId).catch(() => null),
+      client.me().catch(() => null),
     ])
-      .then(([nextStories, nextLive]) => {
+      .then(([nextStories, nextLive, me]) => {
         setStories(nextStories);
         setLive(nextLive);
-        if (nextStories.length > 0 || nextLive !== null) {
-          markStoryWatched(window.localStorage, params.memberId);
-        }
+        setViewerId(me?.id ?? null);
         const empty = nextStories.length === 0 && nextLive === null;
         setState(empty ? "empty" : "success");
         setMessage(empty ? "No active story. The map pin still shows their profile." : "");
@@ -43,7 +43,24 @@ export default function StoryViewerPage() {
     <main className="story-viewer">
       <AppNav />
       <Surface state={state} title="Presence">
-        {state === "success" ? <PresenceViewer stories={stories} live={live} /> : <p>{message}</p>}
+        {state === "success" ? (
+          <PresenceViewer
+            stories={stories}
+            live={live}
+            ownerId={params.memberId}
+            viewerId={viewerId}
+            onStorySeen={(storyId) => {
+              markStoryWatched(window.localStorage, storyId);
+              if (viewerId !== null && viewerId !== params.memberId) {
+                void createWebApiClient()
+                  .recordStoryView(storyId)
+                  .catch(() => undefined);
+              }
+            }}
+          />
+        ) : (
+          <p>{message}</p>
+        )}
         <p style={{ marginTop: 16 }}>
           <a href="/">Map</a>
         </p>

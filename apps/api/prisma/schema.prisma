@@ -96,6 +96,8 @@ model Member {
   moderationActions     ModerationAction[]
   reviewsWritten        Review[]
   stories               Story[]
+  storyViews            StoryViewer[]
+  storyLikes            StoryLike[]
   liveSessions          LiveSession[]
   identities            MemberIdentity[]
 
@@ -762,13 +764,42 @@ model Story {
   moderationStatus  StoryModerationStatus  @default(ACTIVE) @map("moderation_status")
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  member     Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  audioTrack AudioTrack? @relation(fields: [audioTrackId], references: [id], onDelete: SetNull)
+  member     Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  audioTrack AudioTrack?  @relation(fields: [audioTrackId], references: [id], onDelete: SetNull)
+  viewers    StoryViewer[]
+  likes      StoryLike[]
 
   @@index([memberId, expiresAt])
   @@index([moderationStatus, expiresAt])
   @@index([audience, expiresAt])
   @@map("stories")
+}
+
+/// One row per member who opened an active story. The owner is never recorded.
+model StoryViewer {
+  storyId  String   @map("story_id") @db.Uuid
+  memberId String   @map("member_id") @db.Uuid
+  viewedAt DateTime @default(now()) @map("viewed_at") @db.Timestamptz(6)
+
+  story  Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, memberId])
+  @@index([memberId])
+  @@map("story_viewers")
+}
+
+model StoryLike {
+  storyId   String   @map("story_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  story  Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, memberId])
+  @@index([memberId])
+  @@map("story_likes")
 }
 
 model LiveSession {

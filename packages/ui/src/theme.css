@@ -1,0 +1,27 @@
+/* shadcn semantic colours follow the published HASUT theme. No hex lives here. */
+@theme inline {
+  --color-background: var(--hasut-color-background);
+  --color-foreground: var(--hasut-color-text);
+  --color-card: var(--hasut-color-surface);
+  --color-card-foreground: var(--hasut-color-text);
+  --color-popover: var(--hasut-color-surface);
+  --color-popover-foreground: var(--hasut-color-text);
+  --color-primary: var(--hasut-color-primary);
+  --color-primary-foreground: var(--hasut-color-text-on-primary);
+  --color-secondary: var(--hasut-color-secondary);
+  --color-secondary-foreground: var(--hasut-color-text-on-primary);
+  --color-muted: color-mix(in srgb, var(--hasut-color-primary) 8%, var(--hasut-color-surface));
+  --color-muted-foreground: var(--hasut-color-muted-text);
+  --color-accent: var(--hasut-color-accent);
+  --color-accent-foreground: var(--hasut-color-text);
+  --color-destructive: var(--hasut-color-danger);
+  --color-border: var(--hasut-color-border);
+  --color-input: var(--hasut-color-border);
+  --color-ring: var(--hasut-color-primary);
+  --color-success: var(--hasut-color-success);
+  --color-warning: var(--hasut-color-warning);
+  --radius-sm: calc(var(--hasut-radius) - 4px);
+  --radius-md: var(--hasut-radius-button);
+  --radius-lg: var(--hasut-radius-card);
+  --radius-xl: var(--hasut-radius-card);
+}

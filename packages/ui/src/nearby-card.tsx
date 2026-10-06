@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import { cn } from "./lib/utils";
 import { NameMark } from "./name-mark";
-import { cssVar } from "./tokens";
 import { Rating } from "./rating";
 
 export function NearbyCard({
@@ -24,38 +24,25 @@ export function NearbyCard({
     <button
       type="button"
       onClick={onClick}
-      style={{
-        minWidth: 148,
-        border: `1px solid ${active ? "transparent" : cssVar("border")}`,
-        background: active ? cssVar("primary") : cssVar("surface"),
-        color: active ? cssVar("textOnPrimary") : cssVar("text"),
-        borderRadius: cssVar("cardRadius"),
-        padding: 0,
-        overflow: "hidden",
-        textAlign: "left",
-        cursor: "pointer",
-      }}
+      className={cn(
+        "min-w-36 overflow-hidden rounded-lg p-0 text-left",
+        active
+          ? "border border-transparent bg-primary text-primary-foreground"
+          : "border border-border bg-card text-foreground",
+      )}
     >
       {photoUrl !== null && photoUrl.length > 0 ? (
-        <img
-          src={photoUrl}
-          alt=""
-          style={{ display: "block", width: "100%", height: 88, objectFit: "cover" }}
-        />
+        <img src={photoUrl} alt="" className="block h-[88px] w-full object-cover" />
       ) : (
         <NameMark name={title} height={88} />
       )}
-      <span style={{ display: "block", padding: 12 }}>
+      <span className="block p-3">
         {children}
-        <strong style={{ display: "block", marginTop: children === undefined ? 0 : 8 }}>
-          {title}
-        </strong>
-        <span
-          style={{ display: "block", marginTop: 4, color: active ? cssVar("accent") : undefined }}
-        >
+        <strong className={cn("block", children === undefined ? "mt-0" : "mt-2")}>{title}</strong>
+        <span className={cn("mt-1 block", active && "text-accent")}>
           <Rating value={rating} />
         </span>
-        <span style={{ color: active ? cssVar("textOnPrimary") : cssVar("mutedText") }}>
+        <span className={active ? "text-primary-foreground" : "text-muted-foreground"}>
           {distance}
         </span>
       </span>

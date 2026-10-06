@@ -32,6 +32,8 @@ export interface PinMedia {
   kind: PinMediaKind;
   previewHlsUrl: string | null;
   imageUrl: string | null;
+  /** Active posted stories this viewer can open. Empty while only a live is on. */
+  storyIds: string[];
 }
 
 export interface StoryCreateInput {
@@ -449,7 +451,12 @@ export class StoriesService {
       if (!visibleTo(live.memberId, live.audience)) {
         continue;
       }
-      map.set(live.memberId, { kind: "LIVE", previewHlsUrl: live.previewHlsUrl, imageUrl: null });
+      map.set(live.memberId, {
+        kind: "LIVE",
+        previewHlsUrl: live.previewHlsUrl,
+        imageUrl: null,
+        storyIds: [],
+      });
     }
     const stories = await this.prisma.story.findMany({
       where: {
@@ -460,9 +467,15 @@ export class StoriesService {
       },
       orderBy: { createdAt: "desc" },
     });
+    const activeStoryIds = new Map<string, string[]>();
     for (const story of stories) {
       if (!visibleTo(story.memberId, story.audience)) {
         continue;
+      }
+      if (typeof story.id === "string" && story.id.length > 0) {
+        const ids = activeStoryIds.get(story.memberId) ?? [];
+        ids.push(story.id);
+        activeStoryIds.set(story.memberId, ids);
       }
       const current = map.get(story.memberId);
       if (current?.kind === "LIVE" || current?.kind === "VIDEO") {
@@ -477,14 +490,30 @@ export class StoriesService {
           kind: "VIDEO",
           previewHlsUrl: story.previewHlsUrl,
           imageUrl: null,
+          storyIds: [],
         });
       } else if (current === undefined) {
         map.set(story.memberId, {
           kind: "IMAGE",
           previewHlsUrl: null,
           imageUrl: await this.media.photoUrl(story.imageMediaId),
+          storyIds: [],
         });
       }
+    }
+    for (const [memberId, storyIds] of activeStoryIds) {
+      const current = map.get(memberId);
+      if (current === undefined) {
+        // Stories exist, but none can preview yet. The ring still needs the ids.
+        map.set(memberId, {
+          kind: "IMAGE",
+          previewHlsUrl: null,
+          imageUrl: null,
+          storyIds,
+        });
+        continue;
+      }
+      current.storyIds = storyIds;
     }
     return map;
   }

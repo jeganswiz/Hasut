@@ -65,7 +65,9 @@
   margin: 0 16px 12px;
   padding: 12px 12px 14px;
   border-radius: var(--hasut-radius-card);
-  background: color-mix(in srgb, var(--hasut-color-primary) 7%, var(--hasut-color-surface));
+  background: color-mix(in srgb, var(--hasut-color-primary) 16%, var(--hasut-color-surface));
+  border: 1px solid color-mix(in srgb, var(--hasut-color-primary) 28%, var(--hasut-color-border));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--hasut-color-text) 8%, transparent);
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--hasut-color-primary) 70%, transparent) transparent;
 }
@@ -115,19 +117,20 @@
 }
 
 .story-tray-ring {
+  position: relative;
   display: grid;
   place-items: center;
   width: 58px;
   height: 58px;
-  padding: 6px;
+  padding: 0;
   box-sizing: border-box;
   border-radius: 999px;
   text-decoration: none;
-  background: color-mix(in srgb, var(--hasut-color-primary) 42%, var(--hasut-color-border));
+  background: transparent;
 }
 
 .story-tray-ring.is-unseen {
-  padding: 7px;
+  padding: 4px;
   background: conic-gradient(
     from 210deg,
     var(--hasut-color-primary),
@@ -138,8 +141,29 @@
 }
 
 .story-tray-ring.is-seen {
-  padding: 7px;
+  padding: 4px;
   background: var(--hasut-color-border);
+}
+
+.story-tray-ring.is-live {
+  padding: 4px;
+  background: var(--hasut-color-danger);
+}
+
+.story-tray-ring em,
+.discovery-self em {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--hasut-color-danger);
+  color: var(--hasut-color-text-on-primary);
+  border-radius: 999px;
+  padding: 1px 4px;
 }
 
 .story-tray-ring img,
@@ -216,6 +240,10 @@
   border-radius: var(--hasut-radius-card);
 }
 
+.nav-search-glow input {
+  border-radius: var(--hasut-radius-card);
+}
+
 .nav-search-glow.is-focused .nav-search-lens {
   stroke: var(--hasut-color-primary);
 }
@@ -223,28 +251,30 @@
 .nav-search-glow.is-focused::after {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
+  z-index: 1;
+  inset: -2px;
+  border: 2px solid transparent;
+  border-radius: calc(var(--hasut-radius-card) + 2px);
   pointer-events: none;
   background: linear-gradient(
-    100deg,
-    transparent 0%,
-    transparent 32%,
-    var(--hasut-color-primary) 50%,
-    transparent 68%,
-    transparent 100%
-  );
+      100deg,
+      transparent 0%,
+      transparent 32%,
+      var(--hasut-color-primary) 50%,
+      transparent 68%,
+      transparent 100%
+    )
+    border-box;
   background-size: 220% 100%;
   background-position: 120% 0;
   animation: nav-search-thrill 0.7s ease-out 1;
   mask:
-    linear-gradient(black 0 0) content-box,
-    linear-gradient(black 0 0);
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0);
   mask-composite: exclude;
   -webkit-mask:
-    linear-gradient(black 0 0) content-box,
-    linear-gradient(black 0 0);
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
 }
 
@@ -374,13 +404,32 @@
   border-color: var(--hasut-color-danger);
 }
 
-.map-avatar-pin.has-story,
-.discovery-self.has-story {
+.map-avatar-pin.has-story.is-unseen,
+.discovery-self.has-story.is-unseen {
   border: 3px solid transparent;
   background:
     linear-gradient(var(--hasut-color-surface), var(--hasut-color-surface)) padding-box,
-    linear-gradient(140deg, var(--hasut-color-primary), var(--hasut-color-secondary)) border-box;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hasut-color-primary) 35%, transparent);
+    conic-gradient(
+        from 210deg,
+        var(--hasut-color-primary),
+        var(--hasut-color-secondary),
+        var(--hasut-color-primary)
+      )
+      border-box;
+  box-shadow: none;
+}
+
+.map-avatar-pin.has-story.is-seen,
+.discovery-self.has-story.is-seen {
+  border: 3px solid var(--hasut-color-border);
+  background: var(--hasut-color-surface);
+  box-shadow: none;
+}
+
+.discovery-self.is-live {
+  border-color: var(--hasut-color-danger);
+  background: var(--hasut-color-surface);
+  box-shadow: none;
 }
 
 .leaflet-div-icon.map-pin-wrap,
@@ -438,17 +487,6 @@
   color: var(--hasut-color-text);
   border-radius: 999px;
   padding: 1px 6px;
-}
-
-.discovery-cluster {
-  background: var(--hasut-color-primary);
-  color: var(--hasut-color-text-on-primary);
-  border-radius: 999px;
-  min-width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
 }
 
 .card-skeleton {
@@ -740,6 +778,7 @@ path.discovery-route {
 }
 
 .discovery-self {
+  position: relative;
   width: 44px;
   height: 44px;
   border-radius: 999px;

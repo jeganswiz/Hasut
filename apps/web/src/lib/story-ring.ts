@@ -2,6 +2,38 @@ export function hasStoryRing(kind: string | null | undefined): boolean {
   return kind === "IMAGE" || kind === "VIDEO" || kind === "LIVE";
 }
 
+/** What to draw around a profile. Live wins, then any unwatched story, then a fully watched story. */
+export type ProfileRingState = "none" | "unseen" | "seen" | "live";
+
+export function profileRingState(input: {
+  live: boolean;
+  storyIds: readonly string[];
+  watchedStoryIds: readonly string[];
+}): ProfileRingState {
+  if (input.live) {
+    return "live";
+  }
+  const storyIds = input.storyIds ?? [];
+  if (storyIds.length === 0) {
+    return "none";
+  }
+  const watched = new Set(input.watchedStoryIds);
+  return storyIds.every((id) => watched.has(id)) ? "seen" : "unseen";
+}
+
+export function profileRingClass(state: ProfileRingState): string {
+  if (state === "live") {
+    return "is-live";
+  }
+  if (state === "unseen") {
+    return "has-story is-unseen";
+  }
+  if (state === "seen") {
+    return "has-story is-seen";
+  }
+  return "";
+}
+
 const WATCHED_KEY = "hasut.stories.watched";
 
 /** Image stories have no playback clock. The watch ring uses the trim window, or one short sweep. */
@@ -48,6 +80,7 @@ export interface StoryTrayFace {
   label: string;
   imageUrl: string | null;
   kind: "LIVE" | "VIDEO" | "IMAGE" | null;
+  storyIds: string[];
   self: boolean;
 }
 
@@ -57,16 +90,22 @@ export function buildStoryTray(input: {
   selfLabel: string;
   selfImageUrl: string | null;
   selfKind: "LIVE" | "VIDEO" | "IMAGE" | null;
+  selfStoryIds?: readonly string[];
   faces: Array<{
     memberId: string;
     label: string;
     imageUrl: string | null;
     kind: "LIVE" | "VIDEO" | "IMAGE";
+    storyIds?: readonly string[];
   }>;
 }): StoryTrayFace[] {
   const others = input.faces
     .filter((face) => face.memberId !== input.selfId)
-    .map((face) => ({ ...face, self: false as const }));
+    .map((face) => ({
+      ...face,
+      storyIds: [...(face.storyIds ?? [])],
+      self: false as const,
+    }));
   if (input.selfId === null) {
     return others;
   }
@@ -76,6 +115,7 @@ export function buildStoryTray(input: {
       label: input.selfLabel,
       imageUrl: input.selfImageUrl,
       kind: input.selfKind,
+      storyIds: [...(input.selfStoryIds ?? [])],
       self: true,
     },
     ...others,

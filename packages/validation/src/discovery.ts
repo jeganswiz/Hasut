@@ -81,6 +81,7 @@ export const discoveryMarkerSchema = discoveryPinSchema.extend({
   ring: z.enum(["idle", "available", "live"]),
   pinMediaKind: z.enum(["LIVE", "VIDEO", "IMAGE", "PROFILE"]),
   previewHlsUrl: z.string().nullable(),
+  storyIds: z.array(z.string().uuid()).default([]),
 });
 
 export const discoveryClusterSchema = discoveryPinSchema.extend({
@@ -100,6 +101,7 @@ export const discoveryResultSchema = z.object({
       memberId: z.string().uuid(),
       kind: z.enum(["LIVE", "VIDEO", "IMAGE"]).nullable(),
       imageUrl: z.string().nullable(),
+      storyIds: z.array(z.string().uuid()).default([]),
     })
     .nullable()
     .optional(),
@@ -110,6 +112,7 @@ export const discoveryResultSchema = z.object({
         label: z.string(),
         imageUrl: z.string().nullable(),
         kind: z.enum(["LIVE", "VIDEO", "IMAGE"]),
+        storyIds: z.array(z.string().uuid()).default([]),
       }),
     )
     .optional(),
@@ -143,6 +146,7 @@ export const discoveryPreviewSchema = z.object({
       memberId: z.string().uuid(),
       kind: z.enum(["LIVE", "VIDEO", "IMAGE"]).nullable(),
       imageUrl: z.string().nullable(),
+      storyIds: z.array(z.string().uuid()).default([]),
     })
     .nullable(),
 });
@@ -152,7 +156,6 @@ export const discoveryPolicyViewSchema = z.object({
   minRadiusMeters: z.number().int().positive(),
   maxRadiusMeters: z.number().int().positive(),
   radiusOptionsMeters: z.array(z.number().int().positive()),
-  clusterCellMeters: z.number().int().positive(),
   includeMembers: z.boolean(),
   availableCodes: z.array(z.string()),
   availableModeCodes: z.array(z.string()),
@@ -188,7 +191,6 @@ export const discoveryPolicyPatchSchema = z
     minRadiusMeters: z.number().int().positive().optional(),
     maxRadiusMeters: z.number().int().positive().optional(),
     radiusOptionsMeters: z.array(z.number().int().positive()).min(1).optional(),
-    clusterCellMeters: z.number().int().positive().optional(),
     includeMembers: z.boolean().optional(),
     availableCodes: z.array(z.string().min(1)).min(1).optional(),
     availableModeCodes: z.array(z.string().min(1)).min(1).optional(),

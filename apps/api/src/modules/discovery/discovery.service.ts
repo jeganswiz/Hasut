@@ -1,7 +1,6 @@
 import { fetchMapRoute } from "@hasut/config";
 import type {
   DiscoveryCard,
-  DiscoveryCluster,
   DiscoveryKind,
   DiscoveryMarker,
   DiscoveryPolicyView,
@@ -18,9 +17,9 @@ import { ConfigurationService } from "../configuration/configuration.service";
 import { LocationsRepository } from "../locations/locations.repository";
 import { MediaService } from "../media/media.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { clusterRanked, rankNearbyRows, type RankedNearby } from "./discovery.ranking";
+import { rankNearbyRows, type RankedNearby } from "./discovery.ranking";
 import { DiscoveryRepository, type NearbyRow } from "./discovery.repository";
-import { StoriesService } from "../stories/stories.service";
+import { StoriesService, type PinMedia } from "../stories/stories.service";
 
 export interface DiscoveryQuery {
   latitude?: number;
@@ -47,15 +46,6 @@ export class DiscoveryService {
   async nearby(viewerId: string | null, query: DiscoveryQuery): Promise<DiscoveryResult> {
     const collected = await this.collect(viewerId, query);
     const items = await Promise.all(collected.display.map((row) => this.toCard(row)));
-    const clusters = clusterRanked(collected.display, collected.policy.clusterCellMeters).map(
-      (cluster): DiscoveryCluster => ({
-        id: cluster.cellId,
-        pinLat: cluster.pinLat,
-        pinLng: cluster.pinLng,
-        count: cluster.count,
-        kinds: cluster.kinds,
-      }),
-    );
     const owners = await this.memberIdsForRows(collected.display);
     const storyIds = new Set(owners.values());
     if (viewerId !== null) {
@@ -81,6 +71,7 @@ export class DiscoveryService {
         ring: pinMediaKind === "LIVE" ? "live" : row.available ? "available" : "idle",
         pinMediaKind,
         previewHlsUrl: media?.previewHlsUrl ?? null,
+        storyIds: media?.storyIds ?? [],
       };
     });
 
@@ -89,7 +80,7 @@ export class DiscoveryService {
       radiusMeters: collected.radiusMeters,
       items,
       markers,
-      clusters,
+      clusters: [],
       selfPresence: this.presenceFor(viewerId, pinMedia),
       storyFaces: this.storyFaces(collected.display, owners, items, pinMedia),
     };
@@ -355,7 +346,7 @@ export class DiscoveryService {
     rows: RankedNearby[],
     owners: Map<string, string>,
     items: DiscoveryCard[],
-    pinMedia: Map<string, { kind: string; imageUrl: string | null }>,
+    pinMedia: Map<string, PinMedia>,
   ): DiscoveryStoryFace[] {
     const faces: DiscoveryStoryFace[] = [];
     const seen = new Set<string>();
@@ -375,6 +366,7 @@ export class DiscoveryService {
         label: card?.title ?? row.title,
         imageUrl: presence.imageUrl ?? card?.photoUrl ?? null,
         kind: presence.kind,
+        storyIds: presence.storyIds,
       });
     });
     return faces;
@@ -382,7 +374,7 @@ export class DiscoveryService {
 
   private presenceFor(
     memberId: string | null,
-    pinMedia: Map<string, { kind: string; imageUrl: string | null }>,
+    pinMedia: Map<string, PinMedia>,
   ): DiscoveryPresence | null {
     if (memberId === null) {
       return null;
@@ -392,9 +384,14 @@ export class DiscoveryService {
       media === undefined ||
       (media.kind !== "LIVE" && media.kind !== "VIDEO" && media.kind !== "IMAGE")
     ) {
-      return { memberId, kind: null, imageUrl: null };
+      return { memberId, kind: null, imageUrl: null, storyIds: [] };
     }
-    return { memberId, kind: media.kind, imageUrl: media.imageUrl };
+    return {
+      memberId,
+      kind: media.kind,
+      imageUrl: media.imageUrl,
+      storyIds: media.storyIds ?? [],
+    };
   }
 
   private async categoryFamily(categoryId?: string): Promise<Set<string> | undefined> {

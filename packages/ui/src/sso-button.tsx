@@ -1,7 +1,6 @@
 "use client";
 
 import type { IdentityProviderName } from "@hasut/types";
-import { cssVar } from "./tokens";
 
 export interface SsoButtonProps {
   provider: IdentityProviderName;
@@ -55,23 +54,7 @@ export function SsoButton({ provider, onClick, disabled = false, busy = false }:
       type="button"
       onClick={onClick}
       disabled={disabled || busy}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        width: "100%",
-        minHeight: 44,
-        fontSize: 15,
-        fontWeight: 500,
-        color: cssVar("text"),
-        background: cssVar("surface"),
-        border: `1.5px solid ${cssVar("border")}`,
-        borderRadius: cssVar("buttonRadius"),
-        cursor: disabled || busy ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.6 : 1,
-        transition: "border-color 160ms ease, background 160ms ease",
-      }}
+      className="flex w-full min-h-11 items-center justify-center gap-2.5 rounded-md border-[1.5px] border-border bg-card text-[15px] font-medium text-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-60"
     >
       <Glyph provider={provider} />
       {busy ? "Connecting…" : LABEL[provider]}

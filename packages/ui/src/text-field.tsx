@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, type CSSProperties, type HTMLInputTypeAttribute } from "react";
-import { cssVar } from "./tokens";
+import { useId, type HTMLInputTypeAttribute } from "react";
+import { Input } from "./components/input";
+import { cn } from "./lib/utils";
 
 export interface TextFieldProps {
   value: string;
@@ -35,24 +36,12 @@ export function TextField({
   const inputId = useId();
   const hintId = `${inputId}-hint`;
 
-  const style: CSSProperties = {
-    width: "100%",
-    padding: 12,
-    fontSize: 16,
-    color: cssVar("text"),
-    background: cssVar("surface"),
-    border: `1.5px solid ${invalid ? cssVar("danger") : cssVar("border")}`,
-    borderRadius: cssVar("radius"),
-    outlineOffset: 2,
-    transition: "border-color 160ms ease",
-  };
-
   return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <label htmlFor={inputId} style={{ fontSize: 14, color: cssVar("mutedText") }}>
+    <div className="grid gap-1.5">
+      <label htmlFor={inputId} className="text-sm text-muted-foreground">
         {label}
       </label>
-      <input
+      <Input
         id={inputId}
         type={type}
         value={value}
@@ -65,10 +54,10 @@ export function TextField({
         maxLength={maxLength}
         aria-invalid={invalid || undefined}
         aria-describedby={hint === undefined ? undefined : hintId}
-        style={style}
+        className={cn(invalid && "border-destructive")}
       />
       {hint === undefined ? null : (
-        <p id={hintId} style={{ margin: 0, fontSize: 13, color: cssVar("mutedText") }}>
+        <p id={hintId} className="m-0 text-[13px] text-muted-foreground">
           {hint}
         </p>
       )}

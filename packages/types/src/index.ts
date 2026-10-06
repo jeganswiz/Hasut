@@ -221,4 +221,6 @@ export type {
   StoryPlaybackStatus,
   StoryTtlHours,
   StoryView,
+  StoryViewerEntry,
+  StoryViewerList,
 } from "./stories";

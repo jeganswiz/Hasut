@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { formatClock, moveHandle, type RangeBounds, type RangeValue } from "./range-select.logic";
-import { cssVar } from "./tokens";
+import { cn } from "./lib/utils";
 
 export interface RangeSelectProps {
   label: string;
@@ -46,10 +46,10 @@ export function RangeSelect({
   };
 
   return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-        <span style={{ color: cssVar("mutedText") }}>{label}</span>
-        <span style={{ color: cssVar("text"), fontVariantNumeric: "tabular-nums" }}>
+    <div className="grid gap-1.5">
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="tabular-nums text-foreground">
           {formatClock(value.start)} – {formatClock(value.end)}
         </span>
       </div>
@@ -71,7 +71,7 @@ export function RangeSelect({
             right: 0,
             height: 8,
             borderRadius: 999,
-            background: cssVar("border"),
+            background: "var(--hasut-color-border)",
           }}
         />
         <div
@@ -82,7 +82,7 @@ export function RangeSelect({
             width: `${Math.max(0, endPercent - startPercent)}%`,
             height: 8,
             borderRadius: 999,
-            background: cssVar("primary"),
+            background: "var(--hasut-color-primary)",
           }}
         />
         <input
@@ -119,7 +119,7 @@ export function RangeSelect({
         />
       </div>
 
-      <p style={{ margin: 0, fontSize: 13, color: cssVar("mutedText") }}>
+      <p className={cn("m-0 text-[13px] text-muted-foreground")}>
         {hint ?? `${formatClock(span)} selected`}
       </p>
     </div>

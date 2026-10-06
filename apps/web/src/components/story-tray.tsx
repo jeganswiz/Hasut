@@ -1,43 +1,35 @@
 "use client";
 
 import type { DiscoveryStoryFace } from "@hasut/types";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
-import { buildStoryTray, hasStoryRing, readWatchedStoryIds } from "../lib/story-ring";
+import { buildStoryTray, profileRingClass, profileRingState } from "../lib/story-ring";
 
 export function StoryTray({
   selfId,
   selfLabel,
   selfImageUrl,
   selfKind,
+  selfStoryIds = [],
   faces,
+  watchedStoryIds = [],
   hint = "",
 }: {
   selfId: string | null;
   selfLabel: string;
   selfImageUrl: string | null;
   selfKind: "LIVE" | "VIDEO" | "IMAGE" | null;
+  selfStoryIds?: readonly string[];
   faces: DiscoveryStoryFace[];
+  watchedStoryIds?: readonly string[];
   hint?: string;
 }) {
-  const [watched, setWatched] = useState<string[]>([]);
-
-  useEffect(() => {
-    const read = () => setWatched(readWatchedStoryIds(window.localStorage));
-    read();
-    window.addEventListener("focus", read);
-    window.addEventListener("storage", read);
-    return () => {
-      window.removeEventListener("focus", read);
-      window.removeEventListener("storage", read);
-    };
-  }, [faces, selfId]);
-
   const tray = buildStoryTray({
     selfId,
     selfLabel,
     selfImageUrl,
     selfKind,
+    selfStoryIds,
     faces,
   });
   if (tray.length === 0) {
@@ -47,18 +39,26 @@ export function StoryTray({
   return (
     <div className="story-tray" aria-label="Stories">
       {tray.map((face) => {
-        const active = hasStoryRing(face.kind);
-        const seen = watched.includes(face.memberId);
-        const ringClass = !active ? "is-empty" : seen ? "is-seen" : "is-unseen";
-        const href = active ? `/stories/${face.memberId}` : "/story";
+        const state = profileRingState({
+          live: face.kind === "LIVE",
+          storyIds: face.storyIds ?? [],
+          watchedStoryIds,
+        });
+        const ringClass = profileRingClass(state);
+        const href = state === "none" ? "/story" : `/stories/${face.memberId}`;
         return (
           <div className="story-tray-item" key={face.memberId}>
-            <a className={`story-tray-ring ${ringClass}`} href={href} aria-label={face.label}>
+            <a
+              className={`story-tray-ring ${ringClass}`.trim()}
+              href={href}
+              aria-label={face.label}
+            >
               {face.imageUrl !== null ? (
                 <img src={face.imageUrl} alt="" />
               ) : (
                 <span>{initials(face.label)}</span>
               )}
+              {state === "live" ? <em>LIVE</em> : null}
             </a>
             {face.self ? <AddPresence hint={hint} /> : null}
           </div>

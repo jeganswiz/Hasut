@@ -85,6 +85,7 @@ export const NOTIFICATION_TEMPLATE_KEYS = [
   "verification.rejected",
   "support.ticket.replied",
   "support.ticket.resolved",
+  "story.liked",
 ] as const;
 
 export type NotificationTemplateKey = (typeof NOTIFICATION_TEMPLATE_KEYS)[number];

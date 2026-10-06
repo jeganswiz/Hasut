@@ -6,7 +6,6 @@ export interface DiscoveryPolicy {
   minRadiusMeters: number;
   maxRadiusMeters: number;
   radiusOptionsMeters: number[];
-  clusterCellMeters: number;
   includeMembers: boolean;
   availableCodes: string[];
   availableModeCodes: string[];
@@ -28,7 +27,6 @@ export const DISCOVERY_POLICY_DEFAULTS: DiscoveryPolicy = {
   minRadiusMeters: 500,
   maxRadiusMeters: 50_000,
   radiusOptionsMeters: [1_000, 2_000, 5_000, 10_000, 25_000],
-  clusterCellMeters: 400,
   includeMembers: true,
   availableCodes: ["AVAILABLE"],
   availableModeCodes: ["AVAILABLE", "LOOKING_FOR_WORK", "PROMOTING_SERVICE"],
@@ -51,8 +49,7 @@ export function isDiscoveryPolicy(value: unknown): value is DiscoveryPolicy {
     typeof record.defaultRadiusMeters === "number" &&
     typeof record.minRadiusMeters === "number" &&
     typeof record.maxRadiusMeters === "number" &&
-    Array.isArray(record.radiusOptionsMeters) &&
-    typeof record.clusterCellMeters === "number"
+    Array.isArray(record.radiusOptionsMeters)
   );
 }
 
@@ -100,6 +97,7 @@ export function readDiscoveryPolicy(value: unknown): DiscoveryPolicy {
     mapCustomTileUrl: readMapCustomTileUrl(record),
   };
   const extras = next as unknown as Record<string, unknown>;
+  delete extras.clusterCellMeters;
   delete extras.mapTileUrl;
   delete extras.mapFallbackTileUrls;
   delete extras.mapAttribution;

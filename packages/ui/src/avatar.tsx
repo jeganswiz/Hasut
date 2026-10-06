@@ -1,5 +1,10 @@
-import type { CSSProperties } from "react";
-import { cssVar } from "./tokens";
+import { cn } from "./lib/utils";
+
+const RING = {
+  idle: "border-primary",
+  available: "border-success",
+  live: "border-destructive",
+} as const;
 
 export function Avatar({
   photoUrl,
@@ -11,39 +16,20 @@ export function Avatar({
   photoUrl: string | null;
   initials: string;
   size?: number;
-  ring?: "idle" | "available" | "live";
+  ring?: keyof typeof RING;
   label?: string;
 }) {
-  const ringColor =
-    ring === "live"
-      ? cssVar("danger")
-      : ring === "available"
-        ? cssVar("success")
-        : cssVar("primary");
-  const style: CSSProperties = {
-    width: size,
-    height: size,
-    borderRadius: "50%",
-    border: `3px solid ${ringColor}`,
-    overflow: "hidden",
-    display: "grid",
-    placeItems: "center",
-    background: cssVar("surface"),
-    color: cssVar("text"),
-    fontWeight: 700,
-    fontSize: Math.max(10, Math.round(size * 0.32)),
-    flexShrink: 0,
-  };
   return (
-    <span style={style} aria-label={label ?? initials}>
+    <span
+      aria-label={label ?? initials}
+      className={cn(
+        "grid shrink-0 place-items-center overflow-hidden rounded-full border-[3px] bg-card font-bold text-foreground",
+        RING[ring],
+      )}
+      style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.32)) }}
+    >
       {photoUrl ? (
-        <img
-          src={photoUrl}
-          alt=""
-          width={size}
-          height={size}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
+        <img src={photoUrl} alt="" width={size} height={size} className="size-full object-cover" />
       ) : (
         initials
       )}

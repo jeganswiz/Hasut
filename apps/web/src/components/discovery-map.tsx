@@ -1,7 +1,7 @@
 "use client";
 
 import { OSM_MAP_ATTRIBUTION, advanceBasemapIndex } from "@hasut/config";
-import type { DiscoveryCluster, DiscoveryMarker } from "@hasut/types";
+import type { DiscoveryMarker } from "@hasut/types";
 import { diffDiscoveryMarkers } from "@hasut/utils";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { isLivePlaylist } from "../lib/live-playlist";
@@ -11,30 +11,37 @@ import {
   intersectsViewport,
   pickPinPreviews,
 } from "../lib/pin-playback";
-import { hasStoryRing } from "../lib/story-ring";
+import { profileRingClass, profileRingState } from "../lib/story-ring";
 
 function youMarkerHtml(
   photoUrl: string | null,
   memberId: string | null,
-  hasStory: boolean,
+  ringClass: string,
 ): string {
   const safe = photoUrl === null ? "" : photoUrl.replace(/"/g, "");
   const photo = safe.length > 0 ? `<img alt="" src="${safe}" />` : "<span>You</span>";
-  const href = memberId !== null && hasStory ? `/stories/${memberId}` : "/story";
-  const label = hasStory ? "Watch your presence" : "Your presence";
-  const ring = hasStory ? " has-story" : "";
-  return `<a class="discovery-self${ring}" href="${href}" aria-label="${label}">${photo}</a>`;
+  const active = ringClass.length > 0;
+  const href = memberId !== null && active ? `/stories/${memberId}` : "/story";
+  const label = active ? "Watch your presence" : "Your presence";
+  const ring = ringClass.length > 0 ? ` ${ringClass}` : "";
+  const live = ringClass === "is-live" ? "<em>LIVE</em>" : "";
+  return `<a class="discovery-self${ring}" href="${href}" aria-label="${label}">${photo}${live}</a>`;
 }
 
-function markerHtml(marker: DiscoveryMarker, selected: boolean, selfId: string | null): string {
-  const story = hasStoryRing(marker.pinMediaKind);
-  const ring = story
-    ? "has-story"
-    : marker.ring === "live"
-      ? "is-live"
-      : marker.ring === "available"
-        ? "is-available"
-        : "";
+function markerHtml(
+  marker: DiscoveryMarker,
+  selected: boolean,
+  selfId: string | null,
+  watchedStoryIds: readonly string[],
+): string {
+  const status = profileRingClass(
+    profileRingState({
+      live: marker.pinMediaKind === "LIVE",
+      storyIds: marker.storyIds ?? [],
+      watchedStoryIds,
+    }),
+  );
+  const ring = status.length > 0 ? status : marker.ring === "available" ? "is-available" : "";
   const photo =
     marker.photoUrl !== null
       ? `<img alt="" src="${marker.photoUrl.replace(/"/g, "")}" />`
@@ -71,11 +78,11 @@ export function DiscoveryMap({
   overlay,
   panCellId,
   markers,
-  clusters,
   selectedId,
   selfId = null,
   selfPhotoUrl = null,
-  selfHasStory = false,
+  selfRingClass = "",
+  watchedStoryIds = [],
   playPreviews = false,
   route = null,
   callout = null,
@@ -90,11 +97,11 @@ export function DiscoveryMap({
   overlay: { latitude: number; longitude: number } | null;
   panCellId: string | null;
   markers: DiscoveryMarker[];
-  clusters: DiscoveryCluster[];
   selectedId: string | null;
   selfId?: string | null;
   selfPhotoUrl?: string | null;
-  selfHasStory?: boolean;
+  selfRingClass?: string;
+  watchedStoryIds?: readonly string[];
   playPreviews?: boolean;
   /** Road line as [longitude, latitude]. Drawn on every basemap, including fallbacks. */
   route?: Array<[number, number]> | null;
@@ -107,7 +114,6 @@ export function DiscoveryMap({
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const markerLayers = useRef(new Map<string, import("leaflet").Marker>());
-  const clusterLayers = useRef(new Map<string, import("leaflet").Marker>());
   const selfLayer = useRef<import("leaflet").Marker | null>(null);
   const routeLayers = useRef<Array<import("leaflet").Polyline>>([]);
   const pinPlayers = useRef<Array<{ destroy: () => void }>>([]);
@@ -176,7 +182,6 @@ export function DiscoveryMap({
       mapRef.current?.remove();
       mapRef.current = null;
       markerLayers.current.clear();
-      clusterLayers.current.clear();
       selfLayer.current = null;
     };
   }, [ready, tileKey]);
@@ -208,7 +213,7 @@ export function DiscoveryMap({
           .marker([overlay.latitude, overlay.longitude], {
             icon: leaflet.divIcon({
               className: "discovery-self-wrap",
-              html: youMarkerHtml(selfPhotoUrl, selfId, selfHasStory),
+              html: youMarkerHtml(selfPhotoUrl, selfId, selfRingClass),
               iconSize: [48, 48],
               iconAnchor: [24, 24],
             }),
@@ -221,13 +226,13 @@ export function DiscoveryMap({
       selfLayer.current.setIcon(
         leaflet.divIcon({
           className: "discovery-self-wrap",
-          html: youMarkerHtml(selfPhotoUrl, selfId, selfHasStory),
+          html: youMarkerHtml(selfPhotoUrl, selfId, selfRingClass),
           iconSize: [48, 48],
           iconAnchor: [24, 24],
         }),
       );
     });
-  }, [mapReady, overlay, selfHasStory, selfId, selfPhotoUrl]);
+  }, [mapReady, overlay, selfRingClass, selfId, selfPhotoUrl]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -235,13 +240,7 @@ export function DiscoveryMap({
       return;
     }
     void import("leaflet").then((leaflet) => {
-      const visibleMarkers = markers.filter((marker) => {
-        const clustered = clusters.some(
-          (cluster) => cluster.pinLat === marker.pinLat && cluster.pinLng === marker.pinLng,
-        );
-        return !clustered || marker.id === selectedId;
-      });
-      const diff = diffDiscoveryMarkers([...markerLayers.current.keys()], visibleMarkers);
+      const diff = diffDiscoveryMarkers([...markerLayers.current.keys()], markers);
       for (const id of diff.remove) {
         const layer = markerLayers.current.get(id);
         if (layer !== undefined) {
@@ -253,7 +252,7 @@ export function DiscoveryMap({
         const selected = marker.id === selectedId;
         const icon = leaflet.divIcon({
           className: "map-pin-wrap",
-          html: markerHtml(marker, selected, selfId),
+          html: markerHtml(marker, selected, selfId, watchedStoryIds),
           iconSize: [selected ? 72 : 48, selected ? 88 : 48],
         });
         const existing = markerLayers.current.get(marker.id);
@@ -268,33 +267,8 @@ export function DiscoveryMap({
           existing.setIcon(icon);
         }
       }
-
-      const nextClusterIds = new Set(clusters.map((cluster) => cluster.id));
-      for (const [id, layer] of clusterLayers.current) {
-        if (!nextClusterIds.has(id)) {
-          map.removeLayer(layer);
-          clusterLayers.current.delete(id);
-        }
-      }
-      for (const cluster of clusters) {
-        const icon = leaflet.divIcon({
-          className: "",
-          html: `<div class="discovery-cluster">${cluster.count}</div>`,
-          iconSize: [36, 36],
-        });
-        const existing = clusterLayers.current.get(cluster.id);
-        if (existing === undefined) {
-          clusterLayers.current.set(
-            cluster.id,
-            leaflet.marker([cluster.pinLat, cluster.pinLng], { icon }).addTo(map),
-          );
-        } else {
-          existing.setLatLng([cluster.pinLat, cluster.pinLng]);
-          existing.setIcon(icon);
-        }
-      }
     });
-  }, [clusters, mapReady, markers, selectedId, selfId]);
+  }, [mapReady, markers, selectedId, selfId, watchedStoryIds]);
 
   useEffect(() => {
     function destroyPlayers(): void {
@@ -381,7 +355,7 @@ export function DiscoveryMap({
       map?.off("moveend", attach);
       destroyPlayers();
     };
-  }, [clusters, mapReady, markers, selectedId, playPreviews]);
+  }, [mapReady, markers, selectedId, playPreviews]);
 
   useEffect(() => {
     const map = mapRef.current;

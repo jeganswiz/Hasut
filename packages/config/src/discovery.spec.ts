@@ -10,6 +10,14 @@ describe("readDiscoveryPolicy", () => {
     expect(readDiscoveryPolicy(null)).toEqual(DISCOVERY_POLICY_DEFAULTS);
   });
 
+  it("drops a stored cluster cell size", () => {
+    const policy = readDiscoveryPolicy({
+      ...DISCOVERY_POLICY_DEFAULTS,
+      clusterCellMeters: 400,
+    });
+    expect("clusterCellMeters" in policy).toBe(false);
+  });
+
   it("keeps admin radius options when present", () => {
     const policy = readDiscoveryPolicy({
       ...DISCOVERY_POLICY_DEFAULTS,

@@ -325,11 +325,6 @@ export function DiscoveryScreen() {
             </View>
           </Link>
         ) : null}
-        {(result?.clusters ?? []).map((cluster) => (
-          <View key={cluster.id} style={styles.cluster}>
-            <Text style={styles.clusterText}>{cluster.count}</Text>
-          </View>
-        ))}
       </View>
       <View style={styles.sheet}>
         <TextInput
@@ -552,16 +547,6 @@ function makeStyles(tokens: ThemeTokens) {
       fontSize: 9,
       fontWeight: "700",
     },
-    cluster: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: tokens.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      margin: 6,
-    },
-    clusterText: { color: tokens.textOnPrimary, fontWeight: "700" },
     preview: { paddingTop: 8 },
   });
 }

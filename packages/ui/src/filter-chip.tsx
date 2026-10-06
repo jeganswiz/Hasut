@@ -1,9 +1,10 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { cssVar } from "./tokens";
+import { cn } from "./lib/utils";
 
 export function FilterChip({
   active = false,
   children,
+  className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean; children: ReactNode }) {
   return (
@@ -11,17 +12,13 @@ export function FilterChip({
       type="button"
       {...props}
       aria-pressed={active}
-      style={{
-        border: `1px solid ${active ? cssVar("primary") : cssVar("border")}`,
-        background: active ? cssVar("primary") : cssVar("surface"),
-        color: active ? cssVar("textOnPrimary") : cssVar("text"),
-        borderRadius: 999,
-        padding: "8px 12px",
-        fontWeight: 600,
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        ...props.style,
-      }}
+      className={cn(
+        "whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-foreground",
+        className,
+      )}
     >
       {children}
     </button>

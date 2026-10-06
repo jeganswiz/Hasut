@@ -68,7 +68,7 @@ Leaflet on web uses a three-layer satellite chain from configuration, not a stre
 2. **Stadia Satellite** when `STADIA_API_KEY` is set.
 3. **Esri World Imagery** when those keys are empty, and as the last resort.
 
-`GET /api/v1/config/discovery` returns `mapProvider`, resolved `mapTileUrl`, `mapFallbackTileUrls` (up to two), and `mapAttribution`. The web map switches URL on Leaflet `tileerror`. Admins set `mapProvider` and an optional custom XYZ template (`{z}/{x}/{y}`) on `PATCH /api/v1/admin/discovery/policy`. Pins, clusters, and snap policy are unchanged.
+`GET /api/v1/config/discovery` returns `mapProvider`, resolved `mapTileUrl`, `mapFallbackTileUrls` (up to two), and `mapAttribution`. The web map switches URL on Leaflet `tileerror`. Admins set `mapProvider` and an optional custom XYZ template (`{z}/{x}/{y}`) on `PATCH /api/v1/admin/discovery/policy`. Pins and snap policy are unchanged. Nearby results are drawn as individual pins.
 
 ## Route
 

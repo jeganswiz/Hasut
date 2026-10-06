@@ -318,6 +318,34 @@ describe("StoriesService", () => {
     });
   });
 
+  it("keeps every active story id when live is the pin", async () => {
+    prisma.liveSession.findMany.mockResolvedValue([
+      { memberId: "m1", audience: "EVERYONE", previewHlsUrl: "/media/hls/live/a/preview.m3u8" },
+    ]);
+    prisma.story.findMany.mockResolvedValue([
+      {
+        id: "story-1",
+        memberId: "m1",
+        kind: "IMAGE",
+        audience: "EVERYONE",
+        previewHlsUrl: null,
+        imageMediaId: "img-1",
+      },
+      {
+        id: "story-2",
+        memberId: "m1",
+        kind: "IMAGE",
+        audience: "EVERYONE",
+        previewHlsUrl: null,
+        imageMediaId: "img-2",
+      },
+    ]);
+    const stories = await service();
+    const pins = await stories.pinMediaForMembers(["m1"], "viewer");
+    expect(pins.get("m1")?.kind).toBe("LIVE");
+    expect(pins.get("m1")?.storyIds).toEqual(["story-1", "story-2"]);
+  });
+
   it("prefers LIVE pin media over a video story", async () => {
     prisma.liveSession.findMany.mockResolvedValue([
       { memberId: "m1", audience: "EVERYONE", previewHlsUrl: "/media/hls/live/a/preview.m3u8" },

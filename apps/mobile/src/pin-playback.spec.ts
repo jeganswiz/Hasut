@@ -25,6 +25,7 @@ function marker(overrides: Partial<DiscoveryMarker> = {}): DiscoveryMarker {
     pinLng: 80.27,
     pinMediaKind: "VIDEO",
     previewHlsUrl: "https://cdn.example/stories/s1/index.m3u8",
+    storyIds: [],
     ...overrides,
   };
 }

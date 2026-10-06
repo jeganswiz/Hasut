@@ -363,6 +363,11 @@ async function seedNotificationTemplates(): Promise<void> {
       titleTemplate: "Ticket updated",
       bodyTemplate: "Your support ticket was resolved",
     },
+    {
+      key: "story.liked",
+      titleTemplate: "{{actorName}} liked your presence",
+      bodyTemplate: "Open your story to see who liked it",
+    },
   ];
   for (const template of templates) {
     await prisma.notificationTemplate.upsert({

@@ -75,7 +75,6 @@ export function DiscoverySettings() {
     try {
       await createAdminApiClient().patchAdminDiscoveryPolicy({
         defaultRadiusMeters: policy.defaultRadiusMeters,
-        clusterCellMeters: policy.clusterCellMeters,
         includeMembers: policy.includeMembers,
         mapProvider: policy.mapProvider,
         mapCustomTileUrl: policy.mapCustomTileUrl,
@@ -112,17 +111,6 @@ export function DiscoverySettings() {
                 value={policy.defaultRadiusMeters}
                 onChange={(event) =>
                   setPolicy({ ...policy, defaultRadiusMeters: Number(event.target.value) })
-                }
-              />
-            </label>
-            <label>
-              Cluster cell (meters)
-              <input
-                type="number"
-                min={1}
-                value={policy.clusterCellMeters}
-                onChange={(event) =>
-                  setPolicy({ ...policy, clusterCellMeters: Number(event.target.value) })
                 }
               />
             </label>

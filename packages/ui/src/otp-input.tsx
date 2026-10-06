@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type ClipboardEvent,
-  type CSSProperties,
-  type KeyboardEvent,
-} from "react";
+import { useCallback, useEffect, useRef, type ClipboardEvent, type KeyboardEvent } from "react";
+import { cn } from "./lib/utils";
 import {
   applyArrow,
   applyBackspace,
@@ -16,7 +10,6 @@ import {
   isComplete,
   type OtpState,
 } from "./otp-input.logic";
-import { cssVar } from "./tokens";
 
 export interface OtpInputProps {
   value: string;
@@ -32,22 +25,12 @@ export interface OtpInputProps {
   describedBy?: string;
 }
 
-function boxStyle(filled: boolean, invalid: boolean, disabled: boolean): CSSProperties {
-  return {
-    width: 48,
-    height: 56,
-    textAlign: "center",
-    fontSize: 22,
-    fontWeight: 600,
-    lineHeight: "1",
-    color: cssVar("text"),
-    background: disabled ? cssVar("background") : cssVar("surface"),
-    border: `1.5px solid ${invalid ? cssVar("danger") : filled ? cssVar("primary") : cssVar("border")}`,
-    borderRadius: cssVar("radius"),
-    outlineOffset: 2,
-    transition: "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
-    caretColor: cssVar("primary"),
-  };
+function boxClass(filled: boolean, invalid: boolean, disabled: boolean): string {
+  return cn(
+    "h-14 w-12 rounded-sm border-[1.5px] text-center text-[22px] font-semibold leading-none text-foreground caret-primary outline-offset-2 transition-colors",
+    disabled ? "bg-background" : "bg-card",
+    invalid ? "border-destructive" : filled ? "border-primary" : "border-border",
+  );
 }
 
 /**
@@ -123,7 +106,7 @@ export function OtpInput({
       role="group"
       aria-label={label}
       aria-describedby={describedBy}
-      style={{ display: "flex", gap: 10, flexWrap: "nowrap" }}
+      className="flex flex-nowrap gap-2.5"
     >
       {Array.from({ length }, (_, index) => {
         const digit = digits[index] ?? "";
@@ -145,7 +128,7 @@ export function OtpInput({
             aria-label={`${label} digit ${index + 1}`}
             aria-invalid={invalid || undefined}
             maxLength={length}
-            style={boxStyle(digit !== "", invalid, disabled)}
+            className={boxClass(digit !== "", invalid, disabled)}
           />
         );
       })}

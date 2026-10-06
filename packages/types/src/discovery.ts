@@ -42,6 +42,8 @@ export interface DiscoveryMarker extends DiscoveryPin {
   ring: "idle" | "available" | "live";
   pinMediaKind: PinMediaKind;
   previewHlsUrl: string | null;
+  /** Posted stories still inside their active window. Empty when the pin is only a profile or only live. */
+  storyIds?: string[];
 }
 
 export interface DiscoveryCluster extends DiscoveryPin {
@@ -55,6 +57,8 @@ export interface DiscoveryPresence {
   memberId: string;
   kind: "LIVE" | "VIDEO" | "IMAGE" | null;
   imageUrl: string | null;
+  /** Active posted stories. A live session does not add an id here. */
+  storyIds?: string[];
 }
 
 /** One face in the map story row. Only members with an active story are included. */
@@ -63,6 +67,7 @@ export interface DiscoveryStoryFace {
   label: string;
   imageUrl: string | null;
   kind: "LIVE" | "VIDEO" | "IMAGE";
+  storyIds?: string[];
 }
 
 export interface DiscoveryPreview {
@@ -115,7 +120,6 @@ export interface DiscoveryPolicyView {
   minRadiusMeters: number;
   maxRadiusMeters: number;
   radiusOptionsMeters: number[];
-  clusterCellMeters: number;
   includeMembers: boolean;
   availableCodes: string[];
   availableModeCodes: string[];

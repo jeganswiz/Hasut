@@ -404,7 +404,7 @@ export function useDiscoveryMapController() {
   const panCellId =
     acceptedCoords === null || policy === null
       ? null
-      : snapToGrid(acceptedCoords, policy.clusterCellMeters).cellId;
+      : snapToGrid(acceptedCoords, policy.significantMoveMeters).cellId;
 
   return {
     policy,

@@ -1,3 +1,24 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "../../../../packages/ui/src/theme.css";
+@source "../../../../packages/ui/src";
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
 :root {
   --chrome-height: 72px;
 }
@@ -253,19 +274,176 @@ main {
   font-weight: 700;
 }
 
-.story-watch {
-  position: relative;
+.story-stage {
+  display: grid;
+  grid-template-areas:
+    "frame"
+    "note"
+    "sheet";
   width: 100%;
   max-width: 360px;
-  padding: 4px;
-  box-sizing: border-box;
-  border-radius: calc(var(--hasut-radius-card) + 4px);
-  background: conic-gradient(
-    from -90deg,
-    var(--hasut-color-primary),
-    var(--hasut-color-secondary) calc(var(--watch, 0) * 1%),
-    var(--hasut-color-border) calc(var(--watch, 0) * 1%)
-  );
+}
+
+.story-frame-wrap {
+  grid-area: frame;
+  position: relative;
+  width: 100%;
+}
+
+.story-progress {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+}
+
+.story-progress-track {
+  flex: 1 1 0;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hasut-color-surface) 35%, transparent);
+}
+
+.story-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--hasut-color-surface);
+}
+
+.story-actions {
+  grid-area: frame;
+  align-self: end;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 10px;
+}
+
+.story-reply {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--hasut-color-surface) 75%, transparent);
+  background: color-mix(in srgb, var(--hasut-color-text) 35%, transparent);
+  color: var(--hasut-color-text-on-primary);
+  font: inherit;
+}
+
+.story-reply::placeholder {
+  color: color-mix(in srgb, var(--hasut-color-text-on-primary) 70%, transparent);
+}
+
+.story-action {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hasut-color-text-on-primary);
+  cursor: pointer;
+}
+
+.story-action svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.story-action.is-liked svg {
+  fill: var(--hasut-color-danger);
+  stroke: var(--hasut-color-danger);
+}
+
+.story-viewers-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hasut-color-text) 35%, transparent);
+  color: var(--hasut-color-text-on-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.story-sheet {
+  grid-area: sheet;
+  width: 100%;
+  max-width: 360px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: var(--hasut-radius-card);
+  background: var(--hasut-color-surface);
+  color: var(--hasut-color-text);
+  border: 1px solid var(--hasut-color-border);
+}
+
+.story-sheet h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.story-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.story-sheet-row img,
+.story-sheet-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--hasut-color-primary) 18%, var(--hasut-color-surface));
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.story-sheet-like {
+  margin-left: auto;
+  color: var(--hasut-color-danger);
+}
+
+.story-sheet-like svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.story-note {
+  grid-area: note;
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--hasut-color-muted-text);
 }
 
 .story-ring-row {

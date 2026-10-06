@@ -28,5 +28,6 @@ export function buildMemberPresenceMarker(input: {
     ring: input.available ? "available" : "idle",
     pinMediaKind: "PROFILE",
     previewHlsUrl: null,
+    storyIds: [],
   };
 }

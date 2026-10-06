@@ -2,6 +2,7 @@ import {
   buildStoryTray,
   hasStoryRing,
   markStoryWatched,
+  profileRingState,
   readWatchedStoryIds,
   storyWatchHoldMs,
 } from "./story-ring";
@@ -19,6 +20,22 @@ describe("story ring", () => {
     expect(storyWatchHoldMs(0, 8)).toBe(8000);
     expect(storyWatchHoldMs(2, 2)).toBe(5000);
     expect(storyWatchHoldMs(0, null)).toBe(5000);
+  });
+
+  it("follows live, then unwatched stories, then a fully watched story, then no ring", () => {
+    const stories = ["story-1", "story-2", "story-3"];
+    expect(profileRingState({ live: false, storyIds: [], watchedStoryIds: [] })).toBe("none");
+    expect(profileRingState({ live: true, storyIds: stories, watchedStoryIds: [] })).toBe("live");
+    expect(profileRingState({ live: true, storyIds: stories, watchedStoryIds: stories })).toBe(
+      "live",
+    );
+    expect(
+      profileRingState({ live: false, storyIds: stories, watchedStoryIds: ["story-1", "story-2"] }),
+    ).toBe("unseen");
+    expect(profileRingState({ live: false, storyIds: stories, watchedStoryIds: stories })).toBe(
+      "seen",
+    );
+    expect(profileRingState({ live: false, storyIds: [], watchedStoryIds: stories })).toBe("none");
   });
 
   it("remembers a watched story on this browser", () => {

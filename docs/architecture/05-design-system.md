@@ -48,6 +48,8 @@ Fallback: last published payload baked into `packages/ui` as **structural defaul
 
 ## packages/ui
 
+Web and admin render through **shadcn/ui and Tailwind**. Semantic colours (`bg-primary`, `text-muted-foreground`, `border-border`) alias the published `--hasut-*` theme variables, so a theme publish still restyles every screen. Primitives live in `@hasut/ui` (`Button`, `Input`, `Card`, `Badge`, `Skeleton`, `Tooltip`, `DropdownMenu`, `Sheet`, `ScrollArea`, `Separator`) and the existing HASUT controls are built on those classes. Leaflet map chrome and the presence studio keep stylesheet rules where they target map or canvas DOM.
+
 Reusable primitives (web implementation first with React; mobile maps the same names via RN wrappers or shared token objects):
 
 - `Button`, `IconButton`

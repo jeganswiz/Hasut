@@ -62,6 +62,21 @@ export interface StoryAudioView {
   endSeconds: number | null;
 }
 
+/** Someone who opened a story. `liked` is the heart on the owner's viewer list. */
+export interface StoryViewerEntry {
+  member: {
+    id: string;
+    displayName: string;
+    photoUrl: string | null;
+  };
+  liked: boolean;
+  viewedAt: string;
+}
+
+export interface StoryViewerList {
+  viewers: StoryViewerEntry[];
+}
+
 export interface StoryView {
   id: string;
   memberId: string;
