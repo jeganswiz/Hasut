@@ -74,7 +74,8 @@ Web and Admin import from `@hasut/ui`. Mobile uses `@hasut/ui-native` only if RN
 - Top chrome is fixed. It starts as a blurred transparent bar and shortens as the page scrolls. After half the map block has scrolled past, the bar uses the surface token.
 - Signed-in members see their profile in the chrome. Named destinations are icons with hover and press motion.
 - **Map pins are circular avatars** (photo or initials), not rating pills. A ring encodes availability or live presence. When `stories.live` is on, pin media priority is LIVE → video → image → profile.
-- Self pin links to the presence composer (`/story`) and `/me` profile editor.
+- Self pin links to the presence composer (`/story`) and `/me`.
+- `/me` is the signed-in member's social profile: avatar, patrons, requests, rating, bio, then Presence, Live, and Services. Name, bio, mode, status, map discoverability, photo, and approximate location open from Edit profile. Those counts and grids use the existing profile, connection, story, live, review, and service APIs. Username, per-service reviews, booking history, a recorded-live archive, and an owned-business list are not on those payloads, so the profile leaves them empty.
 - Selected entity uses primary surface (active card) and a distinct map marker.
 - Ratings use `accent` only, typically on cards rather than the pin itself.
 - Small viewports: bottom tab bar stays icon-only. Desktop keeps the icon row in the top chrome beside the logo.

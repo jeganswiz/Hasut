@@ -48,3 +48,13 @@ export {
 } from "./components/dropdown-menu";
 export { ScrollArea } from "./components/scroll-area";
 export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetTitle } from "./components/sheet";
+export {
+  Dialog,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "./components/dialog";
+export { Textarea } from "./components/textarea";
+export { Switch } from "./components/switch";

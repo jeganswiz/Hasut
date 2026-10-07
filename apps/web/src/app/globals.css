@@ -58,6 +58,28 @@ main {
   padding: calc(var(--chrome-height) + 16px) 16px calc(88px + env(safe-area-inset-bottom));
 }
 
+main.me-profile {
+  max-width: 56rem;
+}
+
+main.me-profile h1,
+main.me-profile h2,
+main.me-profile h3 {
+  margin: 0;
+}
+
+.profile-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @keyframes hasut-spin {
   to {
     transform: rotate(360deg);
