@@ -214,6 +214,8 @@ export type {
   StoryAudience,
   StoryAudioSource,
   StoryAudioView,
+  StoryCaptionBackdrop,
+  StoryCaptionLayout,
   StoryComposerConfig,
   StoryKind,
   StoryModerationStatus,

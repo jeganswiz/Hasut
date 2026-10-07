@@ -2,8 +2,15 @@
 
 import { cssVar, formatClock } from "@hasut/ui";
 import { useEffect, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { captionStyleAt, nextBackdrop } from "../../lib/caption-style";
 import type { PhotoAdjust } from "../../lib/photo-adjust";
-import { isFullCrop, objectPosition, photoCssFilter } from "../../lib/photo-adjust";
+import {
+  isFullCrop,
+  moveCropBox,
+  objectPosition,
+  photoCssFilter,
+  resizeCropBox,
+} from "../../lib/photo-adjust";
 import type { PickedMedia } from "./media-picker";
 
 export interface FrameBox {
@@ -13,24 +20,13 @@ export interface FrameBox {
   h: number;
 }
 
-export const DEFAULT_CAPTION_BOX: FrameBox = { x: 8, y: 64, w: 84, h: 18 };
+export const DEFAULT_CAPTION_BOX: FrameBox = { x: 14, y: 36, w: 72, h: 14 };
 
 export interface CaptionLook {
   styleIndex: number;
   backdrop: "none" | "solid" | "gradient";
   opacity: number;
 }
-
-const CAPTION_STYLES: Array<{
-  fontWeight: number;
-  fontStyle: "normal" | "italic";
-  fontFamily: string;
-}> = [
-  { fontWeight: 800, fontStyle: "normal", fontFamily: "Georgia, 'Times New Roman', serif" },
-  { fontWeight: 500, fontStyle: "normal", fontFamily: "inherit" },
-  { fontWeight: 600, fontStyle: "italic", fontFamily: "Georgia, 'Times New Roman', serif" },
-  { fontWeight: 400, fontStyle: "normal", fontFamily: "inherit" },
-];
 
 export function StoryStage({
   kind,
@@ -45,6 +41,11 @@ export function StoryStage({
   showCaption,
   captionBox,
   onCaptionBox,
+  captionColors,
+  onCaptionColor,
+  onCaptionLook,
+  toolsOpen,
+  onEditCaption,
   cropping,
   onCropStart,
   onCrop,
@@ -76,6 +77,11 @@ export function StoryStage({
   showCaption: boolean;
   captionBox: FrameBox;
   onCaptionBox: (next: FrameBox) => void;
+  captionColors: readonly string[];
+  onCaptionColor: (next: string | null) => void;
+  onCaptionLook: (next: CaptionLook) => void;
+  toolsOpen: boolean;
+  onEditCaption: () => void;
   cropping: boolean;
   onCropStart: () => void;
   onCrop: (next: PhotoAdjust) => void;
@@ -108,6 +114,10 @@ export function StoryStage({
       return;
     }
     const onTime = (): void => {
+      const marked = Number(video.dataset.trimPreview);
+      if (Number.isFinite(marked) && Math.abs(video.currentTime - marked) < 0.4) {
+        return;
+      }
       if (video.currentTime < trimStart || (trimEnd > trimStart && video.currentTime >= trimEnd)) {
         video.currentTime = trimStart;
       }
@@ -116,7 +126,7 @@ export function StoryStage({
     return () => video.removeEventListener("timeupdate", onTime);
   }, [kind, trimStart, trimEnd, videoRef, media.objectUrl]);
 
-  const look = CAPTION_STYLES[captionLook.styleIndex] ?? CAPTION_STYLES[0];
+  const look = captionStyleAt(captionLook.styleIndex);
   const ink = captionColor ?? cssVar("textOnPrimary");
   const zoomed = kind === "IMAGE" && !cropping && !isFullCrop(adjust);
   const photoStyle = {
@@ -182,13 +192,20 @@ export function StoryStage({
             width: `${adjust.cropW}%`,
             height: `${adjust.cropH}%`,
           }}
+          onPointerDown={(event) => {
+            if ((event.target as HTMLElement).closest(".ps-handle") !== null) {
+              return;
+            }
+            dragCropMove(event, adjust, onCropStart, onCrop, onCropEnd);
+          }}
         >
+          <div className="ps-crop-grid" aria-hidden />
           {(["nw", "ne", "sw", "se"] as const).map((corner) => (
             <button
               key={corner}
               type="button"
               className={`ps-handle ps-handle-${corner}`}
-              aria-label="Resize crop"
+              aria-label={`Crop ${corner} corner`}
               onPointerDown={(event) =>
                 dragCrop(event, corner, adjust, onCropStart, onCrop, onCropEnd)
               }
@@ -236,47 +253,105 @@ export function StoryStage({
             left: `${captionBox.x}%`,
             top: `${captionBox.y}%`,
             width: `${captionBox.w}%`,
-            height: `${captionBox.h}%`,
+          }}
+          onPointerDown={(event) => {
+            if ((event.target as HTMLElement).closest(".ps-handle") !== null) {
+              return;
+            }
+            const box = event.currentTarget;
+            dragCaption(event, captionBox, onCaptionBox, false, () => {
+              const field = box.querySelector("textarea");
+              if (field instanceof HTMLTextAreaElement) {
+                field.focus();
+                return;
+              }
+              onEditCaption();
+            });
           }}
         >
-          <textarea
-            className="story-caption-input ps-caption"
-            value={caption}
-            maxLength={captionMaxLength}
-            placeholder="Say what you are working on"
-            aria-label="Caption on the story"
-            disabled={disabled}
-            onChange={(event) => onCaption(event.target.value)}
-            onBlur={() => {
-              if (caption.trim().length === 0) {
-                onCaptionDismiss();
-              }
-            }}
-            style={{
-              color: ink,
-              fontWeight: look?.fontWeight,
-              fontStyle: look?.fontStyle,
-              fontFamily: look?.fontFamily,
-              background:
-                captionLook.backdrop === "none"
-                  ? "transparent"
-                  : captionLook.backdrop === "solid"
-                    ? `color-mix(in srgb, var(--hasut-color-text) ${captionLook.opacity}%, transparent)`
-                    : `linear-gradient(90deg, color-mix(in srgb, var(--hasut-color-primary) ${captionLook.opacity}%, transparent), color-mix(in srgb, var(--hasut-color-secondary) ${captionLook.opacity}%, transparent))`,
-            }}
-          />
+          {toolsOpen ? (
+            <textarea
+              className="story-caption-input ps-caption"
+              value={caption}
+              maxLength={captionMaxLength}
+              placeholder="Type a caption"
+              aria-label="Caption on the story"
+              disabled={disabled}
+              rows={Math.max(1, caption.split("\n").length)}
+              onChange={(event) => {
+                onCaption(event.target.value);
+                const field = event.currentTarget;
+                field.style.height = "auto";
+                field.style.height = `${field.scrollHeight}px`;
+              }}
+              onBlur={() => {
+                if (caption.trim().length === 0) {
+                  onCaptionDismiss();
+                }
+              }}
+              style={captionInk(ink, look, captionLook)}
+            />
+          ) : (
+            <p className="ps-caption-text" style={captionInk(ink, look, captionLook)}>
+              {caption}
+            </p>
+          )}
+          {toolsOpen ? (
+            <button
+              type="button"
+              className="ps-handle ps-handle-se"
+              aria-label="Resize caption"
+              onPointerDown={(event) => dragCaption(event, captionBox, onCaptionBox, true)}
+            />
+          ) : null}
+        </div>
+      ) : null}
+      {toolsOpen && showCaption ? (
+        <div
+          className="ps-text-rail"
+          role="toolbar"
+          aria-label="Caption style"
+          onPointerDown={(event) => event.preventDefault()}
+        >
           <button
             type="button"
-            className="ps-caption-move"
-            aria-label="Move caption"
-            onPointerDown={(event) => dragCaption(event, captionBox, onCaptionBox, false)}
-          />
+            className="ps-rail-btn"
+            aria-label="Text style"
+            onClick={() =>
+              onCaptionLook({
+                ...captionLook,
+                styleIndex: (captionLook.styleIndex + 1) % 4,
+              })
+            }
+          >
+            Aa
+          </button>
           <button
             type="button"
-            className="ps-handle ps-handle-se"
-            aria-label="Resize caption"
-            onPointerDown={(event) => dragCaption(event, captionBox, onCaptionBox, true)}
-          />
+            className={captionLook.backdrop === "none" ? "ps-rail-btn" : "ps-rail-btn is-active"}
+            aria-label="Text background"
+            onClick={() =>
+              onCaptionLook({ ...captionLook, backdrop: nextBackdrop(captionLook.backdrop) })
+            }
+          >
+            A
+          </button>
+          {captionColors.map((color) => {
+            const selected =
+              captionColor !== null && captionColor.toLowerCase() === color.toLowerCase();
+            return (
+              <button
+                key={color}
+                type="button"
+                className={selected ? "ps-swatch is-active" : "ps-swatch"}
+                style={{ background: color }}
+                aria-label={color}
+                aria-pressed={selected}
+                disabled={disabled}
+                onClick={() => onCaptionColor(selected ? null : color)}
+              />
+            );
+          })}
         </div>
       ) : null}
       <div className="ps-copy">
@@ -307,10 +382,13 @@ function clamp(value: number, min: number, max: number): number {
 function trackFrame(
   event: ReactPointerEvent<HTMLElement>,
   onMove: (dx: number, dy: number) => void,
-  onEnd: () => void,
+  onEnd: (moved: boolean) => void,
 ): void {
-  event.preventDefault();
   event.stopPropagation();
+  const typing = event.target instanceof HTMLTextAreaElement;
+  if (!typing) {
+    event.preventDefault();
+  }
   const frame = event.currentTarget.closest(".story-frame");
   if (frame === null) {
     return;
@@ -318,13 +396,25 @@ function trackFrame(
   const rect = frame.getBoundingClientRect();
   const startX = event.clientX;
   const startY = event.clientY;
+  let moved = false;
   const move = (ev: PointerEvent): void => {
-    onMove(((ev.clientX - startX) / rect.width) * 100, ((ev.clientY - startY) / rect.height) * 100);
+    const dxPx = ev.clientX - startX;
+    const dyPx = ev.clientY - startY;
+    if (!moved && Math.hypot(dxPx, dyPx) < 8) {
+      return;
+    }
+    if (!moved) {
+      moved = true;
+      if (typing) {
+        (event.target as HTMLTextAreaElement).blur();
+      }
+    }
+    onMove((dxPx / rect.width) * 100, (dyPx / rect.height) * 100);
   };
   const end = (): void => {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
-    onEnd();
+    onEnd(moved);
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
@@ -335,6 +425,7 @@ function dragCaption(
   box: FrameBox,
   onChange: (next: FrameBox) => void,
   resize: boolean,
+  onTap?: () => void,
 ): void {
   trackFrame(
     event,
@@ -343,7 +434,6 @@ function dragCaption(
         onChange({
           ...box,
           w: clamp(box.w + dx, 28, 100 - box.x),
-          h: clamp(box.h + dy, 8, 100 - box.y),
         });
         return;
       }
@@ -353,7 +443,30 @@ function dragCaption(
         y: clamp(box.y + dy, 0, 100 - box.h),
       });
     },
-    () => undefined,
+    (moved) => {
+      if (!moved) {
+        onTap?.();
+      }
+    },
+  );
+}
+
+function dragCropMove(
+  event: ReactPointerEvent<HTMLElement>,
+  adjust: PhotoAdjust,
+  onStart: () => void,
+  onChange: (next: PhotoAdjust) => void,
+  onEnd: () => void,
+): void {
+  onStart();
+  const start = { x: adjust.cropX, y: adjust.cropY, w: adjust.cropW, h: adjust.cropH };
+  trackFrame(
+    event,
+    (dx, dy) => {
+      const next = moveCropBox(start, dx, dy);
+      onChange({ ...adjust, cropX: next.x, cropY: next.y, cropW: next.w, cropH: next.h });
+    },
+    onEnd,
   );
 }
 
@@ -375,26 +488,36 @@ function dragCrop(
   trackFrame(
     event,
     (dx, dy) => {
-      let x = start.x;
-      let y = start.y;
-      let w = start.w;
-      let h = start.h;
-      if (corner === "nw" || corner === "sw") {
-        x = clamp(start.x + dx, 0, start.x + start.w - 20);
-        w = start.w - (x - start.x);
-      } else {
-        w = clamp(start.w + dx, 20, 100 - start.x);
-      }
-      if (corner === "nw" || corner === "ne") {
-        y = clamp(start.y + dy, 0, start.y + start.h - 20);
-        h = start.h - (y - start.y);
-      } else {
-        h = clamp(start.h + dy, 20, 100 - start.y);
-      }
-      onChange({ ...adjust, cropX: x, cropY: y, cropW: w, cropH: h });
+      const next = resizeCropBox(start, corner, dx, dy);
+      onChange({ ...adjust, cropX: next.x, cropY: next.y, cropW: next.w, cropH: next.h });
     },
     onEnd,
   );
+}
+
+function captionInk(
+  color: string,
+  look: { fontWeight: number; fontStyle: "normal" | "italic"; fontFamily: string },
+  captionLook: CaptionLook,
+): {
+  color: string;
+  fontWeight: number;
+  fontStyle: "normal" | "italic";
+  fontFamily: string;
+  background: string;
+} {
+  return {
+    color,
+    fontWeight: look.fontWeight,
+    fontStyle: look.fontStyle,
+    fontFamily: look.fontFamily,
+    background:
+      captionLook.backdrop === "none"
+        ? "transparent"
+        : captionLook.backdrop === "solid"
+          ? `color-mix(in srgb, var(--hasut-color-text) ${captionLook.opacity}%, transparent)`
+          : `linear-gradient(90deg, color-mix(in srgb, var(--hasut-color-primary) ${captionLook.opacity}%, transparent), color-mix(in srgb, var(--hasut-color-secondary) ${captionLook.opacity}%, transparent))`,
+  };
 }
 
 function ExpandIcon() {

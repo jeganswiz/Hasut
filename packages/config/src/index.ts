@@ -12,8 +12,11 @@ export {
   parseApiEnv,
   parsePublicClientEnv,
   publicClientEnvSchema,
+  DEV_TUNNEL_HOST_SUFFIXES,
+  isDevTunnelHost,
   resolveBrowserApiBaseUrl,
   resolveRealtimeApiBaseUrl,
+  rewriteDevAssetUrl,
 } from "./env";
 export type { ApiEnv, PublicClientEnv } from "./env";
 export {
@@ -29,7 +32,12 @@ export {
   isAvailabilityOptions,
 } from "./professional";
 export type { AvailabilityOption as ProfessionalAvailabilityOption } from "./professional";
-export { MEDIA_POLICY_CONFIG_KEY, MEDIA_POLICY_DEFAULTS, isMediaPolicy } from "./media-policy";
+export {
+  MEDIA_POLICY_CONFIG_KEY,
+  MEDIA_POLICY_DEFAULTS,
+  isMediaPolicy,
+  readMediaPolicy,
+} from "./media-policy";
 export type { MediaPolicy } from "./media-policy";
 export { CURRENT_MODE_SEEDS, PROFILE_COMPLETION_FIELDS } from "./profile-completion";
 export type { ProfileCompletionField } from "./profile-completion";

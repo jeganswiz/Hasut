@@ -2,6 +2,13 @@
 
 import { cssVar } from "@hasut/ui";
 import { useId, useRef, useState, type RefObject } from "react";
+import {
+  mediaKind,
+  prepareStoryImage,
+  prepareStoryVideo,
+  STORY_IMAGE_ACCEPT,
+  STORY_VIDEO_ACCEPT,
+} from "../../lib/story-media";
 
 export interface PickedMedia {
   file: File;
@@ -20,11 +27,12 @@ export interface MediaPickerProps {
   inputRef?: RefObject<HTMLInputElement | null>;
   /** One picker for both photos and videos. The caller decides the kind from the file. */
   acceptBoth?: boolean;
+  onError?: (message: string) => void;
 }
 
 const ACCEPT: Record<MediaPickerProps["kind"], string> = {
-  IMAGE: "image/jpeg,image/png,image/webp",
-  VIDEO: "video/mp4,video/webm,video/quicktime",
+  IMAGE: STORY_IMAGE_ACCEPT,
+  VIDEO: STORY_VIDEO_ACCEPT,
 };
 
 /** Reads the duration a browser reports for a video before it is uploaded. */
@@ -50,19 +58,35 @@ export function MediaPicker({
   chrome = "full",
   inputRef: inputRefProp,
   acceptBoth = false,
+  onError,
 }: MediaPickerProps) {
   const inputId = useId();
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = inputRefProp ?? localInputRef;
   const [dragging, setDragging] = useState(false);
+  const [preparing, setPreparing] = useState(false);
 
   async function accept(file: File | undefined): Promise<void> {
     if (file === undefined) {
       return;
     }
-    const objectUrl = URL.createObjectURL(file);
-    const durationSeconds = file.type.startsWith("video/") ? await readDuration(objectUrl) : null;
-    onChange({ file, objectUrl, durationSeconds });
+    const pickedKind = mediaKind(file);
+    if (pickedKind === null) {
+      onError?.("Choose a photo or a video.");
+      return;
+    }
+    setPreparing(true);
+    try {
+      const ready =
+        pickedKind === "IMAGE" ? await prepareStoryImage(file) : prepareStoryVideo(file);
+      const objectUrl = URL.createObjectURL(ready);
+      const durationSeconds = pickedKind === "VIDEO" ? await readDuration(objectUrl) : null;
+      onChange({ file: ready, objectUrl, durationSeconds });
+    } catch (error) {
+      onError?.(error instanceof Error ? error.message : "Could not open that photo.");
+    } finally {
+      setPreparing(false);
+    }
   }
 
   if (value !== null && chrome === "drop") {
@@ -74,7 +98,10 @@ export function MediaPicker({
         accept={acceptBoth ? `${ACCEPT.IMAGE},${ACCEPT.VIDEO}` : ACCEPT[kind]}
         disabled={disabled}
         aria-label={kind === "IMAGE" ? "Story photo" : "Story video"}
-        onChange={(event) => void accept(event.target.files?.[0])}
+        onChange={(event) => {
+          void accept(event.target.files?.[0]);
+          event.target.value = "";
+        }}
         className="ps-hidden-file"
       />
     );
@@ -171,7 +198,11 @@ export function MediaPicker({
           Drop your photo or video here
         </p>
         <p style={{ margin: 0, color: cssVar("mutedText"), fontSize: 13 }}>
-          {kind === "IMAGE" ? "JPEG, PNG, or WebP" : "MP4, WebM, or QuickTime"}
+          {preparing
+            ? "Opening photo…"
+            : kind === "IMAGE"
+              ? "Any photo, including iPhone HEIC"
+              : "MP4, MOV, or WebM. Longer clips can be trimmed."}
         </p>
         <button
           type="button"
@@ -197,7 +228,10 @@ export function MediaPicker({
           accept={acceptBoth ? `${ACCEPT.IMAGE},${ACCEPT.VIDEO}` : ACCEPT[kind]}
           disabled={disabled}
           aria-label={kind === "IMAGE" ? "Story photo" : "Story video"}
-          onChange={(event) => void accept(event.target.files?.[0])}
+          onChange={(event) => {
+            void accept(event.target.files?.[0]);
+            event.target.value = "";
+          }}
           style={{ display: "none" }}
         />
       </div>

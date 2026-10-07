@@ -35,15 +35,15 @@ Admin can moderate stories and live sessions. Feature-flag the whole phase.
 
 `/story` splits into two tabs, **Activity** and **Live**, matching the viewer.
 
-| Control            | Contract field                            | Rule                                                                                                                                           |
-| ------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Photo / video pick | `imageMediaId` / `videoMediaId`           | Preview is a local blob; only the chosen file uploads.                                                                                         |
-| Caption            | `caption`                                 | Trimmed, capped at `story.policy.captionMaxLength`.                                                                                            |
-| Caption colour     | `captionColor`                            | Must match a swatch in `story.policy.captionColors`. The service rejects anything else, so a caption can never be made unreadable.             |
-| Video trim         | `trimStartSeconds` / `trimEndSeconds`     | Two-handle scrubber. Span capped at `maxVideoDurationSeconds`.                                                                                 |
-| Soundtrack         | `audio.source`                            | `NONE`, `LIBRARY` (HASUT cloud), or `UPLOAD` (member file).                                                                                    |
-| Audio portion      | `audio.startSeconds` / `audio.endSeconds` | Span capped at `maxAudioSegmentSeconds` and clamped to the track length.                                                                       |
-| Original sound     | `originalAudioMode`                       | `KEEP`, `MUTE` (drop the camera audio), or `OVERLAY` (layer the chosen track on top). Rejected on image stories, which have no original sound. |
+| Control            | Contract field                                | Rule                                                                                                                                                                                                                    |
+| ------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Photo / video pick | `imageMediaId` / `videoMediaId`               | Any still, including iPhone HEIC/HEIF, is accepted and turned into a JPEG the browser can show. Preview is a local blob; only the chosen file uploads.                                                                  |
+| Caption            | `caption`, `captionX`, `captionY`, `captionW` | Trimmed, capped at `story.policy.captionMaxLength`. Placement is a percentage of the 9:16 frame. Image stories draw that caption into the photo; video stories overlay it at the same spot.                             |
+| Caption colour     | `captionColor`                                | Must match a swatch in `story.policy.captionColors`. The service rejects anything else, so a caption can never be made unreadable.                                                                                      |
+| Video trim         | `trimStartSeconds` / `trimEndSeconds`         | Shown when the file is longer than `maxVideoDurationSeconds` (default 90, one and a half minutes). Front and back handles seek playback as they move. Duration is the limit; story video and audio may be up to 512 MB. |
+| Soundtrack         | `audio.source`                                | `NONE`, `LIBRARY` (HASUT cloud), or `UPLOAD` (member file).                                                                                                                                                             |
+| Audio portion      | `audio.startSeconds` / `audio.endSeconds`     | Front and back handles. Moving a handle plays that moment immediately. Span capped at `maxAudioSegmentSeconds`.                                                                                                         |
+| Original sound     | `originalAudioMode`                           | `KEEP`, `MUTE` (drop the camera audio), or `OVERLAY` (layer the chosen track on top). Rejected on image stories, which have no original sound.                                                                          |
 
 Trim and audio bounds are enforced twice: `packages/validation` shapes the request, and `StoriesService` re-checks against configuration because the caps are operator-owned and a stale client will not know they moved.
 

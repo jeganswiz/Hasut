@@ -9,5 +9,11 @@ webrtc: true
 webrtcAddress: :8889
 webrtcAllowOrigin: "*"
 webrtcLocalUDPAddress: :8189
+# Docker Desktop on Windows often drops the UDP ICE path. TCP on the same
+# published port lets the browser finish the connection and start the HLS muxer.
+webrtcLocalTCPAddress: :8189
+# The process runs in Docker, so auto-detected addresses are container IPs.
+# The browser on this machine reaches the published port through localhost.
+webrtcAdditionalHosts: [127.0.0.1]
 paths:
   all_others:

@@ -2,8 +2,15 @@
 
 import type { LiveSessionView, StoryView } from "@hasut/types";
 import { Button, SegmentedTabs, cssVar } from "@hasut/ui";
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { isLivePlaylist, LIVE_PLAYLIST_POLL_MS } from "../../lib/live-playlist";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { LIVE_PLAYLIST_POLL_MS, playlistIsReady } from "../../lib/live-playlist";
 import { loopWithin, mutesOriginalAudio, storyAudioSrc } from "../../lib/story-playback";
 import { storyWatchHoldMs } from "../../lib/story-ring";
 import { StoryActions } from "./story-actions";
@@ -226,25 +233,9 @@ function StoryPlayback({
               style={{ width: "100%", height: "100%", objectFit: "contain" }}
             />
           ) : null}
-          {story.caption.trim().length === 0 ? null : (
-            <p
-              style={{
-                position: "absolute",
-                left: 16,
-                right: 16,
-                bottom: 64,
-                margin: 0,
-                padding: "8px 12px",
-                borderRadius: cssVar("radius"),
-                background: "color-mix(in srgb, var(--hasut-color-text) 55%, transparent)",
-                color: story.captionColor ?? cssVar("textOnPrimary"),
-                fontWeight: 700,
-                textAlign: "center",
-                wordBreak: "break-word",
-              }}
-            >
-              {story.caption}
-            </p>
+          {story.caption.trim().length === 0 ||
+          (story.kind === "IMAGE" && story.captionX !== null && story.captionY !== null) ? null : (
+            <p style={captionOverlayStyle(story)}>{story.caption}</p>
           )}
         </StageFrame>
       </div>
@@ -263,6 +254,33 @@ function StoryPlayback({
       </div>
     </div>
   );
+}
+
+function captionOverlayStyle(story: StoryView): CSSProperties {
+  const placed = story.captionX !== null && story.captionY !== null;
+  return {
+    position: "absolute",
+    margin: 0,
+    color: story.captionColor ?? cssVar("textOnPrimary"),
+    fontWeight: 800,
+    textAlign: "center",
+    wordBreak: "break-word",
+    textShadow: "0 1px 10px color-mix(in srgb, var(--hasut-color-text) 65%, transparent)",
+    ...(placed
+      ? {
+          left: `${story.captionX}%`,
+          top: `${story.captionY}%`,
+          width: `${story.captionW ?? 72}%`,
+        }
+      : {
+          left: 16,
+          right: 16,
+          bottom: 64,
+          padding: "8px 12px",
+          borderRadius: cssVar("radius"),
+          background: "color-mix(in srgb, var(--hasut-color-text) 55%, transparent)",
+        }),
+  };
 }
 
 function LiveStage({ live }: { live: LiveSessionView }) {
@@ -353,11 +371,7 @@ function useLivePlaylist(url: string | null): boolean {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const probe = (): void => {
-      void fetch(url)
-        .then(async (response) => {
-          const body = response.ok ? await response.text() : "";
-          return isLivePlaylist(response.status, body);
-        })
+      void playlistIsReady(url)
         .then((ok) => {
           if (cancelled) {
             return;

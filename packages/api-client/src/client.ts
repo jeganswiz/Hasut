@@ -219,6 +219,10 @@ export interface StoryCreateInput {
   videoMediaId?: string;
   caption?: string;
   captionColor?: string | null;
+  /** Percentages of the story frame. Omitted when the caption is empty. */
+  captionX?: number | null;
+  captionY?: number | null;
+  captionW?: number | null;
   audio?: StoryAudioInput;
   originalAudioMode?: StoryOriginalAudioMode;
   audience?: StoryAudience;

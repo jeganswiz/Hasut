@@ -77,6 +77,17 @@ export interface StoryViewerList {
   viewers: StoryViewerEntry[];
 }
 
+export type StoryCaptionBackdrop = "none" | "solid" | "gradient";
+
+/** Centre of the caption on the frame, plus the look painted with it. */
+export interface StoryCaptionLayout {
+  x: number;
+  y: number;
+  styleIndex: number;
+  backdrop: StoryCaptionBackdrop;
+  opacity: number;
+}
+
 export interface StoryView {
   id: string;
   memberId: string;
@@ -89,6 +100,13 @@ export interface StoryView {
   caption: string;
   /** Resolved hex from the admin caption palette, not a free-form colour. */
   captionColor: string | null;
+  /**
+   * Where the caption sits on the 9:16 frame, as percentages.
+   * Null on stories published before placement was stored.
+   */
+  captionX: number | null;
+  captionY: number | null;
+  captionW: number | null;
   trimStartSeconds: number;
   trimEndSeconds: number | null;
   originalAudioMode: StoryOriginalAudioMode;

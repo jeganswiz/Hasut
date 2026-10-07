@@ -13,11 +13,25 @@ export const MEDIA_POLICY_DEFAULTS: MediaPolicy = {
     "image/jpeg",
     "image/png",
     "image/webp",
+    "image/gif",
+    "image/avif",
+    "image/bmp",
+    "image/heic",
+    "image/heif",
+    "image/heic-sequence",
+    "image/heif-sequence",
+    "image/jpg",
+    "image/tiff",
     "video/mp4",
     "video/webm",
+    "video/quicktime",
     "audio/mpeg",
     "audio/mp4",
     "audio/webm",
+    "audio/aac",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/x-m4a",
   ],
   presignTtlSeconds: 300,
 };
@@ -33,4 +47,27 @@ export function isMediaPolicy(value: unknown): value is MediaPolicy {
     Array.isArray(record.allowedMimeTypes) &&
     record.allowedMimeTypes.every((item) => typeof item === "string")
   );
+}
+
+/**
+ * Keeps an operator's size limits and any extra types they added, and always
+ * includes the current default types so a stored policy from an older release
+ * does not keep blocking iPhone photos and movies.
+ */
+export function readMediaPolicy(value: unknown): MediaPolicy {
+  if (!isMediaPolicy(value)) {
+    return {
+      ...MEDIA_POLICY_DEFAULTS,
+      allowedMimeTypes: [...MEDIA_POLICY_DEFAULTS.allowedMimeTypes],
+    };
+  }
+  const allowed = new Set(value.allowedMimeTypes);
+  for (const mime of MEDIA_POLICY_DEFAULTS.allowedMimeTypes) {
+    allowed.add(mime);
+  }
+  return {
+    avatarMaxBytes: value.avatarMaxBytes,
+    presignTtlSeconds: value.presignTtlSeconds,
+    allowedMimeTypes: [...allowed],
+  };
 }

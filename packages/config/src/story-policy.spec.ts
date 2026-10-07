@@ -3,6 +3,7 @@ import { STORY_POLICY_DEFAULTS, isStoryPolicy, readStoryPolicy } from "./story-p
 describe("isStoryPolicy", () => {
   it("accepts the seeded default policy", () => {
     expect(isStoryPolicy(STORY_POLICY_DEFAULTS)).toBe(true);
+    expect(STORY_POLICY_DEFAULTS.maxVideoDurationSeconds).toBe(90);
   });
 
   it("rejects a palette that is not hex", () => {

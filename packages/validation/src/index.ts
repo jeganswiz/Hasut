@@ -150,6 +150,8 @@ export {
 } from "./support";
 export {
   MEDIA_UPLOAD_MAX_BYTES,
+  STORY_MEDIA_MAX_BYTES,
+  mediaUploadMaxBytes,
   mediaAssetViewSchema,
   mediaCompleteSchema,
   mediaPresignResultSchema,

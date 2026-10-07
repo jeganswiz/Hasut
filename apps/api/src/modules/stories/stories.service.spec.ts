@@ -56,6 +56,9 @@ describe("StoriesService", () => {
       audience: "EVERYONE",
       caption: "",
       captionColor: null,
+      captionX: null,
+      captionY: null,
+      captionW: null,
       trimStartSeconds: 0,
       trimEndSeconds: null,
       hlsUrl: null,
@@ -160,6 +163,41 @@ describe("StoriesService", () => {
       expect(String(saved.hlsUrl)).toContain(`/stories/${String(saved.id)}/index.m3u8`);
       expect(created.trimEndSeconds).toBe(18);
       expect(created.caption).toBe("Rewiring a shop board");
+    });
+
+    it("stores where the caption sits on the frame", async () => {
+      const stories = await service();
+      const created = await stories.create(
+        "m1",
+        {
+          kind: "IMAGE",
+          imageMediaId: "img-1",
+          caption: "On site",
+          captionX: 12.4,
+          captionY: 40.2,
+          captionW: 70,
+        },
+        "req",
+      );
+      expect(persisted()).toMatchObject({ captionX: 12, captionY: 40, captionW: 70 });
+      expect(created.captionX).toBe(12);
+      expect(created.captionY).toBe(40);
+      expect(created.captionW).toBe(70);
+    });
+
+    it("drops caption placement when the caption is empty", async () => {
+      const stories = await service();
+      await stories.create(
+        "m1",
+        { kind: "IMAGE", imageMediaId: "img-1", caption: "   ", captionX: 10, captionY: 20 },
+        "req",
+      );
+      expect(persisted()).toMatchObject({
+        caption: "",
+        captionX: null,
+        captionY: null,
+        captionW: null,
+      });
     });
 
     it("refuses a caption colour that is not in the palette", async () => {

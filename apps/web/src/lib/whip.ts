@@ -64,6 +64,65 @@ export function readWhipAnswer(status: number, body: string): string {
   return answer;
 }
 
+const MEDIA_DIRECTION = new Set(["a=recvonly", "a=sendonly", "a=sendrecv", "a=inactive"]);
+
+/**
+ * MediaMTX places `a=recvonly` after the rtpmap block and emits
+ * `a=msid-semantic:WMS*` plus trailing spaces. Chromium then rejects the
+ * answer (`a=recvonly` is reported as an invalid line) and the composer
+ * would end the live session. Direction is moved to just after `a=mid`.
+ */
+export function normalizeWhipAnswer(sdp: string): string {
+  const lines = sdp
+    .split(/\r\n|\n|\r/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => (line === "a=msid-semantic:WMS*" ? "a=msid-semantic: WMS *" : line));
+  const sections: string[][] = [];
+  for (const line of lines) {
+    if (line.startsWith("m=") || sections.length === 0) {
+      sections.push([line]);
+      continue;
+    }
+    const current = sections[sections.length - 1];
+    if (current !== undefined) {
+      current.push(line);
+    }
+  }
+  const rendered = sections.map((section) => placeMediaDirection(section));
+  return `${rendered.flat().join("\r\n")}\r\n`;
+}
+
+function placeMediaDirection(section: string[]): string[] {
+  const first = section[0];
+  if (first === undefined || !first.startsWith("m=")) {
+    return section;
+  }
+  const direction = section.find((line) => MEDIA_DIRECTION.has(line));
+  const rest = section.filter((line) => !MEDIA_DIRECTION.has(line));
+  if (direction === undefined) {
+    return rest;
+  }
+  const midIndex = rest.findIndex((line) => line.startsWith("a=mid:"));
+  const insertAt = midIndex === -1 ? 1 : midIndex + 1;
+  rest.splice(insertAt, 0, direction);
+  return rest;
+}
+
+/** HLS remux drops VP8. Putting H264 first lets MediaMTX publish a playable video track. */
+export function videoCodecsH264First<T extends { mimeType: string }>(codecs: readonly T[]): T[] {
+  const h264: T[] = [];
+  const rest: T[] = [];
+  for (const codec of codecs) {
+    if (codec.mimeType.toLowerCase() === "video/h264") {
+      h264.push(codec);
+    } else {
+      rest.push(codec);
+    }
+  }
+  return h264.length === 0 ? [...codecs] : [...h264, ...rest];
+}
+
 /**
  * Session URL from the WHIP Location header. Only a URL on the same origin as
  * the ingest server is kept, so a foreign Location is not requested later.
@@ -146,7 +205,63 @@ export function whenIceGathered(peer: WhipPeer, timeoutMs: number): Promise<void
   });
 }
 
+interface ConnectablePeer {
+  connectionState: string;
+  addEventListener(type: "connectionstatechange", listener: () => void): void;
+  removeEventListener(type: "connectionstatechange", listener: () => void): void;
+}
+
+function connectablePeer(peer: WhipPeer): ConnectablePeer | null {
+  if (!("connectionState" in peer)) {
+    return null;
+  }
+  if (typeof (peer as { connectionState?: unknown }).connectionState !== "string") {
+    return null;
+  }
+  // RTCPeerConnection reports connectionState; the WhipPeer test double does not.
+  return peer as unknown as ConnectablePeer;
+}
+
+/** Resolves once ICE is up. Peers without a connection state (tests) skip the wait. */
+export function whenPeerConnected(peer: WhipPeer, timeoutMs: number): Promise<void> {
+  const connectable = connectablePeer(peer);
+  if (connectable === null) {
+    return Promise.resolve();
+  }
+  if (connectable.connectionState === "connected") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (connected: boolean): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      connectable.removeEventListener("connectionstatechange", onChange);
+      clearTimeout(timer);
+      if (connected) {
+        resolve();
+        return;
+      }
+      reject(new Error("Camera did not connect to the live server"));
+    };
+    const onChange = (): void => {
+      if (connectable.connectionState === "connected") {
+        finish(true);
+        return;
+      }
+      if (connectable.connectionState === "failed" || connectable.connectionState === "closed") {
+        finish(false);
+      }
+    };
+    connectable.addEventListener("connectionstatechange", onChange);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+  });
+}
+
 const ICE_WAIT_MS = 2500;
+const CONNECT_WAIT_MS = 12000;
 
 /**
  * Sends the camera to the owner's WHIP ingest URL. `resourceUrl` is the session
@@ -163,6 +278,7 @@ export async function publishWhip(input: {
     for (const track of input.stream.getTracks()) {
       peer.addTrack(track, input.stream);
     }
+    preferH264(peer);
     const offer = await peer.createOffer();
     const offerSdp = offer.sdp ?? "";
     await peer.setLocalDescription({ type: "offer", sdp: offerSdp });
@@ -170,8 +286,9 @@ export async function publishWhip(input: {
     const gathered = peer.localDescription?.sdp ?? offerSdp;
     const request = whipOfferRequest(input.ingestUrl, gathered);
     const response = await input.post(request);
-    const answer = readWhipAnswer(response.status, response.body);
+    const answer = normalizeWhipAnswer(readWhipAnswer(response.status, response.body));
     await peer.setRemoteDescription({ type: "answer", sdp: answer });
+    await whenPeerConnected(peer, CONNECT_WAIT_MS);
     return {
       close: () => peer.close(),
       resourceUrl: whipResourceUrl(input.ingestUrl, response.location),
@@ -179,5 +296,43 @@ export async function publishWhip(input: {
   } catch (error) {
     peer.close();
     throw error;
+  }
+}
+
+interface CodecTransceiver {
+  sender: { track: { kind: string } | null };
+  setCodecPreferences(codecs: ReadonlyArray<{ mimeType: string }>): void;
+}
+
+function hasTransceivers(
+  peer: WhipPeer,
+): peer is WhipPeer & { getTransceivers(): CodecTransceiver[] } {
+  return (
+    "getTransceivers" in peer &&
+    typeof (peer as { getTransceivers?: unknown }).getTransceivers === "function"
+  );
+}
+
+function preferH264(peer: WhipPeer): void {
+  if (typeof RTCRtpSender === "undefined" || typeof RTCRtpSender.getCapabilities !== "function") {
+    return;
+  }
+  if (!hasTransceivers(peer)) {
+    return;
+  }
+  const capabilities = RTCRtpSender.getCapabilities("video");
+  if (capabilities === null) {
+    return;
+  }
+  const ordered = videoCodecsH264First(capabilities.codecs);
+  for (const transceiver of peer.getTransceivers()) {
+    if (transceiver.sender.track?.kind !== "video") {
+      continue;
+    }
+    try {
+      transceiver.setCodecPreferences(ordered);
+    } catch {
+      return;
+    }
   }
 }

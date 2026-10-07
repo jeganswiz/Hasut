@@ -105,7 +105,9 @@ export function LiveComposer({
     const client = createWebApiClient();
     let started: LiveSessionView | null = null;
     try {
+      liveTrace("start-live");
       started = await client.startLive({ title, audience });
+      liveTrace("start-live-ok", { id: started.id, ingest: started.ingestUrl !== null });
       if (!reachableIngestUrl(started.ingestUrl)) {
         setSession(started);
         setFeedback(
@@ -118,7 +120,9 @@ export function LiveComposer({
         return;
       }
       setFeedback(loading("Connecting your camera…"));
+      liveTrace("publish-start", { id: started.id });
       await sendCamera(started.ingestUrl, closePublish, setPreview, facing.current);
+      liveTrace("publish-ok", { id: started.id });
       setSession(started);
       setFeedback(
         success(
@@ -128,8 +132,11 @@ export function LiveComposer({
         ),
       );
     } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown";
+      liveTrace("publish-failed", { message, ending: started !== null });
       releaseCamera(closePublish, setPreview);
       if (started !== null) {
+        liveTrace("end-live", { reason: "publish-failed" });
         await client.endLive().catch(() => undefined);
       }
       setSession(null);
@@ -139,6 +146,7 @@ export function LiveComposer({
 
   async function stop(): Promise<void> {
     setFeedback(loading("Ending your live session…"));
+    liveTrace("end-live", { reason: "user" });
     releaseCamera(closePublish, setPreview);
     try {
       await createWebApiClient().endLive();
@@ -282,20 +290,24 @@ async function sendCamera(
       stream,
       createConnection: () => new RTCPeerConnection() as WhipPeer,
       post: async (request) => {
+        liveTrace("whip-post", { ingest: request.url });
         const response = await fetch(request.url, {
           method: request.method,
           headers: request.headers,
           body: request.body,
         });
+        const location = response.headers.get("Location");
+        liveTrace("whip-response", { status: response.status, hasLocation: location !== null });
         return {
           status: response.status,
           body: await response.text(),
-          location: response.headers.get("Location"),
+          location,
         };
       },
     });
     const end = whipEndRequest(handle.resourceUrl);
     closePublish.current = () => {
+      liveTrace("whip-delete", { hasResource: end !== null });
       handle.close();
       stopTracks(stream);
       if (end !== null) {
@@ -313,9 +325,17 @@ function releaseCamera(
   closePublish: { current: (() => void) | null },
   setPreview: (stream: MediaStream | null) => void,
 ): void {
+  liveTrace("release-camera", { hadPublish: closePublish.current !== null });
   closePublish.current?.();
   closePublish.current = null;
   setPreview(null);
+}
+
+function liveTrace(
+  step: string,
+  detail: Record<string, string | number | boolean | null> = {},
+): void {
+  console.warn("[live]", step, detail);
 }
 
 function stopTracks(stream: MediaStream): void {

@@ -18,8 +18,10 @@ import {
   isPlainPhoto,
   nextRotation,
   renderAdjustedPhoto,
+  type PaintedCaption,
   type PhotoAdjust,
 } from "../../lib/photo-adjust";
+import { mediaKind, uploadMime } from "../../lib/story-media";
 import { AuthFeedbackNote } from "../auth/auth-feedback";
 import { AudiencePicker } from "./audience-picker";
 import { AudioPicker, NO_AUDIO, type AudioChoice } from "./audio-picker";
@@ -41,7 +43,12 @@ async function upload(
   const client = createWebApiClient();
   const presign = await client.presignMedia({
     purpose,
-    mimeType: file.type.length > 0 ? file.type : "application/octet-stream",
+    mimeType:
+      purpose === "STORY_AUDIO"
+        ? file.type.length > 0
+          ? file.type
+          : "audio/mpeg"
+        : uploadMime(file, purpose === "STORY_VIDEO" ? "VIDEO" : "IMAGE"),
     byteSize: file.size,
   });
   await client.uploadPresigned(presign.uploadUrl, file, presign.headers);
@@ -197,7 +204,7 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
 
   function chooseMedia(next: PickedMedia | null): void {
     if (next !== null) {
-      const video = next.file.type.startsWith("video/");
+      const video = mediaKind(next.file) === "VIDEO";
       setKind(video ? "VIDEO" : "IMAGE");
       if (!video) {
         setOriginalAudio("KEEP");
@@ -210,10 +217,35 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
       return next;
     });
     setAdjust(DEFAULT_PHOTO_ADJUST);
+    setCaptionBox(DEFAULT_CAPTION_BOX);
     setPast([]);
     setFuture([]);
     setPlaying(false);
     setFeedback(IDLE);
+  }
+
+  function previewTrim(seconds: number): void {
+    const video = videoRef.current;
+    if (video === null) {
+      return;
+    }
+    const playAt = (): void => {
+      video.dataset.trimPreview = String(seconds);
+      video.currentTime = seconds;
+      if (video.paused) {
+        void video
+          .play()
+          .then(() => setPlaying(true))
+          .catch(() => setPlaying(false));
+        return;
+      }
+      setPlaying(true);
+    };
+    if (video.readyState >= 1) {
+      playAt();
+      return;
+    }
+    video.addEventListener("loadedmetadata", playAt, { once: true });
   }
 
   function togglePlay(): void {
@@ -289,12 +321,42 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
       return;
     }
 
+    if (kind === "VIDEO" && videoDuration === null) {
+      setFeedback({ status: "error", message: "Could not read that video. Try another file." });
+      return;
+    }
+    if (
+      kind === "VIDEO" &&
+      videoDuration !== null &&
+      trim.end - trim.start > config.maxVideoDurationSeconds
+    ) {
+      setFeedback({
+        status: "error",
+        message: `Keep the clip under ${config.maxVideoDurationSeconds} seconds.`,
+      });
+      return;
+    }
+
     setFeedback(loading("Uploading your story…"));
     try {
       const client = createWebApiClient();
       let imageFile = media.file;
-      if (kind === "IMAGE" && (!isPlainPhoto(adjust) || overlays.length > 0)) {
-        const blob = await renderAdjustedPhoto(media.objectUrl, adjust, overlays);
+      const captionText = caption.trim();
+      const painted: PaintedCaption | null =
+        captionText.length === 0
+          ? null
+          : {
+              text: captionText,
+              color: captionColor,
+              x: captionBox.x,
+              y: captionBox.y,
+              w: captionBox.w,
+              styleIndex: captionLook.styleIndex,
+              backdrop: captionLook.backdrop,
+              opacity: captionLook.opacity,
+            };
+      if (kind === "IMAGE" && (!isPlainPhoto(adjust) || overlays.length > 0 || painted !== null)) {
+        const blob = await renderAdjustedPhoto(media.objectUrl, adjust, overlays, painted);
         imageFile = new File([blob], "story.jpg", { type: "image/jpeg" });
       }
       const mediaId = await upload(imageFile, kind === "IMAGE" ? "STORY_IMAGE" : "STORY_VIDEO");
@@ -310,6 +372,9 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
         videoMediaId: kind === "VIDEO" ? mediaId : undefined,
         caption,
         captionColor,
+        captionX: caption.trim().length === 0 ? null : Math.round(captionBox.x),
+        captionY: caption.trim().length === 0 ? null : Math.round(captionBox.y),
+        captionW: caption.trim().length === 0 ? null : Math.round(captionBox.w),
         audience,
         ttlHours: (STORY_TTL_HOUR_OPTIONS as readonly number[]).includes(ttlHours)
           ? (ttlHours as 4 | 8 | 12 | 24)
@@ -332,6 +397,8 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
       onPublished(story);
       chooseMedia(null);
       setCaption("");
+      setCaptionArmed(false);
+      setCaptionBox(DEFAULT_CAPTION_BOX);
       setCaptionColor(null);
       setAudio(NO_AUDIO);
       setOriginalAudio("KEEP");
@@ -361,6 +428,7 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
               kind={kind}
               value={media}
               onChange={chooseMedia}
+              onError={(message) => setFeedback({ status: "error", message })}
               disabled={busy}
               chrome="drop"
               acceptBoth
@@ -381,6 +449,14 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
             showCaption={captionArmed || caption.trim().length > 0}
             captionBox={captionBox}
             onCaptionBox={setCaptionBox}
+            captionColors={config.captionColors}
+            onCaptionColor={setCaptionColor}
+            onCaptionLook={setCaptionLook}
+            toolsOpen={panel === "text"}
+            onEditCaption={() => {
+              setPanel("text");
+              setCaptionArmed(true);
+            }}
             cropping={tool === "crop"}
             onCropStart={beginSlider}
             onCrop={setAdjust}
@@ -414,6 +490,7 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
             kind={kind}
             value={media}
             onChange={chooseMedia}
+            onError={(message) => setFeedback({ status: "error", message })}
             disabled={busy}
             chrome="drop"
             acceptBoth
@@ -591,7 +668,10 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
           </div>
         )}
 
-        {kind === "VIDEO" && media !== null && videoDuration !== null ? (
+        {kind === "VIDEO" &&
+        media !== null &&
+        videoDuration !== null &&
+        videoDuration > config.maxVideoDurationSeconds ? (
           <VideoFilmstrip
             src={media.objectUrl}
             duration={videoDuration}
@@ -599,6 +679,7 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
             maxSpan={trimBounds.maxSpan}
             disabled={busy}
             onChange={setTrim}
+            onScrub={previewTrim}
             playing={playing}
             onTogglePlay={togglePlay}
           />
@@ -655,7 +736,19 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
           )}
         </section>
 
-        <section id="ps-text" className="ps-card ps-desktop-only">
+        <section
+          id="ps-text"
+          className="ps-card ps-desktop-only"
+          onMouseDown={(event) => {
+            const target = event.target;
+            if (
+              target instanceof HTMLElement &&
+              target.closest("button, input[type='range']") !== null
+            ) {
+              event.preventDefault();
+            }
+          }}
+        >
           <header className="ps-card-head">
             <h2>Caption</h2>
             <span>
@@ -677,7 +770,9 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
             }}
             onChange={(event) => setCaption(event.target.value)}
           />
-          <p className="ps-label">Text style</p>
+          <p className="hint">
+            Drag the words on the photo. Colour and style sit on the photo while you type.
+          </p>
           <div className="ps-style-row" role="radiogroup" aria-label="Text style">
             {CAPTION_STYLE_LABELS.map((label, index) => (
               <button

@@ -17,6 +17,15 @@ const apiOrigin = (
   .replace("://localhost", "://127.0.0.1")
   .replace(/\/$/, "");
 
+/** Keep aligned with DEV_TUNNEL_HOST_SUFFIXES in @hasut/config. */
+const DEV_TUNNEL_ORIGINS = [
+  "*.ngrok-free.app",
+  "*.ngrok-free.dev",
+  "*.ngrok.app",
+  "*.ngrok.io",
+  "*.ngrok.dev",
+];
+
 function allowedDevOrigins(): string[] {
   const hosts = new Set(["localhost", "127.0.0.1", "::1"]);
   for (const addrs of Object.values(networkInterfaces())) {
@@ -27,7 +36,7 @@ function allowedDevOrigins(): string[] {
       }
     }
   }
-  return [...hosts];
+  return [...hosts, ...DEV_TUNNEL_ORIGINS];
 }
 
 const nextConfig: NextConfig = {
@@ -47,6 +56,7 @@ const nextConfig: NextConfig = {
     ];
   },
   transpilePackages: [
+    "heic2any",
     "@hasut/ui",
     "@hasut/api-client",
     "@hasut/config",

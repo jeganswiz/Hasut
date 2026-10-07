@@ -12,14 +12,13 @@ import {
   readReportsPolicy,
   LOCATION_POLICY_CONFIG_KEY,
   MEDIA_POLICY_CONFIG_KEY,
-  MEDIA_POLICY_DEFAULTS,
+  readMediaPolicy,
   PROFESSIONAL_AVAILABILITY_CONFIG_KEY,
   PROFESSIONAL_AVAILABILITY_DEFAULTS,
   STORY_POLICY_CONFIG_KEY,
   isAuthPolicy,
   isAvailabilityOptions,
   isDiscoveryRankingWeights,
-  isMediaPolicy,
   readStoryPolicy,
   normalizeRankingWeights,
   readDiscoveryPolicy,
@@ -100,10 +99,7 @@ export class ConfigurationService {
     const row = await this.prisma.remoteConfig.findUnique({
       where: { key: MEDIA_POLICY_CONFIG_KEY },
     });
-    if (row !== null && isMediaPolicy(row.valueJson)) {
-      return row.valueJson;
-    }
-    return MEDIA_POLICY_DEFAULTS;
+    return readMediaPolicy(row?.valueJson);
   }
 
   async getMessagingPolicy(): Promise<MessagingPolicy> {

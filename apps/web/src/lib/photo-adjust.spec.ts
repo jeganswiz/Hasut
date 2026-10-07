@@ -1,10 +1,12 @@
 import {
+  DEFAULT_PHOTO_ADJUST,
   drawOffset,
   fittedSize,
   isPlainPhoto,
+  moveCropBox,
   nextRotation,
   objectPosition,
-  DEFAULT_PHOTO_ADJUST,
+  resizeCropBox,
 } from "./photo-adjust";
 
 describe("photo adjust", () => {
@@ -32,5 +34,20 @@ describe("photo adjust", () => {
     expect(drawOffset(100, 200, 150, 200, 0, 0)).toEqual({ x: -25, y: 0 });
     expect(objectPosition(0, 0)).toBe("50% 50%");
     expect(objectPosition(-100, 100)).toBe("0% 100%");
+  });
+
+  it("moves a crop window and keeps it inside the frame", () => {
+    expect(moveCropBox({ x: 10, y: 20, w: 40, h: 30 }, 100, -40)).toEqual({
+      x: 60,
+      y: 0,
+      w: 40,
+      h: 30,
+    });
+  });
+
+  it("resizes from the dragged corner", () => {
+    const start = { x: 20, y: 20, w: 50, h: 40 };
+    expect(resizeCropBox(start, "se", 10, 5)).toEqual({ x: 20, y: 20, w: 60, h: 45 });
+    expect(resizeCropBox(start, "nw", 8, 6)).toEqual({ x: 28, y: 26, w: 42, h: 34 });
   });
 });

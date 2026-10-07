@@ -4,7 +4,7 @@ import { OSM_MAP_ATTRIBUTION, advanceBasemapIndex } from "@hasut/config";
 import type { DiscoveryMarker } from "@hasut/types";
 import { diffDiscoveryMarkers } from "@hasut/utils";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
-import { isLivePlaylist } from "../lib/live-playlist";
+import { playlistIsReady } from "../lib/live-playlist";
 import {
   allowPinAutoplay,
   browserPinSignals,
@@ -524,9 +524,7 @@ async function rememberReadyPlaylist(ready: Set<string>, url: string): Promise<v
     return;
   }
   try {
-    const response = await fetch(url);
-    const body = response.ok ? await response.text() : "";
-    if (isLivePlaylist(response.status, body)) {
+    if (await playlistIsReady(url)) {
       ready.add(url);
     }
   } catch {

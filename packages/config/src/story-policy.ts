@@ -31,7 +31,8 @@ export const STORY_POLICY_DEFAULTS: StoryPolicy = {
     "#0EA5E9",
     "#DB2777",
   ],
-  maxVideoDurationSeconds: 60,
+  /** One and a half minutes. File size is not part of this cap. */
+  maxVideoDurationSeconds: 90,
   maxAudioSegmentSeconds: 30,
   audioLibraryEnabled: true,
   storyTtlHours: 24,

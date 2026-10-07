@@ -38,7 +38,7 @@ The script starts Docker Desktop if the daemon is down, waits until Redis answer
 
 ```bash
 pnpm dev:down          # stop API / web / admin
-pnpm dev:down --infra  # also stop Redis, Postgres, MinIO
+pnpm dev:down --infra  # also stop Redis, Postgres, MinIO, and MediaMTX (live on :8888 / :8889)
 ```
 
 ## Infrastructure (manual)
@@ -68,6 +68,8 @@ Local admin login at http://localhost:3002/login: `admin@hasut.local` / `Chennai
 
 On a phone browser, HASUT can be installed as a PWA (Chromium install prompt, or Add to Home Screen on iOS). The service worker does not cache API or media.
 
+`pnpm dev:up` also starts MediaMTX so live ingest is available: HLS on port 8888 and WHIP on port 8889. WebRTC media uses port 8189 on both UDP and TCP, because Docker Desktop often drops the UDP path and the HLS playlist stays missing until ICE connects. The web app proxies `/media/hls` and `/media/whip` to those ports. The browser rewrites the WHIP answer before applying it, and prefers H.264 so the HLS muxer can include video. A viewer waits without requesting the missing playlist directly, so the console stays quiet until `#EXTM3U` exists.
+
 Launch path (`pnpm dev:up` or):
 
 ```bash
@@ -95,6 +97,21 @@ Then open `exp://<LAN-IP>:8081` in Expo Go.
 | OpenAPI            | http://localhost:3001/api/docs            |
 | Web                | http://localhost:3000                     |
 | Admin              | http://localhost:3002                     |
+
+## Public web tunnel (ngrok)
+
+With the member web app already listening on port 3000:
+
+```bash
+ngrok config add-authtoken <token>
+pnpm dev:ngrok
+```
+
+The token comes from the ngrok dashboard (https://dashboard.ngrok.com/get-started/your-authtoken) and stays in your user config, not in this repo. Install the agent first if the command is missing: `winget install --id Ngrok.Ngrok -e`.
+
+`pnpm dev:ngrok` forwards a public `https://<subdomain>.ngrok-free.app` URL to `127.0.0.1:3000`. Next allows those dev origins. Browser REST uses that same origin, and the Next `/api` rewrite reaches the local API. Loopback and private-LAN media URLs in API responses are rewritten onto the tunnel origin.
+
+This publishes the local dev stack, including the console OTP and demo accounts, to anyone with the URL. Stop the tunnel when you are done. Chat and live sockets are not proxied through it.
 
 Full API in Docker (after lockfile exists):
 

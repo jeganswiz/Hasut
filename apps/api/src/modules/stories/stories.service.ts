@@ -42,6 +42,9 @@ export interface StoryCreateInput {
   videoMediaId?: string;
   caption?: string;
   captionColor?: string | null;
+  captionX?: number | null;
+  captionY?: number | null;
+  captionW?: number | null;
   audio?: {
     source: StoryAudioSource;
     trackId?: string | null;
@@ -71,6 +74,9 @@ interface StoryRow {
   audience: string;
   caption: string;
   captionColor: string | null;
+  captionX: number | null;
+  captionY: number | null;
+  captionW: number | null;
   trimStartSeconds: number;
   trimEndSeconds: number | null;
   hlsUrl: string | null;
@@ -142,6 +148,7 @@ export class StoriesService {
     await this.assertPublishBudget(memberId, policy);
     const caption = this.resolveCaption(input.caption ?? "", policy);
     const captionColor = this.resolveCaptionColor(input.captionColor ?? null, policy);
+    const place = this.resolveCaptionPlace(caption, input);
     const trim = this.resolveTrim(input, policy);
     const audio = await this.resolveAudio(input, policy);
 
@@ -163,6 +170,9 @@ export class StoriesService {
         audience: input.audience ?? "EVERYONE",
         caption,
         captionColor,
+        captionX: place.x,
+        captionY: place.y,
+        captionW: place.w,
         trimStartSeconds: trim.startSeconds,
         trimEndSeconds: trim.endSeconds,
         hlsUrl: hls.hlsUrl,
@@ -259,6 +269,30 @@ export class StoriesService {
       );
     }
     return match;
+  }
+
+  /** Empty captions do not keep a coordinate. Percentages are clamped onto the frame. */
+  private resolveCaptionPlace(
+    caption: string,
+    input: StoryCreateInput,
+  ): { x: number | null; y: number | null; w: number | null } {
+    if (
+      caption.length === 0 ||
+      input.captionX === undefined ||
+      input.captionX === null ||
+      input.captionY === undefined ||
+      input.captionY === null
+    ) {
+      return { x: null, y: null, w: null };
+    }
+    const x = clampPercent(input.captionX);
+    const y = clampPercent(input.captionY);
+    let w = clampPercent(input.captionW ?? 76);
+    w = Math.max(8, w);
+    if (x + w > 100) {
+      w = Math.max(8, 100 - x);
+    }
+    return { x: Math.min(x, 100 - w), y, w };
   }
 
   private resolveTrim(
@@ -541,6 +575,9 @@ export class StoriesService {
       audio,
       caption: row.caption,
       captionColor: row.captionColor,
+      captionX: row.captionX,
+      captionY: row.captionY,
+      captionW: row.captionW,
       trimStartSeconds: row.trimStartSeconds,
       trimEndSeconds: row.trimEndSeconds,
       originalAudioMode: row.originalAudioMode as StoryView["originalAudioMode"],
@@ -583,4 +620,8 @@ export class StoriesService {
       endSeconds: null,
     };
   }
+}
+
+function clampPercent(value: number): number {
+  return Math.min(100, Math.max(0, Math.round(value)));
 }

@@ -143,6 +143,14 @@ function StoryStage({
             style={[
               styles.caption,
               story.captionColor !== null ? { color: story.captionColor } : null,
+              story.captionX !== null && story.captionY !== null
+                ? {
+                    position: "absolute",
+                    left: `${story.captionX}%`,
+                    top: `${story.captionY}%`,
+                    width: `${story.captionW ?? 72}%`,
+                  }
+                : null,
             ]}
           >
             {story.caption}
@@ -261,6 +269,7 @@ function makeStyles(tokens: ThemeTokens) {
     chipActiveLabel: { color: tokens.textOnPrimary, fontWeight: "600" },
     stage: { gap: 12 },
     frame: {
+      position: "relative",
       minHeight: 280,
       borderRadius: 16,
       overflow: "hidden",

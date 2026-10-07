@@ -156,14 +156,48 @@ function isLoopbackHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
+function isPrivateLanHost(hostname: string): boolean {
+  return (
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  );
+}
+
+/** Public ngrok host suffixes. `apps/web/next.config.ts` allows the matching `*` origins. */
+export const DEV_TUNNEL_HOST_SUFFIXES = [
+  ".ngrok-free.app",
+  ".ngrok-free.dev",
+  ".ngrok.app",
+  ".ngrok.io",
+  ".ngrok.dev",
+] as const;
+
+export function isDevTunnelHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  return DEV_TUNNEL_HOST_SUFFIXES.some(
+    (suffix) => host.endsWith(suffix) && host.length > suffix.length,
+  );
+}
+
+function pageUrl(pageOrigin: string | undefined): URL | undefined {
+  if (pageOrigin === undefined || pageOrigin.length === 0) {
+    return undefined;
+  }
+  return new URL(pageOrigin);
+}
+
 /** Absolute API origin for REST. Loopback pages use 127.0.0.1; LAN pages keep the page host. */
 export function resolveBrowserApiBaseUrl(
   configured: string | undefined,
   options: { isBrowser: boolean; pageOrigin?: string },
 ): string {
   const api = new URL(configuredApiOrigin(configured));
-  if (options.pageOrigin !== undefined && options.pageOrigin.length > 0) {
-    const page = new URL(options.pageOrigin);
+  const page = pageUrl(options.pageOrigin);
+  if (page !== undefined) {
+    if (isDevTunnelHost(page.hostname)) {
+      return page.origin;
+    }
     api.hostname = isLoopbackHost(page.hostname) ? "127.0.0.1" : page.hostname;
   } else if (api.hostname === "localhost") {
     api.hostname = "127.0.0.1";
@@ -171,16 +205,54 @@ export function resolveBrowserApiBaseUrl(
   return api.origin;
 }
 
-/** Socket.io cannot use the Next rewrite; point at the API host matching the page. */
+/**
+ * Socket.io cannot use the Next rewrite, so LAN pages keep the API port.
+ * A tunnel page stays on that public origin; only the HTTP `/api` rewrite is proxied.
+ */
 export function resolveRealtimeApiBaseUrl(
   configured: string | undefined,
   pageOrigin: string | undefined,
 ): string {
   const api = new URL(configuredApiOrigin(configured));
-  if (pageOrigin !== undefined && pageOrigin.length > 0) {
-    api.hostname = new URL(pageOrigin).hostname;
+  const page = pageUrl(pageOrigin);
+  if (page !== undefined) {
+    if (isDevTunnelHost(page.hostname)) {
+      return page.origin;
+    }
+    api.hostname = page.hostname;
   } else if (isLoopbackHost(api.hostname) && api.hostname === "localhost") {
     api.hostname = "127.0.0.1";
   }
   return api.origin;
+}
+
+const LOCAL_API_PORT = "3001";
+
+/**
+ * Point loopback and private-LAN API asset URLs at the tunnel origin so images
+ * load through the Next `/api` rewrite instead of the phone's own localhost.
+ */
+export function rewriteDevAssetUrl(url: string, pageOrigin: string): string {
+  let page: URL;
+  let asset: URL;
+  try {
+    page = new URL(pageOrigin);
+    asset = new URL(url);
+  } catch {
+    return url;
+  }
+  if (!isDevTunnelHost(page.hostname)) {
+    return url;
+  }
+  if (!isLoopbackHost(asset.hostname) && !isPrivateLanHost(asset.hostname)) {
+    return url;
+  }
+  const port = asset.port.length > 0 ? asset.port : asset.protocol === "https:" ? "443" : "80";
+  if (port !== LOCAL_API_PORT && !asset.pathname.startsWith("/api/")) {
+    return url;
+  }
+  asset.protocol = page.protocol;
+  asset.hostname = page.hostname;
+  asset.port = page.port;
+  return asset.toString();
 }

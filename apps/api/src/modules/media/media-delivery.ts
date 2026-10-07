@@ -3,7 +3,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { HasutHttpException } from "../../common/errors/hasut-http.exception";
 import { StorageRegistry } from "./storage/storage-registry.service";
 import { assertObjectKey } from "./storage/storage-key";
-import { MEDIA_UPLOAD_MAX_BYTES } from "@hasut/validation";
+import { STORY_MEDIA_MAX_BYTES } from "@hasut/validation";
 
 @Injectable()
 export class MediaDelivery {
@@ -12,7 +12,7 @@ export class MediaDelivery {
   async receiveUpload(req: Request, res: Response): Promise<void> {
     const token = typeof req.params.token === "string" ? req.params.token : "";
     try {
-      const body = await readBody(req, MEDIA_UPLOAD_MAX_BYTES);
+      const body = await readBody(req, STORY_MEDIA_MAX_BYTES);
       await this.registry.saveUpload(token, body);
       if (!res.headersSent) {
         res.status(200).end();

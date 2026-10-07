@@ -1,3 +1,5 @@
+import { captionStyleAt } from "./caption-style";
+
 /** Visual edits applied to a photo before it is uploaded. The story API stores the file, not these fields. */
 export interface PhotoAdjust {
   rotation: 0 | 90 | 180 | 270;
@@ -52,6 +54,62 @@ export function isPlainPhoto(adjust: PhotoAdjust): boolean {
 
 export function isFullCrop(adjust: PhotoAdjust): boolean {
   return adjust.cropX <= 0.5 && adjust.cropY <= 0.5 && adjust.cropW >= 99.5 && adjust.cropH >= 99.5;
+}
+
+export interface CropBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const MIN_CROP = 18;
+
+/** Slides the crop window without changing its size. */
+export function moveCropBox(box: CropBox, dx: number, dy: number): CropBox {
+  return {
+    x: clampPercent(box.x + dx, 0, 100 - box.w),
+    y: clampPercent(box.y + dy, 0, 100 - box.h),
+    w: box.w,
+    h: box.h,
+  };
+}
+
+/** Resizes from a corner. The opposite corner stays put. */
+export function resizeCropBox(
+  start: CropBox,
+  corner: "nw" | "ne" | "sw" | "se",
+  dx: number,
+  dy: number,
+): CropBox {
+  let x = start.x;
+  let y = start.y;
+  let w = start.w;
+  let h = start.h;
+  if (corner === "nw" || corner === "sw") {
+    x = clampPercent(start.x + dx, 0, start.x + start.w - MIN_CROP);
+    w = start.w - (x - start.x);
+  } else {
+    w = clampPercent(start.w + dx, MIN_CROP, 100 - start.x);
+  }
+  if (corner === "nw" || corner === "ne") {
+    y = clampPercent(start.y + dy, 0, start.y + start.h - MIN_CROP);
+    h = start.h - (y - start.y);
+  } else {
+    h = clampPercent(start.h + dy, MIN_CROP, 100 - start.y);
+  }
+  return { x, y, w, h };
+}
+
+export interface PaintedCaption {
+  text: string;
+  color: string | null;
+  x: number;
+  y: number;
+  w: number;
+  styleIndex: number;
+  backdrop: "none" | "solid" | "gradient";
+  opacity: number;
 }
 
 export function nextRotation(current: PhotoAdjust["rotation"]): PhotoAdjust["rotation"] {
@@ -113,6 +171,7 @@ export async function renderAdjustedPhoto(
   sourceUrl: string,
   adjust: PhotoAdjust,
   overlays: readonly string[],
+  caption: PaintedCaption | null = null,
 ): Promise<Blob> {
   const image = await loadImage(sourceUrl);
   const source = upright(image, adjust.rotation);
@@ -152,6 +211,9 @@ export async function renderAdjustedPhoto(
     ctx.drawImage(scratch, sx, sy, sw, sh, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   }
   paintOverlays(ctx, overlays);
+  if (caption !== null && caption.text.trim().length > 0) {
+    paintCaption(ctx, caption);
+  }
   return canvasToJpeg(canvas);
 }
 
@@ -188,6 +250,69 @@ function paintBackdrop(ctx: CanvasRenderingContext2D, background: PhotoAdjust["b
   gradient.addColorStop(1, readToken("--hasut-color-secondary"));
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+}
+
+function paintCaption(ctx: CanvasRenderingContext2D, caption: PaintedCaption): void {
+  const look = captionStyleAt(caption.styleIndex);
+  const fontSize = 72;
+  const boxX = (caption.x / 100) * FRAME_WIDTH;
+  const boxY = (caption.y / 100) * FRAME_HEIGHT;
+  const boxW = Math.max(80, (caption.w / 100) * FRAME_WIDTH);
+  const maxWidth = Math.max(40, boxW - 32);
+  ctx.font = `${look.fontStyle} ${look.fontWeight} ${fontSize}px ${look.fontFamily}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const lines = wrapLines(ctx, caption.text.trim(), maxWidth);
+  const lineHeight = fontSize * 1.2;
+  const blockWidth = Math.min(
+    maxWidth,
+    Math.max(...lines.map((line) => ctx.measureText(line).width), 0) + 28,
+  );
+  const blockHeight = lines.length * lineHeight + 16;
+  const left = boxX + (boxW - blockWidth) / 2;
+  const top = boxY;
+  if (caption.backdrop !== "none") {
+    const alpha = Math.min(1, Math.max(0, caption.opacity / 100));
+    if (caption.backdrop === "solid") {
+      ctx.fillStyle = withAlpha(readToken("--hasut-color-text"), alpha);
+    } else {
+      const gradient = ctx.createLinearGradient(left, top, left + blockWidth, top);
+      gradient.addColorStop(0, withAlpha(readToken("--hasut-color-primary"), alpha));
+      gradient.addColorStop(1, withAlpha(readToken("--hasut-color-secondary"), alpha));
+      ctx.fillStyle = gradient;
+    }
+    roundRect(ctx, left, top, blockWidth, blockHeight, 18);
+    ctx.fill();
+  }
+  ctx.fillStyle = caption.color ?? readToken("--hasut-color-text-on-primary");
+  ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+  ctx.shadowBlur = caption.backdrop === "none" ? 16 : 0;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, boxX + boxW / 2, top + 8 + index * lineHeight, maxWidth);
+  });
+  ctx.shadowBlur = 0;
+}
+
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter((word) => word.length > 0);
+  if (words.length === 0) {
+    return [];
+  }
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const next = line.length === 0 ? word : `${line} ${word}`;
+    if (ctx.measureText(next).width > maxWidth && line.length > 0) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line.length > 0) {
+    lines.push(line);
+  }
+  return lines;
 }
 
 function paintOverlays(ctx: CanvasRenderingContext2D, overlays: readonly string[]): void {
@@ -255,6 +380,10 @@ function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
       0.92,
     );
   });
+}
+
+function clampPercent(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function readToken(name: string): string {

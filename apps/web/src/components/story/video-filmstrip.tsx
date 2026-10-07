@@ -1,6 +1,7 @@
 "use client";
 
-import { formatClock, moveHandle, normalizeRange, type RangeValue } from "@hasut/ui";
+import { formatClock, type RangeValue } from "@hasut/ui";
+import { TrimScrubber } from "./trim-scrubber";
 
 export function VideoFilmstrip({
   src,
@@ -9,6 +10,7 @@ export function VideoFilmstrip({
   maxSpan,
   disabled,
   onChange,
+  onScrub,
   onTogglePlay,
   playing,
 }: {
@@ -18,23 +20,16 @@ export function VideoFilmstrip({
   maxSpan: number;
   disabled: boolean;
   onChange: (next: RangeValue) => void;
+  onScrub: (seconds: number) => void;
   onTogglePlay: () => void;
   playing: boolean;
 }) {
-  const bounds = { duration, maxSpan, minSpan: 1 };
-  const span = Math.max(1, Math.round(duration));
-  const start = (value.start / span) * 100;
-  const end = (value.end / span) * 100;
-
-  function setHandle(handle: "start" | "end", raw: number): void {
-    onChange(normalizeRange(moveHandle(value, handle, raw, bounds), bounds));
-  }
-
   return (
     <div className="ps-trim">
       <div className="ps-trim-label">
         <span>
-          Trim video ({formatClock(value.end - value.start)} / {formatClock(duration)})
+          Keep {formatClock(value.end - value.start)} of {formatClock(duration)}. Drag either edge —
+          the longest clip is {formatClock(maxSpan)}.
         </span>
       </div>
       <div className="ps-film">
@@ -47,35 +42,16 @@ export function VideoFilmstrip({
         >
           {playing ? "❚❚" : "▶"}
         </button>
-        <div className="ps-film-track">
+        <TrimScrubber
+          duration={duration}
+          value={value}
+          maxSpan={maxSpan}
+          disabled={disabled}
+          onChange={onChange}
+          onScrub={onScrub}
+        >
           <video className="ps-film-video" src={src} muted playsInline />
-          <div className="ps-film-dim ps-film-dim-start" style={{ width: `${start}%` }} />
-          <div className="ps-film-dim ps-film-dim-end" style={{ width: `${100 - end}%` }} />
-          <div
-            className="ps-film-window"
-            style={{ left: `${start}%`, width: `${Math.max(0, end - start)}%` }}
-          />
-          <input
-            className="ps-film-range"
-            type="range"
-            min={0}
-            max={span}
-            value={value.start}
-            disabled={disabled}
-            aria-label="Trim start"
-            onChange={(event) => setHandle("start", Number(event.target.value))}
-          />
-          <input
-            className="ps-film-range"
-            type="range"
-            min={0}
-            max={span}
-            value={value.end}
-            disabled={disabled}
-            aria-label="Trim end"
-            onChange={(event) => setHandle("end", Number(event.target.value))}
-          />
-        </div>
+        </TrimScrubber>
       </div>
       <div className="ps-trim-times">
         <span>{formatClock(value.start)}</span>

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { isAbsolute, resolve } from "node:path";
 import { STORAGE_PROVIDER_CATALOG, type StorageBackendName } from "@hasut/types";
-import { MEDIA_UPLOAD_MAX_BYTES } from "@hasut/validation";
+import { mediaUploadMaxBytes } from "@hasut/validation";
 import { HttpStatus, Injectable, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { StorageBackend } from "@prisma/client";
@@ -170,9 +170,6 @@ export class StorageRegistry implements OnModuleInit {
     if (claims === null) {
       throw new HasutHttpException("FORBIDDEN", "Upload link expired", HttpStatus.FORBIDDEN);
     }
-    if (body.length === 0 || body.length > MEDIA_UPLOAD_MAX_BYTES) {
-      throw new HasutHttpException("MEDIA_REJECTED", "File is too large", HttpStatus.BAD_REQUEST);
-    }
     const asset = await this.prisma.mediaAsset.findFirst({
       where: { objectKey: claims.objectKey },
       orderBy: { createdAt: "desc" },
@@ -183,6 +180,9 @@ export class StorageRegistry implements OnModuleInit {
       asset.status !== "PENDING_UPLOAD"
     ) {
       throw new HasutHttpException("NOT_FOUND", "Media not found", HttpStatus.NOT_FOUND);
+    }
+    if (body.length === 0 || body.length > mediaUploadMaxBytes(asset.purpose)) {
+      throw new HasutHttpException("MEDIA_REJECTED", "File is too large", HttpStatus.BAD_REQUEST);
     }
     const driver = await this.driverForProfile(claims.profileId);
     await driver.write(claims.objectKey, body, asset.mimeType);

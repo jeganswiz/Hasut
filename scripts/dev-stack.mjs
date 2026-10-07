@@ -148,13 +148,13 @@ export async function ensureDockerDaemon() {
 }
 
 export function startDataStores() {
-  console.log("Starting Docker data stores (Redis, Postgres/PostGIS, MinIO)...");
-  run("docker", composeArgs(["up", "-d", "postgres", "redis", "minio", "minio-init"]));
+  console.log("Starting Docker data stores (Redis, Postgres/PostGIS, MinIO, MediaMTX)...");
+  run("docker", composeArgs(["up", "-d", "postgres", "redis", "minio", "minio-init", "mediamtx"]));
 }
 
 export function stopDataStores() {
   console.log("Stopping Docker data stores...");
-  run("docker", composeArgs(["stop", "postgres", "redis", "minio", "minio-init"]));
+  run("docker", composeArgs(["stop", "postgres", "redis", "minio", "minio-init", "mediamtx"]));
 }
 
 export async function waitForDataStores() {

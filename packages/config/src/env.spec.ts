@@ -1,4 +1,9 @@
-import { parseApiEnv, resolveBrowserApiBaseUrl, resolveRealtimeApiBaseUrl } from "./env";
+import {
+  parseApiEnv,
+  resolveBrowserApiBaseUrl,
+  resolveRealtimeApiBaseUrl,
+  rewriteDevAssetUrl,
+} from "./env";
 
 const secrets = {
   JWT_ACCESS_SECRET: "hasut-dev-access-secret-32chars-min",
@@ -113,6 +118,15 @@ describe("resolveBrowserApiBaseUrl", () => {
       }),
     ).toBe("http://192.168.29.187:3001");
   });
+
+  it("stays on the public origin when the page is an ngrok tunnel", () => {
+    expect(
+      resolveBrowserApiBaseUrl("http://127.0.0.1:3001", {
+        isBrowser: true,
+        pageOrigin: "https://hasut-demo.ngrok-free.app",
+      }),
+    ).toBe("https://hasut-demo.ngrok-free.app");
+  });
 });
 
 describe("resolveRealtimeApiBaseUrl", () => {
@@ -123,5 +137,46 @@ describe("resolveRealtimeApiBaseUrl", () => {
     expect(resolveRealtimeApiBaseUrl("http://localhost:3001", "http://localhost:3000")).toBe(
       "http://localhost:3001",
     );
+  });
+
+  it("stays on the tunnel origin instead of port 3001", () => {
+    expect(
+      resolveRealtimeApiBaseUrl("http://127.0.0.1:3001", "https://hasut-demo.ngrok-free.app"),
+    ).toBe("https://hasut-demo.ngrok-free.app");
+  });
+});
+
+describe("rewriteDevAssetUrl", () => {
+  it("moves local API file URLs onto the ngrok origin", () => {
+    expect(
+      rewriteDevAssetUrl(
+        "http://127.0.0.1:3001/api/v1/media/files/story_image/a.jpg",
+        "https://hasut-demo.ngrok-free.app",
+      ),
+    ).toBe("https://hasut-demo.ngrok-free.app/api/v1/media/files/story_image/a.jpg");
+    expect(
+      rewriteDevAssetUrl(
+        "http://192.168.29.187:3001/api/v1/media/files/a.jpg",
+        "https://hasut-demo.ngrok.app",
+      ),
+    ).toBe("https://hasut-demo.ngrok.app/api/v1/media/files/a.jpg");
+  });
+
+  it("leaves CDN, MediaMTX, and non-tunnel pages unchanged", () => {
+    expect(
+      rewriteDevAssetUrl("https://cdn.example/a.jpg", "https://hasut-demo.ngrok-free.app"),
+    ).toBe("https://cdn.example/a.jpg");
+    expect(
+      rewriteDevAssetUrl(
+        "http://127.0.0.1:8888/stories/s1/index.m3u8",
+        "https://hasut-demo.ngrok-free.app",
+      ),
+    ).toBe("http://127.0.0.1:8888/stories/s1/index.m3u8");
+    expect(
+      rewriteDevAssetUrl(
+        "http://127.0.0.1:3001/api/v1/media/files/a.jpg",
+        "http://192.168.29.187:3000",
+      ),
+    ).toBe("http://127.0.0.1:3001/api/v1/media/files/a.jpg");
   });
 });

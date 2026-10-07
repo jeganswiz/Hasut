@@ -1,6 +1,7 @@
 import { createHasutApiClient } from "@hasut/api-client";
 import { resolveBrowserApiBaseUrl } from "@hasut/config";
 import { webTokenStorage } from "./token-storage";
+import { webTunnelHttpAdapter } from "./tunnel-assets";
 
 export const WEB_SURFACE = "member-web" as const;
 
@@ -15,8 +16,10 @@ export function webApiBaseUrl(): string {
 }
 
 export function createWebApiClient() {
+  const pageOrigin = typeof window !== "undefined" ? window.location.origin : undefined;
   return createHasutApiClient({
     baseUrl: webApiBaseUrl(),
     tokenStorage: webTokenStorage,
+    http: webTunnelHttpAdapter(pageOrigin),
   });
 }

@@ -79,6 +79,9 @@ export const storyCreateSchema = z
       .regex(HEX_COLOR, "Pick a colour from the palette")
       .nullable()
       .optional(),
+    captionX: z.number().min(0).max(100).nullable().optional(),
+    captionY: z.number().min(0).max(100).nullable().optional(),
+    captionW: z.number().min(0).max(100).nullable().optional(),
     audio: storyAudioInputSchema.optional(),
     originalAudioMode: storyOriginalAudioModeSchema.default("KEEP"),
     audience: storyAudienceSchema.default("EVERYONE"),
@@ -155,6 +158,9 @@ export const storyViewSchema = z.object({
   audio: storyAudioViewSchema,
   caption: z.string(),
   captionColor: z.string().nullable(),
+  captionX: z.number().nullable(),
+  captionY: z.number().nullable(),
+  captionW: z.number().nullable(),
   trimStartSeconds: z.number(),
   trimEndSeconds: z.number().nullable(),
   originalAudioMode: storyOriginalAudioModeSchema,

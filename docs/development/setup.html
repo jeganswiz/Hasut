@@ -641,6 +641,16 @@
             the API host that matches the page. Prefer <code>127.0.0.1</code> on Windows so Node
             does not hit IPv6 <code>localhost</code>.
           </p>
+          <h3>Public web tunnel</h3>
+          <p>
+            With the member web app on port 3000, run <code>pnpm dev:ngrok</code>. That starts
+            <code>ngrok http 127.0.0.1:3000</code>. Add an authtoken once with
+            <code>ngrok config add-authtoken</code> (dashboard token, stored in your user config).
+            Install the agent with <code>winget install --id Ngrok.Ngrok -e</code> if it is missing.
+            Browser REST and local media URLs stay on the public origin and go through the Next
+            <code>/api</code> rewrite. Chat and live sockets are not proxied. The URL publishes this
+            dev stack, including the console OTP, so stop ngrok when you are done.
+          </p>
         </section>
 
         <section id="env">
