@@ -36,3 +36,19 @@ self.addEventListener("fetch", (event) => {
   }
   event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
 });
+
+self.addEventListener("push", (event) => {
+  const data = event.data ? event.data.json() : { title: "HASUT", body: "", url: "/notifications" };
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "HASUT", {
+      body: data.body ?? "",
+      data: { url: data.url ?? "/notifications" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/notifications";
+  event.waitUntil(self.clients.openWindow(url));
+});

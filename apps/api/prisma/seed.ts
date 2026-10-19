@@ -14,6 +14,8 @@ import {
   MESSAGING_POLICY_DEFAULTS,
   PROFESSIONAL_AVAILABILITY_CONFIG_KEY,
   PROFESSIONAL_AVAILABILITY_DEFAULTS,
+  LIVE_POLICY_CONFIG_KEY,
+  LIVE_POLICY_DEFAULTS,
   REPORTS_POLICY_CONFIG_KEY,
   REPORTS_POLICY_DEFAULTS,
   SUPPORT_CATEGORY_SEEDS,
@@ -93,6 +95,16 @@ async function seed(): Promise<void> {
     create: {
       key: REPORTS_POLICY_CONFIG_KEY,
       valueJson: REPORTS_POLICY_DEFAULTS,
+      environment: "all",
+    },
+    update: {},
+  });
+
+  await prisma.remoteConfig.upsert({
+    where: { key: LIVE_POLICY_CONFIG_KEY },
+    create: {
+      key: LIVE_POLICY_CONFIG_KEY,
+      valueJson: LIVE_POLICY_DEFAULTS,
       environment: "all",
     },
     update: {},
@@ -367,6 +379,21 @@ async function seedNotificationTemplates(): Promise<void> {
       key: "story.liked",
       titleTemplate: "{{actorName}} liked your presence",
       bodyTemplate: "Open your story to see who liked it",
+    },
+    {
+      key: "live.started",
+      titleTemplate: "{{actorName}} is live",
+      bodyTemplate: "{{title}}",
+    },
+    {
+      key: "live.reminder",
+      titleTemplate: "{{actorName}} goes live soon",
+      bodyTemplate: "{{title}}",
+    },
+    {
+      key: "live.replay.published",
+      titleTemplate: "{{actorName}} published a replay",
+      bodyTemplate: "{{title}}",
     },
   ];
   for (const template of templates) {

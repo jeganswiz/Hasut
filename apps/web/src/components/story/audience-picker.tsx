@@ -8,6 +8,7 @@ export interface AudiencePickerProps {
   onChange: (next: StoryAudience) => void;
   patronCount: number;
   disabled?: boolean;
+  allowPrivate?: boolean;
 }
 
 function patronLabel(count: number): string {
@@ -26,6 +27,7 @@ export function AudiencePicker({
   onChange,
   patronCount,
   disabled = false,
+  allowPrivate = false,
 }: AudiencePickerProps) {
   const options: Array<{ id: StoryAudience; label: string; hint: string }> = [
     {
@@ -42,13 +44,24 @@ export function AudiencePicker({
           : "Only the people you have accepted a connection with.",
     },
   ];
+  if (allowPrivate) {
+    options.push({
+      id: "PRIVATE",
+      label: "Private",
+      hint: "Only Patrons you invite.",
+    });
+  }
 
   const active = options.find((option) => option.id === value) ?? options[0];
 
   return (
     <fieldset style={{ margin: 0, padding: 0, border: "none", display: "grid", gap: 6 }}>
       <legend style={{ padding: 0, fontSize: 14, color: cssVar("mutedText") }}>Audience</legend>
-      <div role="radiogroup" aria-label="Audience" style={{ display: "flex", gap: 6 }}>
+      <div
+        role="radiogroup"
+        aria-label="Audience"
+        style={{ display: "flex", flexWrap: "wrap", gap: 6, minWidth: 0, maxWidth: "100%" }}
+      >
         {options.map((option) => {
           const selected = option.id === value;
           return (

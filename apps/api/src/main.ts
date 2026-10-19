@@ -6,7 +6,7 @@ import { splitCsv, normalizeRequestId } from "@hasut/utils";
 import { Logger as NestLogger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
-import { IoAdapter } from "@nestjs/platform-socket.io";
+import { attachRealtimeAdapter } from "./modules/realtime/redis-io.adapter";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import helmet from "helmet";
@@ -73,7 +73,7 @@ async function bootstrap(): Promise<void> {
   });
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  app.useWebSocketAdapter(new IoAdapter(app));
+  await attachRealtimeAdapter(app, env.REALTIME_REDIS_URL);
   app.useLogger(app.get(Logger));
   app.use(requestIdMiddleware);
   app.use(

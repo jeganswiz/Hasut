@@ -13,6 +13,12 @@ export interface CellFanout {
   payload: unknown;
 }
 
+export interface RoomFanout {
+  room: string;
+  event: string;
+  payload: unknown;
+}
+
 @Injectable()
 export class RealtimeEvents {
   private readonly bus = new EventEmitter();
@@ -31,5 +37,13 @@ export class RealtimeEvents {
 
   subscribeCells(handler: (event: CellFanout) => void): void {
     this.bus.on("cells", handler);
+  }
+
+  publishRoom(room: string, event: string, payload: unknown): void {
+    this.bus.emit("rooms", { room, event, payload } satisfies RoomFanout);
+  }
+
+  subscribeRooms(handler: (event: RoomFanout) => void): void {
+    this.bus.on("rooms", handler);
   }
 }

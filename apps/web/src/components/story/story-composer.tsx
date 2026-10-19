@@ -31,7 +31,7 @@ import { DEFAULT_CAPTION_BOX, StoryStage, type CaptionLook, type FrameBox } from
 import { VideoFilmstrip } from "./video-filmstrip";
 
 type Kind = "IMAGE" | "VIDEO";
-type StudioPanel = "edit" | "text" | "sound" | "audience";
+type StudioPanel = "edit" | "text" | "sound" | "audience" | "duration" | null;
 type StudioTool = "crop" | "brightness" | "contrast" | "blur" | "more";
 
 const CAPTION_STYLE_LABELS = ["Bold", "Regular", "Italic", "Light"];
@@ -79,7 +79,14 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
   const [audience, setAudience] = useState<StoryAudience>("EVERYONE");
   const [trim, setTrim] = useState<RangeValue>({ start: 0, end: 0 });
   const [feedback, setFeedback] = useState<AuthFeedback>(IDLE);
-  const [panel, setPanel] = useState<StudioPanel>("edit");
+  const [panel, setPanel] = useState<StudioPanel>(null);
+
+  function togglePanel(next: Exclude<StudioPanel, null>): void {
+    setPanel((current) => (current === next ? null : next));
+    if (next === "text") {
+      setCaptionArmed(true);
+    }
+  }
   const [tool, setTool] = useState<StudioTool | null>(null);
   const [playing, setPlaying] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -498,175 +505,186 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
           />
         )}
 
-        <div className="ps-mobile-tabs" role="tablist" aria-label="Story tools">
-          {(
-            [
-              ["edit", "Edit"],
-              ["text", "Text"],
-              ["sound", "Sound"],
-              ["audience", "Audience"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={panel === id}
-              className={panel === id ? "ps-mode is-active" : "ps-mode"}
-              onClick={() => {
-                setPanel(id);
-                if (id === "text") {
-                  setCaptionArmed(true);
-                  window.setTimeout(() => {
-                    document.querySelector<HTMLTextAreaElement>(".ps-caption")?.focus();
-                  }, 0);
-                  return;
-                }
-                document
-                  .getElementById(`ps-${id}`)
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="ps-rail" role="toolbar" aria-label="Story tools">
+          <button
+            type="button"
+            className={panel === "edit" ? "is-active" : ""}
+            aria-label="Edit"
+            onClick={() => togglePanel("edit")}
+          >
+            ✎
+          </button>
+          <button
+            type="button"
+            className={panel === "text" ? "is-active" : ""}
+            aria-label="Text"
+            onClick={() => togglePanel("text")}
+          >
+            Aa
+          </button>
+          <button
+            type="button"
+            className={panel === "sound" ? "is-active" : ""}
+            aria-label="Soundtrack"
+            onClick={() => togglePanel("sound")}
+          >
+            ♪
+          </button>
+          <button
+            type="button"
+            className={panel === "audience" ? "is-active" : ""}
+            aria-label="Audience"
+            onClick={() => togglePanel("audience")}
+          >
+            ⌂
+          </button>
+          <button
+            type="button"
+            className={panel === "duration" ? "is-active" : ""}
+            aria-label="Duration"
+            onClick={() => togglePanel("duration")}
+          >
+            ⏱
+          </button>
         </div>
 
-        <div id="ps-edit" className="ps-toolbar">
-          <ToolButton
-            label="Crop"
-            active={tool === "crop"}
-            disabled={busy || media === null}
-            onClick={() => setTool(tool === "crop" ? null : "crop")}
-            icon={<CropIcon />}
-          />
-          <ToolButton
-            label="Rotate"
-            active={false}
-            disabled={busy || media === null || kind !== "IMAGE"}
-            onClick={() => editPhoto({ ...adjust, rotation: nextRotation(adjust.rotation) })}
-            icon={<RotateIcon />}
-          />
-          <ToolButton
-            label="Brightness"
-            active={tool === "brightness"}
-            disabled={busy || media === null || kind !== "IMAGE"}
-            onClick={() => setTool(tool === "brightness" ? null : "brightness")}
-            icon={<SunIcon />}
-          />
-          <ToolButton
-            label="Contrast"
-            active={tool === "contrast"}
-            disabled={busy || media === null || kind !== "IMAGE"}
-            onClick={() => setTool(tool === "contrast" ? null : "contrast")}
-            icon={<ContrastIcon />}
-          />
-          <ToolButton
-            label="Blur"
-            active={tool === "blur"}
-            disabled={busy || media === null || kind !== "IMAGE"}
-            onClick={() => setTool(tool === "blur" ? null : "blur")}
-            icon={<BlurIcon />}
-          />
-          <ToolButton
-            label="More"
-            active={tool === "more"}
-            disabled={busy || media === null}
-            onClick={() => setTool(tool === "more" ? null : "more")}
-            icon={<MoreIcon />}
-          />
-        </div>
-        {tool === null || media === null ? null : (
-          <div className="ps-popover">
-            {tool === "crop" ? (
-              <div className="studio-pills">
-                <button
-                  type="button"
-                  className={adjust.fit === "contain" ? "studio-pill is-active" : "studio-pill"}
-                  onClick={() => editPhoto({ ...adjust, fit: "contain", panX: 0, panY: 0 })}
-                >
-                  Fit
-                </button>
-                <button
-                  type="button"
-                  className={adjust.fit === "cover" ? "studio-pill is-active" : "studio-pill"}
-                  onClick={() => editPhoto({ ...adjust, fit: "cover" })}
-                >
-                  Fill
-                </button>
-              </div>
-            ) : null}
-            {tool === "brightness" ? (
-              <Slider
-                label="Brightness"
-                min={40}
-                max={160}
-                value={adjust.brightness}
-                disabled={busy}
-                onStart={beginSlider}
-                onEnd={endSlider}
-                onChange={(brightness) => setAdjust({ ...adjust, brightness })}
-              />
-            ) : null}
-            {tool === "contrast" ? (
-              <Slider
-                label="Contrast"
-                min={40}
-                max={160}
-                value={adjust.contrast}
-                disabled={busy}
-                onStart={beginSlider}
-                onEnd={endSlider}
-                onChange={(contrast) => setAdjust({ ...adjust, contrast })}
-              />
-            ) : null}
-            {tool === "blur" ? (
-              <Slider
-                label="Blur"
-                min={0}
-                max={24}
-                value={adjust.blur}
-                disabled={busy}
-                onStart={beginSlider}
-                onEnd={endSlider}
-                onChange={(blur) => setAdjust({ ...adjust, blur })}
-              />
-            ) : null}
-            {tool === "more" && adjust.fit === "cover" ? (
-              <>
-                <Slider
-                  label="Horizontal position"
-                  min={-100}
-                  max={100}
-                  value={adjust.panX}
-                  disabled={busy}
-                  onStart={beginSlider}
-                  onEnd={endSlider}
-                  onChange={(panX) => setAdjust({ ...adjust, panX })}
-                />
-                <Slider
-                  label="Vertical position"
-                  min={-100}
-                  max={100}
-                  value={adjust.panY}
-                  disabled={busy}
-                  onStart={beginSlider}
-                  onEnd={endSlider}
-                  onChange={(panY) => setAdjust({ ...adjust, panY })}
-                />
-              </>
-            ) : null}
-            {tool === "more" ? (
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => editPhoto(DEFAULT_PHOTO_ADJUST)}
-              >
-                Reset edit
-              </button>
-            ) : null}
+        <div className={panel === "edit" ? "ps-overlay-tools is-open" : "ps-overlay-tools"}>
+          <div id="ps-edit" className="ps-toolbar">
+            <ToolButton
+              label="Crop"
+              active={tool === "crop"}
+              disabled={busy || media === null}
+              onClick={() => setTool(tool === "crop" ? null : "crop")}
+              icon={<CropIcon />}
+            />
+            <ToolButton
+              label="Rotate"
+              active={false}
+              disabled={busy || media === null || kind !== "IMAGE"}
+              onClick={() => editPhoto({ ...adjust, rotation: nextRotation(adjust.rotation) })}
+              icon={<RotateIcon />}
+            />
+            <ToolButton
+              label="Brightness"
+              active={tool === "brightness"}
+              disabled={busy || media === null || kind !== "IMAGE"}
+              onClick={() => setTool(tool === "brightness" ? null : "brightness")}
+              icon={<SunIcon />}
+            />
+            <ToolButton
+              label="Contrast"
+              active={tool === "contrast"}
+              disabled={busy || media === null || kind !== "IMAGE"}
+              onClick={() => setTool(tool === "contrast" ? null : "contrast")}
+              icon={<ContrastIcon />}
+            />
+            <ToolButton
+              label="Blur"
+              active={tool === "blur"}
+              disabled={busy || media === null || kind !== "IMAGE"}
+              onClick={() => setTool(tool === "blur" ? null : "blur")}
+              icon={<BlurIcon />}
+            />
+            <ToolButton
+              label="More"
+              active={tool === "more"}
+              disabled={busy || media === null}
+              onClick={() => setTool(tool === "more" ? null : "more")}
+              icon={<MoreIcon />}
+            />
           </div>
-        )}
+          {tool === null || media === null ? null : (
+            <div className="ps-popover">
+              {tool === "crop" ? (
+                <div className="studio-pills">
+                  <button
+                    type="button"
+                    className={adjust.fit === "contain" ? "studio-pill is-active" : "studio-pill"}
+                    onClick={() => editPhoto({ ...adjust, fit: "contain", panX: 0, panY: 0 })}
+                  >
+                    Fit
+                  </button>
+                  <button
+                    type="button"
+                    className={adjust.fit === "cover" ? "studio-pill is-active" : "studio-pill"}
+                    onClick={() => editPhoto({ ...adjust, fit: "cover" })}
+                  >
+                    Fill
+                  </button>
+                </div>
+              ) : null}
+              {tool === "brightness" ? (
+                <Slider
+                  label="Brightness"
+                  min={40}
+                  max={160}
+                  value={adjust.brightness}
+                  disabled={busy}
+                  onStart={beginSlider}
+                  onEnd={endSlider}
+                  onChange={(brightness) => setAdjust({ ...adjust, brightness })}
+                />
+              ) : null}
+              {tool === "contrast" ? (
+                <Slider
+                  label="Contrast"
+                  min={40}
+                  max={160}
+                  value={adjust.contrast}
+                  disabled={busy}
+                  onStart={beginSlider}
+                  onEnd={endSlider}
+                  onChange={(contrast) => setAdjust({ ...adjust, contrast })}
+                />
+              ) : null}
+              {tool === "blur" ? (
+                <Slider
+                  label="Blur"
+                  min={0}
+                  max={24}
+                  value={adjust.blur}
+                  disabled={busy}
+                  onStart={beginSlider}
+                  onEnd={endSlider}
+                  onChange={(blur) => setAdjust({ ...adjust, blur })}
+                />
+              ) : null}
+              {tool === "more" && adjust.fit === "cover" ? (
+                <>
+                  <Slider
+                    label="Horizontal position"
+                    min={-100}
+                    max={100}
+                    value={adjust.panX}
+                    disabled={busy}
+                    onStart={beginSlider}
+                    onEnd={endSlider}
+                    onChange={(panX) => setAdjust({ ...adjust, panX })}
+                  />
+                  <Slider
+                    label="Vertical position"
+                    min={-100}
+                    max={100}
+                    value={adjust.panY}
+                    disabled={busy}
+                    onStart={beginSlider}
+                    onEnd={endSlider}
+                    onChange={(panY) => setAdjust({ ...adjust, panY })}
+                  />
+                </>
+              ) : null}
+              {tool === "more" ? (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => editPhoto(DEFAULT_PHOTO_ADJUST)}
+                >
+                  Reset edit
+                </button>
+              ) : null}
+            </div>
+          )}
+        </div>
 
         {kind === "VIDEO" &&
         media !== null &&
@@ -872,7 +890,7 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
           )}
         </section>
 
-        <section id="ps-sound" className="ps-card">
+        <section id="ps-sound" className={panel === "sound" ? "ps-card is-open" : "ps-card"}>
           <h2>Soundtrack</h2>
           {kind === "VIDEO" ? (
             <label className="ps-toggle-row">
@@ -918,7 +936,7 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
           />
         </section>
 
-        <section id="ps-audience" className="ps-card">
+        <section id="ps-audience" className={panel === "audience" ? "ps-card is-open" : "ps-card"}>
           <AudiencePicker
             value={audience}
             onChange={setAudience}
@@ -927,7 +945,7 @@ export function StoryComposer({ config, tracks, onPublished }: StoryComposerProp
           />
         </section>
 
-        <section className="ps-card">
+        <section id="ps-duration" className={panel === "duration" ? "ps-card is-open" : "ps-card"}>
           <header className="ps-card-head">
             <h2>Story duration</h2>
             <select

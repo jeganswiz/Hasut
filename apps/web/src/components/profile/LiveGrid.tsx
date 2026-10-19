@@ -35,7 +35,7 @@ export function LiveGrid({
         action={
           isLive ? (
             <Button asChild variant="secondary">
-              <a href={`/stories/${memberId}`}>Open live</a>
+              <a href={live ? `/live/${live.id}` : `/live`}>Open live</a>
             </Button>
           ) : undefined
         }

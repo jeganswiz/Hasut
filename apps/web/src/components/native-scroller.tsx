@@ -36,6 +36,9 @@ export function NativeScroller({
         return;
       }
       const verticalWheel = Math.abs(event.deltaY) >= Math.abs(event.deltaX);
+      if (verticalWheel && el.closest(".discovery-sheet-body") !== null && !event.shiftKey) {
+        return;
+      }
       if (verticalWheel && !wheel && !event.shiftKey) {
         return;
       }

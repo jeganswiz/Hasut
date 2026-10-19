@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const FILES = [
-  "src/app/connections/page.tsx",
-  "src/app/inbox/page.tsx",
-  "src/app/notifications/page.tsx",
-  "src/app/conversations/[id]/page.tsx",
-  "src/app/members/[id]/page.tsx",
+  "src/app/(member)/connections/page.tsx",
+  "src/app/(member)/inbox/page.tsx",
+  "src/app/(member)/notifications/page.tsx",
+  "src/app/(member)/conversations/[id]/page.tsx",
+  "src/app/(member)/members/[id]/page.tsx",
   "src/app/social.css",
 ];
 

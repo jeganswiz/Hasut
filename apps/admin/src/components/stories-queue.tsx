@@ -107,6 +107,7 @@ export function StoriesQueue() {
             <th>Caption or title</th>
             <th>Audience</th>
             <th>Sound</th>
+            <th>Viewers</th>
             <th>Status</th>
             <th></th>
           </tr>
@@ -119,7 +120,11 @@ export function StoriesQueue() {
               <td>{item.title.length === 0 ? "—" : item.title}</td>
               <td>{audienceLabel(item.audience)}</td>
               <td>—</td>
-              <td>{item.status}</td>
+              <td>{item.viewerCount}</td>
+              <td>
+                {item.status}
+                {item.recordingStatus === "RECORDING" ? " · recording" : ""}
+              </td>
               <td>
                 <Button onClick={() => void endLive(item.id)}>End live</Button>
               </td>
@@ -135,6 +140,7 @@ export function StoriesQueue() {
               <td>{item.caption.length === 0 ? "—" : item.caption}</td>
               <td>{audienceLabel(item.audience)}</td>
               <td>{describeSound(item)}</td>
+              <td>—</td>
               <td>{item.moderationStatus}</td>
               <td>
                 {item.moderationStatus === "ACTIVE" ? (

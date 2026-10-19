@@ -1,4 +1,4 @@
-import { isMemberPath, loginHref, showWhenSignedIn } from "./member-nav";
+import { isAuthPath, isMemberPath, loginHref, showWhenSignedIn, tabSlot } from "./member-nav";
 
 describe("member nav", () => {
   it("hides member links until a session is confirmed", () => {
@@ -8,8 +8,25 @@ describe("member nav", () => {
     expect(showWhenSignedIn(false, "guest")).toBe(true);
   });
 
+  it("reserves signed-in tab slots while the session is unknown", () => {
+    expect(tabSlot(true, "unknown")).toBe("reserved");
+    expect(tabSlot(true, "guest")).toBe("hidden");
+    expect(tabSlot(true, "member")).toBe("shown");
+    expect(tabSlot(false, "unknown")).toBe("shown");
+  });
+
+  it("keeps login, register, and forgot-password outside the member shell", () => {
+    expect(isAuthPath("/login")).toBe(true);
+    expect(isAuthPath("/register")).toBe(true);
+    expect(isAuthPath("/forgot-password")).toBe(true);
+    expect(isAuthPath("/")).toBe(false);
+    expect(isAuthPath("/inbox")).toBe(false);
+  });
+
   it("treats the composer and inbox as member pages, and a watched story as public", () => {
     expect(isMemberPath("/story")).toBe(true);
+    expect(isMemberPath("/live")).toBe(true);
+    expect(isMemberPath("/live/abc")).toBe(true);
     expect(isMemberPath("/connections")).toBe(true);
     expect(isMemberPath("/inbox")).toBe(true);
     expect(isMemberPath("/me")).toBe(true);

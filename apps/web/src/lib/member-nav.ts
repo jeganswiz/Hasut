@@ -9,11 +9,34 @@ const MEMBER_PREFIXES = [
   "/notifications",
   "/me",
   "/story",
+  "/live",
   "/conversations",
 ] as const;
 
 export function showWhenSignedIn(requiresAuth: boolean, session: NavSession): boolean {
   return !requiresAuth || session === "member";
+}
+
+export type TabSlot = "shown" | "reserved" | "hidden";
+
+/** Auth tabs stay reserved while the session is unknown so the bar does not jump from 1 to 6 icons. */
+export function tabSlot(requiresAuth: boolean, session: NavSession): TabSlot {
+  if (!requiresAuth) {
+    return "shown";
+  }
+  if (session === "member") {
+    return "shown";
+  }
+  if (session === "unknown") {
+    return "reserved";
+  }
+  return "hidden";
+}
+
+const AUTH_PATHS = ["/login", "/register", "/forgot-password"] as const;
+
+export function isAuthPath(pathname: string): boolean {
+  return AUTH_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 export function isMemberPath(pathname: string): boolean {

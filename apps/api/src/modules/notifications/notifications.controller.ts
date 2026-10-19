@@ -1,6 +1,15 @@
-import type { NotificationTemplateView, NotificationView, UnreadCountView } from "@hasut/types";
-import { notificationTemplateWriteSchema } from "@hasut/validation";
-import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import type {
+  NotificationSettingsView,
+  NotificationTemplateView,
+  NotificationView,
+  UnreadCountView,
+} from "@hasut/types";
+import {
+  notificationSettingsPatchSchema,
+  notificationTemplateWriteSchema,
+  pushSubscriptionSchema,
+} from "@hasut/validation";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { z } from "zod";
@@ -16,6 +25,47 @@ import { NotificationsService } from "./notifications.service";
 @Controller()
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
+
+  @Get("me/notification-settings")
+  @ApiOperation({ summary: "Quiet hours and hourly cap" })
+  settings(@CurrentUser("memberId") memberId: string): Promise<NotificationSettingsView> {
+    return this.notifications.settings(memberId);
+  }
+
+  @Patch("me/notification-settings")
+  @ApiOperation({ summary: "Update quiet hours and hourly cap" })
+  updateSettings(
+    @CurrentUser("memberId") memberId: string,
+    @Body(new ZodValidationPipe(notificationSettingsPatchSchema))
+    body: z.infer<typeof notificationSettingsPatchSchema>,
+  ): Promise<NotificationSettingsView> {
+    return this.notifications.updateSettings(memberId, body);
+  }
+
+  @Get("me/push-public-key")
+  @ApiOperation({ summary: "VAPID public key for Web Push. Empty when push is off." })
+  pushKey(): { vapidPublicKey: string } {
+    return this.notifications.pushPublicKey();
+  }
+
+  @Post("me/push-subscriptions")
+  @ApiOperation({ summary: "Store a browser push subscription" })
+  savePush(
+    @CurrentUser("memberId") memberId: string,
+    @Body(new ZodValidationPipe(pushSubscriptionSchema))
+    body: z.infer<typeof pushSubscriptionSchema>,
+  ): Promise<void> {
+    return this.notifications.savePush(memberId, body);
+  }
+
+  @Delete("me/push-subscriptions")
+  @ApiOperation({ summary: "Remove a browser push subscription" })
+  deletePush(
+    @CurrentUser("memberId") memberId: string,
+    @Body() body: { endpoint?: string },
+  ): Promise<void> {
+    return this.notifications.deletePush(memberId, body.endpoint ?? "");
+  }
 
   @Get("notifications")
   @ApiOperation({ summary: "In-app notification feed" })

@@ -1,6 +1,16 @@
 # Local live ingest for the compose profile `live`.
 # HLS is :8888, WHIP/WebRTC is :8889. Paths match the API: live/{id} and stories/{id}.
 logLevel: info
+# Control API is for the HASUT API process only. Docker publishes :9997 on localhost.
+api: yes
+apiAddress: :9997
+# Playback is used to fetch a recording after the host ends. Bind locally.
+playback: yes
+playbackAddress: :9996
+record: yes
+recordPath: ./recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+recordFormat: fmp4
+recordDeleteAfter: 30d
 hls: true
 hlsAddress: :8888
 hlsAllowOrigin: "*"

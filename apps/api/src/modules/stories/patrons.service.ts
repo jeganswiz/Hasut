@@ -65,4 +65,20 @@ export class PatronsService {
     }
     return patrons;
   }
+
+  /** Every accepted connection of `memberId`, used for live start fan-out. */
+  async listIdsFor(memberId: string): Promise<string[]> {
+    const rows = await this.prisma.connection.findMany({
+      where: {
+        status: "ACCEPTED",
+        OR: [{ requesterId: memberId }, { addresseeId: memberId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const ids = new Set<string>();
+    for (const row of rows) {
+      ids.add(row.requesterId === memberId ? row.addresseeId : row.requesterId);
+    }
+    return [...ids];
+  }
 }

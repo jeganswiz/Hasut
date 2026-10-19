@@ -76,6 +76,24 @@ import {
   type StoryComposerConfig,
   type StoryOriginalAudioMode,
   type LiveSessionView,
+  type LiveChatMessageView,
+  type LiveChatPage,
+  type LiveComposerConfig,
+  type LiveDiscoverResult,
+  type LiveHealthView,
+  type LiveHeartbeatResult,
+  type LiveHostPreview,
+  type LiveMetricInput,
+  type LiveMetricsSummary,
+  type LiveReminderState,
+  type LiveReplayInput,
+  type LiveReplayStatus,
+  type LiveScheduleInput,
+  type LiveSettingsInput,
+  type LiveStartInput,
+  type LiveSummaryView,
+  type NotificationSettingsView,
+  type PushSubscriptionInput,
   type ThemeTokens,
   type StorageOverview,
   type StorageSwitchResult,
@@ -173,6 +191,18 @@ import {
   livePresenceViewSchema,
   liveSessionListSchema,
   liveSessionViewSchema,
+  liveChatMessageViewSchema,
+  liveChatPageSchema,
+  liveComposerConfigSchema,
+  liveDiscoverResultSchema,
+  liveHealthViewSchema,
+  liveHeartbeatResultSchema,
+  liveModeratorListSchema,
+  liveMetricsSummarySchema,
+  liveReminderStateSchema,
+  liveReplayStatusSchema,
+  liveSummaryViewSchema,
+  notificationSettingsViewSchema,
 } from "@hasut/validation";
 import { z, type ZodType } from "zod";
 import { createAxiosHttpAdapter, HASUT_UPLOAD_TIMEOUT_MS, type HasutHttpAdapter } from "./http";
@@ -1631,9 +1661,7 @@ export class HasutApiClient {
     return result.data.live;
   }
 
-  async startLive(
-    body: { title?: string; audience?: StoryAudience } = {},
-  ): Promise<LiveSessionView> {
+  async startLive(body: LiveStartInput = {}): Promise<LiveSessionView> {
     const result = await this.request(liveSessionViewSchema, "/api/v1/me/live", {
       method: "POST",
       body: JSON.stringify(body),
@@ -1646,6 +1674,238 @@ export class HasutApiClient {
       method: "POST",
     });
     return result.data;
+  }
+
+  async liveComposerConfig(): Promise<LiveComposerConfig> {
+    const result = await this.request(liveComposerConfigSchema, "/api/v1/live/composer", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  /** Watch path by live id. Audience, invites, and blocks are enforced by the API. */
+  async discoverLive(): Promise<LiveDiscoverResult> {
+    const result = await this.request(liveDiscoverResultSchema, "/api/v1/live/discover", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listLiveChat(liveId: string, before?: string): Promise<LiveChatPage> {
+    const query = before === undefined ? "" : `?before=${encodeURIComponent(before)}`;
+    const result = await this.request(liveChatPageSchema, `/api/v1/live/${liveId}/chat${query}`, {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async sendLiveChat(liveId: string, body: string): Promise<LiveChatMessageView> {
+    const result = await this.request(liveChatMessageViewSchema, `/api/v1/live/${liveId}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    });
+    return result.data;
+  }
+
+  async pinLiveChat(liveId: string, messageId: string | null): Promise<LiveChatMessageView | null> {
+    const result = await this.request(
+      liveChatMessageViewSchema.nullable(),
+      `/api/v1/live/${liveId}/chat/pin`,
+      { method: "POST", body: JSON.stringify({ messageId }) },
+    );
+    return result.data;
+  }
+
+  async hideLiveChat(liveId: string, messageId: string): Promise<void> {
+    await this.request(z.unknown(), `/api/v1/live/${liveId}/chat/hide`, {
+      method: "POST",
+      body: JSON.stringify({ messageId }),
+    });
+  }
+
+  async reportLive(
+    liveId: string,
+    body: { reasonCode: string; details: string; messageId?: string },
+  ): Promise<void> {
+    await this.request(z.unknown(), `/api/v1/live/${liveId}/report`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async getLive(liveId: string): Promise<LiveSessionView> {
+    const result = await this.request(liveSessionViewSchema, `/api/v1/live/${liveId}`, {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async updateLive(body: LiveSettingsInput): Promise<LiveSessionView> {
+    const result = await this.request(liveSessionViewSchema, "/api/v1/me/live", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async heartbeatLive(): Promise<LiveHeartbeatResult> {
+    const result = await this.request(liveHeartbeatResultSchema, "/api/v1/me/live/heartbeat", {
+      method: "POST",
+    });
+    return result.data;
+  }
+
+  async getMyLiveHealth(): Promise<LiveHealthView> {
+    const result = await this.request(liveHealthViewSchema, "/api/v1/me/live/health", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async scheduleLive(body: LiveScheduleInput): Promise<LiveSessionView> {
+    const result = await this.request(liveSessionViewSchema, "/api/v1/me/live/schedule", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async listMyScheduledLive(): Promise<LiveSessionView[]> {
+    const result = await this.request(liveSessionListSchema, "/api/v1/me/live/scheduled", {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async cancelScheduledLive(liveId: string): Promise<LiveSessionView> {
+    const result = await this.request(
+      liveSessionViewSchema,
+      `/api/v1/me/live/scheduled/${liveId}/cancel`,
+      { method: "POST" },
+    );
+    return result.data;
+  }
+
+  async getLiveSummary(liveId: string): Promise<LiveSummaryView> {
+    const result = await this.request(liveSummaryViewSchema, `/api/v1/me/live/${liveId}/summary`, {
+      method: "GET",
+    });
+    return result.data;
+  }
+
+  async listLiveModerators(): Promise<LiveHostPreview[]> {
+    const result = await this.request(liveModeratorListSchema, "/api/v1/me/live/moderators", {
+      method: "GET",
+    });
+    return result.data.moderators;
+  }
+
+  async getLiveReplayStatus(liveId: string): Promise<LiveReplayStatus> {
+    const result = await this.request(
+      liveReplayStatusSchema,
+      `/api/v1/me/live/${liveId}/replay-status`,
+      {
+        method: "GET",
+      },
+    );
+    return result.data;
+  }
+
+  async updateLiveReplay(liveId: string, body: LiveReplayInput): Promise<LiveReplayStatus> {
+    const result = await this.request(liveReplayStatusSchema, `/api/v1/me/live/${liveId}/replay`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+    return result.data;
+  }
+
+  async getLiveReminder(creatorId: string): Promise<LiveReminderState> {
+    const result = await this.request(
+      liveReminderStateSchema,
+      `/api/v1/me/live/reminders/${creatorId}`,
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async setLiveReminder(creatorId: string, enabled: boolean): Promise<LiveReminderState> {
+    const result = await this.request(
+      liveReminderStateSchema,
+      `/api/v1/me/live/reminders/${creatorId}`,
+      { method: enabled ? "POST" : "DELETE" },
+    );
+    return result.data;
+  }
+
+  async recordLiveMetrics(liveId: string, body: LiveMetricInput): Promise<void> {
+    await this.request(z.unknown(), `/api/v1/live/${liveId}/metrics`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async getLiveMetrics(liveId: string): Promise<LiveMetricsSummary> {
+    const result = await this.request(
+      liveMetricsSummarySchema,
+      `/api/v1/me/live/${liveId}/metrics`,
+      {
+        method: "GET",
+      },
+    );
+    return result.data;
+  }
+
+  async getNotificationSettings(): Promise<NotificationSettingsView> {
+    const result = await this.request(
+      notificationSettingsViewSchema,
+      "/api/v1/me/notification-settings",
+      {
+        method: "GET",
+      },
+    );
+    return result.data;
+  }
+
+  async updateNotificationSettings(
+    body: Partial<NotificationSettingsView>,
+  ): Promise<NotificationSettingsView> {
+    const result = await this.request(
+      notificationSettingsViewSchema,
+      "/api/v1/me/notification-settings",
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+    return result.data;
+  }
+
+  async getPushPublicKey(): Promise<{ vapidPublicKey: string }> {
+    const result = await this.request(
+      z.object({ vapidPublicKey: z.string() }),
+      "/api/v1/me/push-public-key",
+      { method: "GET" },
+    );
+    return result.data;
+  }
+
+  async savePushSubscription(body: PushSubscriptionInput): Promise<void> {
+    await this.request(z.unknown(), "/api/v1/me/push-subscriptions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    await this.request(z.unknown(), "/api/v1/me/push-subscriptions", {
+      method: "DELETE",
+      body: JSON.stringify({ endpoint }),
+    });
+  }
+
+  async setLiveModerators(memberIds: string[]): Promise<LiveHostPreview[]> {
+    const result = await this.request(liveModeratorListSchema, "/api/v1/me/live/moderators", {
+      method: "PUT",
+      body: JSON.stringify({ memberIds }),
+    });
+    return result.data.moderators;
   }
 
   async listAdminStories(): Promise<StoryView[]> {

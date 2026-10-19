@@ -1,5 +1,5 @@
 import type { TokenStorage } from "@hasut/auth";
-import { DISCOVERY_REALTIME_NAMESPACE } from "@hasut/types";
+import { DISCOVERY_REALTIME_NAMESPACE, LIVE_REALTIME_NAMESPACE } from "@hasut/types";
 import { io, type Socket } from "socket.io-client";
 
 export interface HasutRealtimeOptions {
@@ -78,5 +78,14 @@ export function createHasutDiscoveryRealtimeClient(
   return new HasutRealtimeClient({
     ...options,
     namespace: DISCOVERY_REALTIME_NAMESPACE,
+  });
+}
+
+export function createHasutLiveRealtimeClient(
+  options: Omit<HasutRealtimeOptions, "namespace">,
+): HasutRealtimeClient {
+  return new HasutRealtimeClient({
+    ...options,
+    namespace: LIVE_REALTIME_NAMESPACE,
   });
 }

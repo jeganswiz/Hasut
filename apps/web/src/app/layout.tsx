@@ -1,5 +1,6 @@
 import { themeToCssText } from "@hasut/config";
 import type { ReactNode } from "react";
+import { NavSessionProvider } from "../components/nav-session";
 import { PwaBoot } from "../components/pwa-boot";
 import { ThemeBoot } from "../components/theme-boot";
 import "./globals.css";
@@ -8,6 +9,7 @@ export const metadata = {
   title: "HASUT",
   description: "Location-intelligent professional and business network",
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -22,7 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body suppressHydrationWarning>
         <ThemeBoot />
         <PwaBoot />
-        {children}
+        <NavSessionProvider>{children}</NavSessionProvider>
       </body>
     </html>
   );

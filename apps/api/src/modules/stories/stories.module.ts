@@ -3,7 +3,9 @@ import { ConnectionsModule } from "../connections/connections.module";
 import { MediaModule } from "../media/media.module";
 import { MessagingModule } from "../messaging/messaging.module";
 import { ProfilesModule } from "../profiles/profiles.module";
+import { ReportsModule } from "../reports/reports.module";
 import { AudioLibraryService } from "./audio-library.service";
+import { LiveNotificationsService } from "./live-notifications.service";
 import { LiveService } from "./live.service";
 import { PatronsService } from "./patrons.service";
 import { StoriesController } from "./stories.controller";
@@ -14,18 +16,26 @@ import { StoryPlaybackService } from "./story-playback.service";
 import { StoryPlaybackWorker } from "./story-playback.worker";
 
 @Module({
-  imports: [MediaModule, ConnectionsModule, MessagingModule, ProfilesModule],
+  imports: [MediaModule, ConnectionsModule, MessagingModule, ProfilesModule, ReportsModule],
   controllers: [StoriesController],
   providers: [
     StoriesService,
     StoryReactionsService,
     LiveService,
+    LiveNotificationsService,
     AudioLibraryService,
     PatronsService,
     StoryPlaybackService,
     StoryPlaybackWorker,
     { provide: STORY_TRANSCODER, useClass: FfmpegStoryTranscoder },
   ],
-  exports: [StoriesService, LiveService, AudioLibraryService, PatronsService],
+  exports: [
+    StoriesService,
+    LiveService,
+    LiveNotificationsService,
+    AudioLibraryService,
+    PatronsService,
+    StoryPlaybackService,
+  ],
 })
 export class StoriesModule {}

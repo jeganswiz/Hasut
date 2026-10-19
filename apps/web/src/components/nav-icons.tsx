@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 export type NavIconName =
-  "map" | "connections" | "inbox" | "alerts" | "me" | "story" | "support" | "sign-in";
+  "map" | "live" | "connections" | "inbox" | "alerts" | "me" | "story" | "support" | "sign-in";
 
 export function NavIcon({ name }: { name: NavIconName }) {
   const props: SVGProps<SVGSVGElement> = {
@@ -20,6 +20,15 @@ export function NavIcon({ name }: { name: NavIconName }) {
       <svg {...props}>
         <path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z" />
         <circle cx="12" cy="10" r="1.7" />
+      </svg>
+    );
+  }
+  if (name === "live") {
+    return (
+      <svg {...props}>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M5.5 7.5a8 8 0 0 0 0 9" />
+        <path d="M18.5 7.5a8 8 0 0 1 0 9" />
       </svg>
     );
   }

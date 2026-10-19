@@ -1,6 +1,10 @@
 import {
+  LIVE_END_REASONS,
+  LIVE_HEALTH_STATES,
+  LIVE_RECORDING_STATUSES,
   LIVE_SESSION_STATUSES,
   STORY_AUDIENCES,
+  STORY_COMPOSER_AUDIENCES,
   STORY_AUDIO_SOURCES,
   STORY_CAPTION_MAX_LENGTH,
   STORY_KINDS,
@@ -16,6 +20,8 @@ const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 export const storyAudioSourceSchema = z.enum(STORY_AUDIO_SOURCES);
 export const storyOriginalAudioModeSchema = z.enum(STORY_ORIGINAL_AUDIO_MODES);
 export const storyAudienceSchema = z.enum(STORY_AUDIENCES);
+/** Photo and video stories cannot be PRIVATE; that audience belongs to lives and replays. */
+export const storyComposerAudienceSchema = z.enum(STORY_COMPOSER_AUDIENCES);
 export const storyPlaybackStatusSchema = z.enum(STORY_PLAYBACK_STATUSES);
 
 /**
@@ -84,7 +90,7 @@ export const storyCreateSchema = z
     captionW: z.number().min(0).max(100).nullable().optional(),
     audio: storyAudioInputSchema.optional(),
     originalAudioMode: storyOriginalAudioModeSchema.default("KEEP"),
-    audience: storyAudienceSchema.default("EVERYONE"),
+    audience: storyComposerAudienceSchema.default("EVERYONE"),
     ttlHours: z
       .number()
       .int()
@@ -243,25 +249,229 @@ export const storyComposerConfigSchema = z.object({
   storyTtlHours: z.number(),
 });
 
+/** Upper bounds here are belt and braces; the live policy sets the real caps in the service. */
+const LIVE_TITLE_HARD_MAX = 200;
+const LIVE_DESCRIPTION_HARD_MAX = 2_000;
+const LIVE_BLOCKED_WORDS_MAX = 100;
+const LIVE_SLOW_MODE_MAX_SECONDS = 600;
+
+const liveSettingsFields = {
+  title: z.string().trim().max(LIVE_TITLE_HARD_MAX).optional(),
+  description: z.string().trim().max(LIVE_DESCRIPTION_HARD_MAX).optional(),
+  category: z.string().trim().max(40).nullable().optional(),
+  thumbnailMediaId: z.string().uuid().nullable().optional(),
+  chatEnabled: z.boolean().optional(),
+  chatPatronsOnly: z.boolean().optional(),
+  slowModeSeconds: z.number().int().min(0).max(LIVE_SLOW_MODE_MAX_SECONDS).optional(),
+  blockedWords: z.array(z.string().trim().min(1).max(40)).max(LIVE_BLOCKED_WORDS_MAX).optional(),
+};
+
+export const liveSettingsSchema = z.object(liveSettingsFields);
+
 export const liveStartSchema = z.object({
-  title: z.string().trim().max(80).optional().default(""),
+  ...liveSettingsFields,
   audience: storyAudienceSchema.default("EVERYONE"),
+  inviteeIds: z.array(z.string().uuid()).max(500).optional(),
+  recordingEnabled: z.boolean().optional(),
+  scheduledId: z.string().uuid().optional(),
+});
+
+export const liveScheduleSchema = z.object({
+  ...liveSettingsFields,
+  audience: storyAudienceSchema.default("EVERYONE"),
+  inviteeIds: z.array(z.string().uuid()).max(500).optional(),
+  recordingEnabled: z.boolean().optional(),
+  scheduledFor: z.string().datetime(),
+});
+
+export const liveModeratorsSchema = z.object({
+  memberIds: z.array(z.string().uuid()).max(50),
+});
+
+export const liveHostPreviewSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string(),
+  photoUrl: z.string().nullable(),
 });
 
 export const liveSessionViewSchema = z.object({
   id: z.string().min(1),
   memberId: z.string().min(1),
+  host: liveHostPreviewSchema,
   title: z.string(),
+  description: z.string(),
+  category: z.string().nullable(),
+  thumbnailUrl: z.string().nullable(),
   audience: storyAudienceSchema,
   status: z.enum(LIVE_SESSION_STATUSES),
+  scheduledFor: z.string().nullable(),
   hlsUrl: z.string().nullable(),
   previewHlsUrl: z.string().nullable(),
   ingestUrl: z.string().nullable(),
+  chatEnabled: z.boolean(),
+  chatPatronsOnly: z.boolean(),
+  slowModeSeconds: z.number(),
+  blockedWords: z.array(z.string()),
+  recordingEnabled: z.boolean(),
+  recordingStatus: z.enum(LIVE_RECORDING_STATUSES),
+  replayStoryId: z.string().nullable(),
+  viewerCount: z.number(),
+  peakViewers: z.number(),
+  totalViews: z.number(),
+  reactionCount: z.number(),
+  messageCount: z.number(),
+  endedReason: z.enum(LIVE_END_REASONS).nullable(),
   startedAt: z.string(),
   endedAt: z.string().nullable(),
 });
 
+export const liveHealthViewSchema = z.object({
+  state: z.enum(LIVE_HEALTH_STATES),
+  streamReady: z.boolean(),
+  tracks: z.array(z.string()),
+  bitrateKbps: z.number().nullable(),
+  viewerCount: z.number(),
+  lastHeartbeatAt: z.string().nullable(),
+  checkedAt: z.string(),
+});
+
+export const liveHeartbeatResultSchema = z.object({
+  live: liveSessionViewSchema,
+  health: liveHealthViewSchema,
+});
+
+export const liveSummaryViewSchema = z.object({
+  live: liveSessionViewSchema,
+  durationSeconds: z.number(),
+  peakViewers: z.number(),
+  totalViews: z.number(),
+  reactionCount: z.number(),
+  messageCount: z.number(),
+  endedReason: z.enum(LIVE_END_REASONS).nullable(),
+});
+
+export const liveComposerConfigSchema = z.object({
+  titleMaxLength: z.number(),
+  descriptionMaxLength: z.number(),
+  categories: z.array(z.string()),
+  heartbeatSeconds: z.number(),
+  chatMaxChars: z.number(),
+  maxInvitees: z.number(),
+  maxModerators: z.number(),
+  maxScheduleDaysAhead: z.number(),
+  recordingAvailable: z.boolean(),
+  replayRetentionDays: z.number(),
+  patronCount: z.number(),
+  playlistPollSeconds: z.number(),
+});
+
+export const liveModeratorListSchema = z.object({
+  moderators: z.array(liveHostPreviewSchema),
+});
+
+export const liveChatMessageViewSchema = z.object({
+  id: z.string().min(1),
+  liveId: z.string().min(1),
+  member: liveHostPreviewSchema,
+  body: z.string(),
+  pinned: z.boolean(),
+  isHost: z.boolean(),
+  isPatron: z.boolean(),
+  isModerator: z.boolean(),
+  createdAt: z.string(),
+});
+
+export const liveChatPageSchema = z.object({
+  messages: z.array(liveChatMessageViewSchema),
+  nextCursor: z.string().nullable(),
+  pinned: liveChatMessageViewSchema.nullable(),
+});
+
+export const liveChatSendSchema = z.object({
+  body: z.string().trim().min(1).max(2_000),
+});
+
+export const liveChatHideSchema = z.object({
+  messageId: z.string().uuid(),
+});
+
+export const liveChatPinSchema = z.object({
+  messageId: z.string().uuid().nullable(),
+});
+
+export const liveTimeoutSchema = z.object({
+  memberId: z.string().uuid(),
+  seconds: z.number().int().min(10).max(3_600).default(60),
+});
+
+export const liveReactionSchema = z.object({
+  emoji: z.string().min(1).max(8),
+});
+
+export const liveReportSchema = z.object({
+  reasonCode: z.string().min(1).max(40),
+  details: z.string().max(2_000).default(""),
+  messageId: z.string().uuid().optional(),
+});
+
+export const liveCardViewSchema = z.object({
+  id: z.string().min(1),
+  host: liveHostPreviewSchema,
+  title: z.string(),
+  category: z.string().nullable(),
+  thumbnailUrl: z.string().nullable(),
+  previewHlsUrl: z.string().nullable(),
+  audience: storyAudienceSchema,
+  status: z.enum(["LIVE", "UPCOMING", "REPLAY"]),
+  viewerCount: z.number(),
+  scheduledFor: z.string().nullable(),
+  distanceBucket: z.string().nullable(),
+  href: z.string(),
+});
+
+export const liveDiscoverResultSchema = z.object({
+  liveNow: z.array(liveCardViewSchema),
+  patrons: z.array(liveCardViewSchema),
+  upcoming: z.array(liveCardViewSchema),
+  recommended: z.array(liveCardViewSchema),
+  recentReplays: z.array(liveCardViewSchema),
+});
+
 export const liveSessionListSchema = z.array(liveSessionViewSchema);
+
+export const liveReplaySchema = z.object({
+  title: z.string().trim().max(80).optional(),
+  description: z.string().trim().max(500).optional(),
+  thumbnailMediaId: z.string().uuid().nullable().optional(),
+  visibility: z.enum(["EVERYONE", "PATRONS", "PRIVATE", "DISCARD"]).optional(),
+});
+
+export const liveReplayStatusSchema = z.object({
+  liveId: z.string().min(1),
+  recordingStatus: z.enum(["NONE", "RECORDING", "PROCESSING", "READY", "FAILED", "DISCARDED"]),
+  replayStoryId: z.string().nullable(),
+  replayHlsUrl: z.string().nullable(),
+});
+
+export const liveReminderStateSchema = z.object({
+  creatorId: z.string().uuid(),
+  reminded: z.boolean(),
+});
+
+export const liveMetricSchema = z.object({
+  startupMs: z.number().int().min(0).max(120_000).optional(),
+  fatalErrors: z.number().int().min(0).max(1_000).optional(),
+  reconnects: z.number().int().min(0).max(1_000).optional(),
+  droppedFrames: z.number().int().min(0).max(1_000_000).optional(),
+});
+
+export const liveMetricsSummarySchema = z.object({
+  samples: z.number().int().min(0),
+  avgStartupMs: z.number().nullable(),
+  fatalErrors: z.number().int().min(0),
+  reconnects: z.number().int().min(0),
+  droppedFrames: z.number().int().min(0),
+});
 
 /** Current live for a member — `live` is null when they are not broadcasting. */
 export const livePresenceViewSchema = z.object({

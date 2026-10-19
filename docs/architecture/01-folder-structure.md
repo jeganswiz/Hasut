@@ -97,6 +97,8 @@ PostGIS-specific SQL lives in Prisma migrations, not in application string-conca
 ```
 apps/web/src/
   app/                        # App Router
+    (member)/                 # persistent AppNav shell (tabs, profiles, story, live)
+    login|register|forgot-password  # full-screen auth, outside the shell
   components/                 # app-specific composition only
   lib/                        # thin wrappers around packages/*
 ```

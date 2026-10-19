@@ -31,6 +31,7 @@ import { SupportModule } from "./modules/support/support.module";
 import { OpsModule } from "./modules/ops/ops.module";
 import { ServicesModule } from "./modules/services/services.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
+import { LiveModule } from "./modules/live/live.module";
 import { StoriesModule } from "./modules/stories/stories.module";
 
 @Module({
@@ -87,6 +88,7 @@ import { StoriesModule } from "./modules/stories/stories.module";
     ServicesModule,
     ReviewsModule,
     StoriesModule,
+    LiveModule,
     HealthModule,
   ],
   providers: [

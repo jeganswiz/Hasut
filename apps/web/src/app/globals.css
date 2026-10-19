@@ -44,12 +44,35 @@
   }
 }
 
+html,
+body,
+.app-shell {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   min-height: 100dvh;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   background: var(--hasut-color-background);
   color: var(--hasut-color-text);
+}
+
+.app-shell {
+  min-height: 100dvh;
+}
+
+.ptr-root {
+  min-height: 100%;
+}
+
+.ptr-indicator {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--hasut-color-muted-text);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 main {
@@ -190,8 +213,14 @@ main.me-profile h3 {
 }
 
 .nav-icon[aria-current="page"] {
+  transform: scale(1.06);
   background: var(--hasut-color-primary);
   color: var(--hasut-color-text-on-primary);
+}
+
+.nav-icon.is-reserved {
+  opacity: 0.38;
+  pointer-events: none;
 }
 
 .nav-badge {
@@ -518,7 +547,7 @@ main.me-profile h3 {
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   background: var(--hasut-color-surface);
   border-top: 1px solid var(--hasut-color-border);
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
@@ -745,7 +774,8 @@ main.presence-page {
   z-index: 40;
   top: 24px;
   left: 50%;
-  width: min(420px, calc(100vw - 32px));
+  width: min(420px, 100%);
+  max-width: 100%;
   max-height: calc(100dvh - 48px);
   transform: translateX(-50%);
 }
@@ -1102,10 +1132,20 @@ main.presence-page {
 
 .ps-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 420px) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
   gap: 28px;
   align-items: start;
   color: var(--hasut-color-text);
+  min-width: 0;
+}
+
+.ps-stage-col,
+.ps-cards {
+  min-width: 0;
+}
+
+.ps-rail {
+  display: none;
 }
 
 .ps-cards {
@@ -1281,9 +1321,12 @@ main.presence-page {
 .ps-toolbar {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 4px;
   margin-top: 12px;
   padding: 8px 6px;
+  min-width: 0;
+  max-width: 100%;
   border-radius: 18px;
   background: var(--hasut-color-surface);
   border: 1px solid var(--hasut-color-border);
@@ -1802,10 +1845,84 @@ main.presence-page {
 @media (max-width: 860px) {
   .ps-grid,
   .ps-live {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ps-stage-col {
+    position: relative;
   }
   .ps-desktop-only {
     display: none;
+  }
+  .ps-rail {
+    display: grid;
+    gap: 8px;
+    position: absolute;
+    top: 72px;
+    right: 8px;
+    z-index: 8;
+  }
+  .ps-rail button {
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--hasut-color-text) 55%, transparent);
+    color: var(--hasut-color-text-on-primary);
+    cursor: pointer;
+  }
+  .ps-rail button.is-active {
+    background: var(--hasut-color-primary);
+  }
+  .ps-card.is-open {
+    display: grid;
+    position: absolute;
+    left: 12px;
+    right: 60px;
+    bottom: 88px;
+    z-index: 8;
+    max-height: 42dvh;
+    overflow: auto;
+  }
+  .ps-overlay-tools.is-open {
+    position: absolute;
+    left: 12px;
+    right: 60px;
+    bottom: 88px;
+    z-index: 8;
+    max-height: 42dvh;
+    overflow: auto;
+    padding: 10px;
+    border-radius: 18px;
+    background: var(--hasut-color-surface);
+    border: 1px solid var(--hasut-color-border);
+  }
+  .story-frame.is-expanded {
+    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-height: 100dvh;
+    transform: none;
+    border-radius: 0;
+  }
+  .lv-studio {
+    position: relative;
+  }
+  .ps-live-form:not(.is-open) {
+    display: none;
+  }
+  .ps-live-form.is-open,
+  .lv-setup-overlay.is-open {
+    position: absolute;
+    left: 12px;
+    right: 60px;
+    bottom: 88px;
+    z-index: 8;
+    max-height: 48dvh;
+    overflow: auto;
+  }
+  .lv-cards {
+    grid-template-columns: minmax(0, 1fr);
   }
   .ps-ratio,
   .ps-expand {
@@ -1839,9 +1956,16 @@ main.presence-page {
     cursor: pointer;
   }
   .ps-mobile-tabs {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
+    display: none;
+  }
+  .ps-overlay-tools {
+    display: none;
+  }
+  .ps-overlay-tools.is-open {
+    display: block;
+  }
+  .ps-cards > .ps-card:not(.is-open) {
+    display: none;
   }
   .ps-publish {
     position: sticky;
@@ -1849,5 +1973,91 @@ main.presence-page {
     z-index: 6;
     padding-top: 8px;
     background: var(--hasut-color-background);
+  }
+}
+
+.lv-studio,
+.lv-watch,
+.lv-section {
+  display: grid;
+  gap: 16px;
+}
+
+.lv-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lv-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--hasut-color-border);
+  border-radius: var(--hasut-radius-card);
+  background: var(--hasut-color-surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.lv-card em {
+  font-style: normal;
+  color: var(--hasut-color-muted-text);
+  font-size: 13px;
+}
+
+.lv-chat {
+  display: grid;
+  gap: 10px;
+}
+
+.lv-chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.lv-chat-tools,
+.lv-react,
+.lv-end-actions,
+.lv-invites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lv-link,
+.lv-live-badge {
+  color: var(--hasut-color-primary);
+  font-weight: 700;
+}
+
+.lv-field,
+.lv-switch {
+  display: grid;
+  gap: 6px;
+}
+
+.lv-summary {
+  margin: 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 860px) {
+  .lv-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-react-btn {
+    animation: none;
   }
 }

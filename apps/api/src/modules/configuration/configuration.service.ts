@@ -15,6 +15,9 @@ import {
   readMediaPolicy,
   PROFESSIONAL_AVAILABILITY_CONFIG_KEY,
   PROFESSIONAL_AVAILABILITY_DEFAULTS,
+  LIVE_POLICY_CONFIG_KEY,
+  readLivePolicy,
+  type LivePolicy,
   STORY_POLICY_CONFIG_KEY,
   isAuthPolicy,
   isAvailabilityOptions,
@@ -76,6 +79,13 @@ export class ConfigurationService {
       where: { key: STORY_POLICY_CONFIG_KEY },
     });
     return readStoryPolicy(row?.valueJson);
+  }
+
+  async getLivePolicy(): Promise<LivePolicy> {
+    const row = await this.prisma.remoteConfig.findUnique({
+      where: { key: LIVE_POLICY_CONFIG_KEY },
+    });
+    return readLivePolicy(row?.valueJson);
   }
 
   async getLocationPolicy(): Promise<LocationPolicy> {

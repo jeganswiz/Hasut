@@ -7,7 +7,15 @@ export type ConnectionDirection = (typeof CONNECTION_DIRECTIONS)[number];
 export const MESSAGE_TYPES = ["TEXT", "IMAGE"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
-export const REPORT_TARGET_TYPES = ["MEMBER", "MESSAGE", "PROFILE", "BUSINESS", "SERVICE"] as const;
+export const REPORT_TARGET_TYPES = [
+  "MEMBER",
+  "MESSAGE",
+  "PROFILE",
+  "BUSINESS",
+  "SERVICE",
+  "LIVE",
+  "LIVE_CHAT_MESSAGE",
+] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 
 export const REPORT_STATUSES = ["OPEN", "ACTIONED", "DISMISSED"] as const;
@@ -102,4 +110,16 @@ export interface NotificationView {
 export interface UnreadCountView {
   notifications: number;
   messages: number;
+}
+
+export interface NotificationSettingsView {
+  quietHoursStartMinutes: number | null;
+  quietHoursEndMinutes: number | null;
+  maxPerHour: number;
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
 }

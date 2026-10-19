@@ -1,9 +1,9 @@
 "use client";
 
 import type { DiscoveryCard, DiscoveryKind, DiscoveryPreview, DiscoveryRoute } from "@hasut/types";
-import { BottomSheet, FilterChip, NearbyCard, ServiceCard } from "@hasut/ui";
+import { FilterChip, NearbyCard, ServiceCard } from "@hasut/ui";
 import { ownerPresenceCopy, showPinPreviewControl } from "@hasut/utils";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createWebApiClient } from "../lib/api";
 import { flattenCategories } from "../lib/categories";
 import {
@@ -21,8 +21,9 @@ import {
 import { profileRingClass, profileRingState } from "../lib/story-ring";
 import { useWatchedStoryIds } from "../lib/use-watched-stories";
 import { useDiscoveryMapController } from "../lib/use-discovery-map";
-import { AppNav } from "./app-nav";
 import { DiscoveryMap } from "./discovery-map";
+import { DiscoverySheet } from "./discovery-sheet";
+import { useNavSession } from "./nav-session";
 import { NativeScroller } from "./native-scroller";
 import { SearchSuggest } from "./search-suggest";
 import { StoryTray } from "./story-tray";
@@ -30,6 +31,7 @@ import { ToastStack } from "./toast-stack";
 
 export function DiscoveryExperience() {
   const discovery = useDiscoveryMapController();
+  const { setSearch } = useNavSession();
   const [toasts, setToasts] = useState<ToastNote[]>([]);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [selfPhotoUrl, setSelfPhotoUrl] = useState<string | null>(null);
@@ -175,28 +177,33 @@ export function DiscoveryExperience() {
     };
   }, []);
 
-  function pickSuggestion(suggestion: SearchSuggestion): void {
-    if (suggestion.group === "Service") {
-      discovery.setCategoryId(suggestion.categoryId);
+  const pickSuggestion = useCallback(
+    (suggestion: SearchSuggestion) => {
+      if (suggestion.group === "Service") {
+        discovery.setCategoryId(suggestion.categoryId);
+        discovery.setQuery(suggestion.label);
+        return;
+      }
       discovery.setQuery(suggestion.label);
-      return;
-    }
-    discovery.setQuery(suggestion.label);
-    discovery.setSelectedId(suggestion.itemId);
-  }
+      discovery.setSelectedId(suggestion.itemId);
+    },
+    [discovery.setCategoryId, discovery.setQuery, discovery.setSelectedId],
+  );
+
+  useEffect(() => {
+    setSearch(
+      <SearchSuggest
+        query={discovery.query}
+        suggestions={suggestions}
+        onQueryChange={discovery.setQuery}
+        onPick={pickSuggestion}
+      />,
+    );
+    return () => setSearch(null);
+  }, [discovery.query, discovery.setQuery, pickSuggestion, setSearch, suggestions]);
 
   return (
     <div className="discovery-shell">
-      <AppNav
-        search={
-          <SearchSuggest
-            query={discovery.query}
-            suggestions={suggestions}
-            onQueryChange={discovery.setQuery}
-            onPick={pickSuggestion}
-          />
-        }
-      />
       <ToastStack toasts={toasts} />
       <div className="discovery-stage" data-map-stage>
         <DiscoveryMap
@@ -305,75 +312,73 @@ export function DiscoveryExperience() {
           </NativeScroller>
         </div>
       </div>
-      <section className="discovery-results" aria-label="Nearby results">
-        <BottomSheet>
-          {discovery.gps === "denied" || discovery.gps === "unavailable" ? (
-            <p>
-              <button type="button" onClick={discovery.locate}>
-                Retry location
-              </button>
-            </p>
-          ) : null}
-          {discovery.load === "error" ? (
-            <p>
-              <button type="button" onClick={discovery.searchNearby}>
-                Retry search
-              </button>
-            </p>
-          ) : null}
-          <StoryTray
-            selfId={selfId}
-            selfLabel={selfName}
-            selfImageUrl={selfPresence?.imageUrl ?? selfPhotoUrl}
-            selfKind={selfPresence?.kind ?? null}
-            selfStoryIds={selfPresence?.storyIds ?? []}
-            faces={discovery.result?.storyFaces ?? []}
-            watchedStoryIds={watchedStoryIds}
-            hint={presenceHint}
-          />
-          <NativeScroller className="discovery-row" label="Nearby places">
-            {discovery.load === "loading" && cards.length === 0
-              ? [0, 1, 2, 3].map((item) => (
-                  <span key={item} className="hasut-skeleton card-skeleton" aria-hidden="true" />
-                ))
-              : cards.map((item) => (
-                  <NearbyCard
-                    key={`${item.kind}-${item.id}`}
-                    active={item.id === discovery.selectedId}
-                    title={item.title}
-                    rating={item.rating}
-                    distance={item.distanceBucket}
-                    photoUrl={item.photoUrl}
-                    onClick={() => discovery.setSelectedId(item.id)}
-                  />
-                ))}
-          </NativeScroller>
-          <NativeScroller className="discovery-row" label="Services">
-            {discovery.load === "loading" && services.length === 0
-              ? [0, 1, 2].map((item) => (
-                  <span
-                    key={item}
-                    className="hasut-skeleton card-skeleton card-skeleton-wide"
-                    aria-hidden="true"
-                  />
-                ))
-              : services.map((item) => (
-                  <ServiceCard
-                    key={`service-${item.id}`}
-                    title={item.title}
-                    categoryLabel={item.categoryLabel}
-                    rating={item.rating}
-                    photoUrl={item.photoUrl}
-                    coverUrl={categoryCover(item.categoryLabel, categories)}
-                    providerName={item.subtitle}
-                    onOpen={() => {
-                      window.location.assign(item.href);
-                    }}
-                  />
-                ))}
-          </NativeScroller>
-        </BottomSheet>
-      </section>
+      <DiscoverySheet>
+        {discovery.gps === "denied" || discovery.gps === "unavailable" ? (
+          <p>
+            <button type="button" onClick={discovery.locate}>
+              Retry location
+            </button>
+          </p>
+        ) : null}
+        {discovery.load === "error" ? (
+          <p>
+            <button type="button" onClick={discovery.searchNearby}>
+              Retry search
+            </button>
+          </p>
+        ) : null}
+        <StoryTray
+          selfId={selfId}
+          selfLabel={selfName}
+          selfImageUrl={selfPresence?.imageUrl ?? selfPhotoUrl}
+          selfKind={selfPresence?.kind ?? null}
+          selfStoryIds={selfPresence?.storyIds ?? []}
+          faces={discovery.result?.storyFaces ?? []}
+          watchedStoryIds={watchedStoryIds}
+          hint={presenceHint}
+        />
+        <NativeScroller className="discovery-row" label="Nearby places">
+          {discovery.load === "loading" && cards.length === 0
+            ? [0, 1, 2, 3].map((item) => (
+                <span key={item} className="hasut-skeleton card-skeleton" aria-hidden="true" />
+              ))
+            : cards.map((item) => (
+                <NearbyCard
+                  key={`${item.kind}-${item.id}`}
+                  active={item.id === discovery.selectedId}
+                  title={item.title}
+                  rating={item.rating}
+                  distance={item.distanceBucket}
+                  photoUrl={item.photoUrl}
+                  onClick={() => discovery.setSelectedId(item.id)}
+                />
+              ))}
+        </NativeScroller>
+        <NativeScroller className="discovery-row" label="Services">
+          {discovery.load === "loading" && services.length === 0
+            ? [0, 1, 2].map((item) => (
+                <span
+                  key={item}
+                  className="hasut-skeleton card-skeleton card-skeleton-wide"
+                  aria-hidden="true"
+                />
+              ))
+            : services.map((item) => (
+                <ServiceCard
+                  key={`service-${item.id}`}
+                  title={item.title}
+                  categoryLabel={item.categoryLabel}
+                  rating={item.rating}
+                  photoUrl={item.photoUrl}
+                  coverUrl={categoryCover(item.categoryLabel, categories)}
+                  providerName={item.subtitle}
+                  onOpen={() => {
+                    window.location.assign(item.href);
+                  }}
+                />
+              ))}
+        </NativeScroller>
+      </DiscoverySheet>
     </div>
   );
 }

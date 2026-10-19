@@ -476,13 +476,28 @@ export class StoriesService {
         ? new Set<string>()
         : await this.patrons.patronOwnersAmong(memberIds, viewerId);
     const visibleTo = (ownerId: string, audience: string): boolean =>
-      audience === "EVERYONE" || patrons.has(ownerId);
+      audience === "EVERYONE" || (audience === "PATRONS" && patrons.has(ownerId));
 
     const lives = await this.prisma.liveSession.findMany({
       where: { memberId: { in: memberIds }, status: "LIVE" },
     });
+    const invitedLiveIds =
+      viewerId === null
+        ? new Set<string>()
+        : new Set(
+            (
+              await this.prisma.liveInvite.findMany({
+                where: { memberId: viewerId, liveId: { in: lives.map((row) => row.id) } },
+                select: { liveId: true },
+              })
+            ).map((row) => row.liveId),
+          );
     for (const live of lives) {
-      if (!visibleTo(live.memberId, live.audience)) {
+      const allowed =
+        live.audience === "PRIVATE"
+          ? viewerId === live.memberId || invitedLiveIds.has(live.id)
+          : visibleTo(live.memberId, live.audience);
+      if (!allowed) {
         continue;
       }
       map.set(live.memberId, {

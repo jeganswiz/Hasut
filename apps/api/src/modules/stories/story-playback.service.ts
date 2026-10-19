@@ -54,7 +54,7 @@ export class StoryPlaybackService {
     }
     const story = await this.prisma.story.findFirst({
       where: {
-        kind: "VIDEO",
+        kind: { in: ["VIDEO", "LIVE"] },
         playbackStatus: "PENDING",
         moderationStatus: "ACTIVE",
         expiresAt: { gt: new Date() },

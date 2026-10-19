@@ -148,7 +148,7 @@ Member identity request already existed; this sprint completed operator decide, 
 
 **Exit:** Member E2E path works on mobile-width **web**: OTP → profile → location → map avatars → connect → chat.
 
-**Status:** Implemented. `Avatar` + `HasutLogo` in `@hasut/ui`. Web bottom tabs, PWA manifest, remote theme boot, `/me` profile + location editor, circular map avatar pins. Service offerings and connected-member review write path. Expo tabs exist in the repo as a parked extra, not a launch requirement.
+**Status:** Implemented. `Avatar` + `HasutLogo` in `@hasut/ui`. Persistent `(member)` shell with `next/link` tabs, reserved slots while session is unknown, visit cache + pull-to-refresh, mobile discovery overlay sheet, PWA manifest, remote theme boot, `/me` profile + location editor, circular map avatar pins. Service offerings and connected-member review write path. Expo tabs exist in the repo as a parked extra, not a launch requirement.
 
 ## Sprint 9 — Hardening
 
@@ -362,5 +362,18 @@ Implemented. No Expo work.
 - `allowPinAutoplay` still freezes pins on reduced motion, data saver, cellular, and slow effective types. `explicitAllow` wins over the network signals only; reduced motion is never overridable.
 - `showPinPreviewControl` shows **Play previews** when the network would block autoplay (or the session override is on). The chip is a `FilterChip` with `aria-pressed`. The choice is `sessionStorage` key `hasut.pin-preview-override` (`1`), and private mode must not throw.
 - Playwright (`discovery-previews.spec.ts`) stubs `navigator.connection` as cellular + data saver and toggles the chip.
+
+### Sprint 31 — Production live streaming (L1–L8)
+
+Implemented. No Expo work. No billing. MediaMTX stays the media engine.
+
+- L1: `LiveSession` lifecycle (SCHEDULED/LIVE/ENDED), PRIVATE invites, moderators, `live.policy`, heartbeat, Control API health, idle auto-end.
+- L2: `/ws/v1/live` chat, reactions, viewer counts, moderation, REST history/report.
+- L3–L5: Host studio, `/live/[id]` viewer, `/live` discovery, profile LIVE badge, Remind me (not a follow graph).
+- L6: MediaMTX record + playback fetch + `Story` kind LIVE through the ffmpeg worker; replay publish/discard.
+- L7: `dedupeKey` notifications, live templates, scheduling reminders, web push + quiet hours.
+- L8: optional Redis adapter, client metrics, admin live queue, Playwright host/viewer specs, [live-streaming.md](./live-streaming.md).
+
+Guest co-hosts, captions, and a server ABR ladder stay unavailable (MediaMTX limits).
 
 Later hardening only if still needed. Protected Service, marketplace, and billing stay out.

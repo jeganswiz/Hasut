@@ -19,6 +19,7 @@ export type { HasutHttpAdapter, HasutHttpRequest, HasutHttpResponse } from "./ht
 export {
   HasutRealtimeClient,
   createHasutDiscoveryRealtimeClient,
+  createHasutLiveRealtimeClient,
   createHasutRealtimeClient,
 } from "./realtime";
 export type { HasutRealtimeOptions } from "./realtime";

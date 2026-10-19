@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { AuditService } from "../audit/audit.service";
 import { NotificationWriter } from "../realtime/notification-writer";
+import { PushDispatchService } from "../realtime/push-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "./notifications.service";
 
@@ -26,6 +27,7 @@ describe("NotificationsService", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationWriter, useValue: writer },
         { provide: AuditService, useValue: { record: jest.fn() } },
+        { provide: PushDispatchService, useValue: { publicKey: jest.fn().mockReturnValue("") } },
       ],
     }).compile();
     return moduleRef.get(NotificationsService);

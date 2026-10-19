@@ -1,45 +1,32 @@
 "use client";
 
-import type { OwnerMemberProfile } from "@hasut/types";
-import { Avatar, HasutLogo } from "@hasut/ui";
-import { initialsFromName } from "@hasut/utils";
+import { Avatar, HasutLogo, nameInitials } from "@hasut/ui";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { createWebApiClient } from "../lib/api";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CHROME_HEIGHT_MAX,
   chromeScrollState,
   type ChromeScrollState,
 } from "../lib/discovery-chrome";
-import { isMemberPath, showWhenSignedIn, type NavSession } from "../lib/member-nav";
-import { loadNavProfile } from "../lib/session-profile";
+import { loginHref, tabSlot, type NavSession } from "../lib/member-nav";
 import { webTokenStorage } from "../lib/token-storage";
+import { useNavSession } from "./nav-session";
 import { NavIcon, type NavIconName } from "./nav-icons";
 
-const LINKS: Array<{
-  href: string;
-  label: string;
-  icon: NavIconName;
-  tab?: boolean;
-  auth?: boolean;
-}> = [
-  { href: "/", label: "Map", icon: "map", tab: true },
-  { href: "/connections", label: "Connections", icon: "connections", tab: true, auth: true },
-  { href: "/inbox", label: "Inbox", icon: "inbox", tab: true, auth: true },
-  { href: "/notifications", label: "Alerts", icon: "alerts", tab: true, auth: true },
-  { href: "/me", label: "Me", icon: "me", tab: true, auth: true },
-  { href: "/story", label: "Story", icon: "story", auth: true },
-  { href: "/support", label: "Support", icon: "support" },
+const LINKS: Array<{ href: string; label: string; icon: NavIconName; auth?: boolean }> = [
+  { href: "/", label: "Map", icon: "map" },
+  { href: "/live", label: "Live", icon: "live", auth: true },
+  { href: "/connections", label: "Connections", icon: "connections", auth: true },
+  { href: "/inbox", label: "Inbox", icon: "inbox", auth: true },
+  { href: "/notifications", label: "Notifications", icon: "alerts", auth: true },
+  { href: "/me", label: "Me", icon: "me", auth: true },
 ];
 
-export function AppNav({ search }: { search?: ReactNode }) {
+export function AppNav() {
   const pathname = usePathname();
-  const [unread, setUnread] = useState(0);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [profile, setProfile] = useState<OwnerMemberProfile | null>(null);
-  const [session, setSession] = useState<NavSession>("unknown");
+  const { session, profile, unread, search } = useNavSession();
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const [chrome, setChrome] = useState<ChromeScrollState>({
     height: CHROME_HEIGHT_MAX,
     solid: false,
@@ -47,162 +34,34 @@ export function AppNav({ search }: { search?: ReactNode }) {
   });
 
   useEffect(() => {
-    void createWebApiClient()
-      .theme()
-      .then((theme) => setLogoUrl(theme.logoUrl))
-      .catch(() => setLogoUrl(null));
-    void loadNavProfile({
-      getAccessToken: () => webTokenStorage.getAccessToken(),
-      getRefreshToken: () => webTokenStorage.getRefreshToken(),
-      readProfile: () => createWebApiClient().getMyProfile(),
-      refresh: async (refreshToken) => {
-        const tokens = await createWebApiClient().refresh({ refreshToken });
-        return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
-      },
-      save: (tokens) => webTokenStorage.setSession(tokens),
-    }).then((next) => {
-      setProfile(next);
-      setSession(next === null ? "guest" : "member");
-      if (next === null) {
-        setUnread(0);
-        return;
-      }
-      void createWebApiClient()
-        .getUnreadCount()
-        .then((data) => setUnread(data.notifications + data.messages))
-        .catch(() => setUnread(0));
-    });
-  }, []);
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
+    function onScroll(): void {
+      const map = document.querySelector("[data-map-stage]");
+      const mapHeight = map instanceof HTMLElement ? map.getBoundingClientRect().height : 0;
+      setChrome(chromeScrollState(window.scrollY, mapHeight));
     }
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && menuRef.current !== null && !menuRef.current.contains(target)) {
-        setMenuOpen(false);
-      }
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    };
-    window.addEventListener("pointerdown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    let frame = 0;
-    const read = () => {
-      const stage = document.querySelector("[data-map-stage]");
-      const mapHeight = stage instanceof HTMLElement ? stage.offsetHeight : 0;
-      const next = chromeScrollState(window.scrollY, mapHeight);
-      setChrome(next);
-      document.documentElement.style.setProperty("--chrome-height", `${next.height}px`);
-    };
-    const onScroll = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(read);
-    };
-    read();
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
-      window.cancelAnimationFrame(frame);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, []);
+  }, [pathname]);
 
-  async function logout(): Promise<void> {
-    try {
-      await createWebApiClient().logout();
-    } catch {
-      // A failed revoke still ends the browser session.
-    }
-    await webTokenStorage.clear();
-    setProfile(null);
-    setSession("guest");
-    setUnread(0);
-    setMenuOpen(false);
-    if (isMemberPath(pathname)) {
-      window.location.assign("/login");
-    }
-  }
+  useEffect(() => {
+    document.documentElement.style.setProperty("--chrome-height", `${chrome.height}px`);
+  }, [chrome.height]);
 
-  const links = LINKS.filter((link) => showWhenSignedIn(link.auth === true, session));
-  const tabLinks = links.filter((link) => link.tab === true);
-  const account =
-    session === "member" && profile !== null ? (
-      <div className="nav-account" ref={menuRef}>
-        <button
-          type="button"
-          className="nav-profile"
-          aria-label={`${profile.displayName} account menu`}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <Avatar
-            photoUrl={profile.photoUrl}
-            initials={initialsFromName(profile.displayName)}
-            size={32}
-            label={profile.displayName}
-          />
-          <span className="nav-profile-name">{profile.displayName}</span>
-        </button>
-        {menuOpen ? (
-          <div className="nav-menu" role="menu">
-            <a role="menuitem" href="/me">
-              Profile
-            </a>
-            <a role="menuitem" href="/story">
-              Post a story
-            </a>
-            <a role="menuitem" href={`/stories/${profile.id}`}>
-              My story
-            </a>
-            <a role="menuitem" href="/connections">
-              Connections
-            </a>
-            <a role="menuitem" href="/inbox">
-              Inbox
-            </a>
-            <a role="menuitem" href="/notifications">
-              Alerts
-            </a>
-            <button
-              type="button"
-              role="menuitem"
-              className="nav-menu-logout"
-              onClick={() => void logout()}
-            >
-              Log out
-            </button>
-          </div>
-        ) : null}
-      </div>
-    ) : (
-      <a
-        className="nav-icon"
-        href="/login"
-        aria-label="Sign in"
-        title="Sign in"
-        aria-current={pathname === "/login" ? "page" : undefined}
-      >
-        <NavIcon name="sign-in" />
-      </a>
-    );
+  const tabs = useMemo(() => {
+    const visible: Array<(typeof LINKS)[number] & { slot: "shown" | "reserved" }> = [];
+    for (const link of LINKS) {
+      const slot = tabSlot(link.auth === true, session);
+      if (slot !== "hidden") {
+        visible.push({ ...link, slot });
+      }
+    }
+    return visible;
+  }, [session]);
 
   return (
     <>
@@ -210,46 +69,57 @@ export function AppNav({ search }: { search?: ReactNode }) {
         className={chrome.solid ? "app-chrome is-solid" : "app-chrome"}
         style={{ height: chrome.height }}
       >
-        <a className="app-brand" href="/" aria-label="HASUT home">
-          <HasutLogo src={logoUrl} />
-          <span>HASUT</span>
-        </a>
+        <Link className="app-brand" href="/" aria-label="HASUT home">
+          <HasutLogo size={28} />
+          HASUT
+        </Link>
         {search}
         <div className="app-chrome-tools">
-          <nav className="app-nav-desktop" aria-label="Primary">
-            {links.map((link) => (
+          <nav className="app-nav-desktop" aria-label="Member">
+            {tabs.map((link) => (
               <NavLink
                 key={link.href}
                 href={link.href}
                 label={link.label}
                 icon={link.icon}
-                current={isCurrent(pathname, link.href)}
-                unread={link.href === "/notifications" ? unread : 0}
+                slot={link.slot}
+                current={
+                  link.href === "/"
+                    ? pathname === "/"
+                    : pathname === link.href || pathname.startsWith(`${link.href}/`)
+                }
+                badge={badgeFor(link.href, unread.notifications, unread.messages)}
               />
             ))}
           </nav>
-          <div className="app-nav-account">
-            {session === "unknown" ? (
-              <span className="nav-account-slot" aria-hidden="true" />
-            ) : (
-              account
-            )}
-          </div>
+          <AccountMenu
+            session={session}
+            pathname={pathname}
+            open={menuOpen}
+            photoUrl={profile?.photoUrl ?? null}
+            displayName={profile?.displayName ?? ""}
+            onToggle={() => setMenuOpen((value) => !value)}
+          />
         </div>
       </header>
       <nav
         className="app-tabs"
         aria-label="Member"
-        style={{ gridTemplateColumns: `repeat(${Math.max(tabLinks.length, 1)}, 1fr)` }}
+        style={{ gridTemplateColumns: `repeat(${Math.max(1, tabs.length)}, minmax(0, 1fr))` }}
       >
-        {tabLinks.map((link) => (
+        {tabs.map((link) => (
           <NavLink
             key={link.href}
             href={link.href}
             label={link.label}
             icon={link.icon}
-            current={isCurrent(pathname, link.href)}
-            unread={link.href === "/notifications" ? unread : 0}
+            slot={link.slot}
+            current={
+              link.href === "/"
+                ? pathname === "/"
+                : pathname === link.href || pathname.startsWith(`${link.href}/`)
+            }
+            badge={badgeFor(link.href, unread.notifications, unread.messages)}
           />
         ))}
       </nav>
@@ -257,37 +127,135 @@ export function AppNav({ search }: { search?: ReactNode }) {
   );
 }
 
+function badgeFor(href: string, notifications: number, messages: number): number {
+  if (href === "/notifications") {
+    return notifications;
+  }
+  if (href === "/inbox") {
+    return messages;
+  }
+  return 0;
+}
+
 function NavLink({
   href,
   label,
   icon,
   current,
-  unread,
+  badge,
+  slot,
 }: {
   href: string;
   label: string;
   icon: NavIconName;
   current: boolean;
-  unread: number;
+  badge: number;
+  slot: "shown" | "reserved";
 }) {
-  const badge = unread > 0 ? (unread > 9 ? "9+" : String(unread)) : null;
-  return (
-    <a
-      className="nav-icon"
-      href={href}
-      aria-label={badge === null ? label : `${label}, ${unread} unread`}
-      title={label}
-      aria-current={current ? "page" : undefined}
-    >
+  const inner = (
+    <>
       <NavIcon name={icon} />
-      {badge !== null ? <span className="nav-badge">{badge}</span> : null}
-    </a>
+      {badge > 0 ? <span className="nav-badge">{badge > 9 ? "9+" : badge}</span> : null}
+    </>
+  );
+  if (slot === "reserved") {
+    return (
+      <span
+        className="nav-icon is-reserved"
+        data-nav-slot="reserved"
+        aria-hidden="true"
+        title={label}
+      >
+        {inner}
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className="nav-icon"
+      data-nav-slot="shown"
+      aria-label={label}
+      aria-current={current ? "page" : undefined}
+      title={label}
+    >
+      {inner}
+    </Link>
   );
 }
 
-function isCurrent(pathname: string, href: string): boolean {
-  if (href === "/") {
-    return pathname === "/";
+function AccountMenu({
+  session,
+  pathname,
+  open,
+  photoUrl,
+  displayName,
+  onToggle,
+}: {
+  session: NavSession;
+  pathname: string;
+  open: boolean;
+  photoUrl: string | null;
+  displayName: string;
+  onToggle: () => void;
+}) {
+  if (session !== "member") {
+    if (session === "unknown") {
+      return <span className="nav-account-slot hasut-skeleton" aria-hidden="true" />;
+    }
+    return (
+      <Link className="nav-icon" href={loginHref(pathname)} aria-label="Sign in" title="Sign in">
+        <NavIcon name="sign-in" />
+      </Link>
+    );
   }
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    <div className="nav-account">
+      <button
+        type="button"
+        className="nav-profile"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={onToggle}
+      >
+        <Avatar
+          photoUrl={photoUrl}
+          initials={nameInitials(displayName)}
+          size={32}
+          label={displayName}
+        />
+        <span className="nav-profile-name">{displayName}</span>
+      </button>
+      {open ? (
+        <div className="nav-menu" role="menu">
+          <Link href="/story" role="menuitem">
+            <NavIcon name="story" /> Presence story
+          </Link>
+          <Link href="/support" role="menuitem">
+            <NavIcon name="support" /> Support
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              void webTokenStorage.clear().then(() => {
+                window.location.assign("/");
+              });
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function NavSearchSlot({ children }: { children: ReactNode }) {
+  const { setSearch } = useNavSession();
+  useEffect(() => {
+    setSearch(children);
+    return () => setSearch(null);
+  }, [children, setSearch]);
+  return null;
 }

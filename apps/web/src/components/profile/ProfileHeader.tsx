@@ -135,6 +135,13 @@ export function ProfileHeader({
               <BadgeCheck className="size-5 text-primary" aria-label="Identity verified" />
             ) : null}
             {professional ? <Badge variant="secondary">Professional</Badge> : null}
+            {isLive ? (
+              <Badge>
+                <a href="/live" className="lv-live-badge">
+                  LIVE
+                </a>
+              </Badge>
+            ) : null}
           </div>
           <div className="mt-2 hidden sm:block">{bio}</div>
           {actions("mt-4 hidden gap-2 sm:flex")}

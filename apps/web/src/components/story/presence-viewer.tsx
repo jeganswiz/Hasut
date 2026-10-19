@@ -337,6 +337,9 @@ function LiveStage({ live }: { live: LiveSessionView }) {
           </strong>
         </div>
       </StageFrame>
+      <a href={`/live/${live.id}`} className="lv-link">
+        Open full live player
+      </a>
       <p style={{ margin: 0, fontSize: 13, color: cssVar("mutedText") }}>
         {live.audience === "PATRONS" ? "Visible to Patrons" : "Visible to everyone nearby"}
       </p>

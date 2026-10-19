@@ -5,7 +5,6 @@ import type { ProfileLiveCard } from "../../lib/profile-model";
 
 export function LiveGridItem({
   item,
-  memberId,
   engagement,
   nowMs,
 }: {
@@ -17,7 +16,7 @@ export function LiveGridItem({
   const when = nowMs === null ? "" : relativeTime(item.startedAt, nowMs);
   return (
     <a
-      href={`/stories/${memberId}`}
+      href={`/live/${item.id}`}
       aria-label={item.title}
       className="group relative block aspect-square overflow-hidden rounded-md bg-muted sm:rounded-lg"
     >

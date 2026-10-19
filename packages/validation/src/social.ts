@@ -135,3 +135,21 @@ export const unreadCountViewSchema = z.object({
   notifications: z.number().int().nonnegative(),
   messages: z.number().int().nonnegative(),
 });
+
+export const notificationSettingsViewSchema = z.object({
+  quietHoursStartMinutes: z.number().int().min(0).max(1439).nullable(),
+  quietHoursEndMinutes: z.number().int().min(0).max(1439).nullable(),
+  maxPerHour: z.number().int().min(1).max(200),
+});
+
+export const notificationSettingsPatchSchema = z.object({
+  quietHoursStartMinutes: z.number().int().min(0).max(1439).nullable().optional(),
+  quietHoursEndMinutes: z.number().int().min(0).max(1439).nullable().optional(),
+  maxPerHour: z.number().int().min(1).max(200).optional(),
+});
+
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2_048),
+  p256dh: z.string().min(8).max(512),
+  auth: z.string().min(8).max(256),
+});

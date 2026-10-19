@@ -14,6 +14,7 @@ describe("StoriesService", () => {
   const prisma = {
     story: { create: jest.fn(), findMany: jest.fn(), update: jest.fn(), count: jest.fn() },
     liveSession: { findMany: jest.fn() },
+    liveInvite: { findMany: jest.fn() },
     audioTrack: { findUnique: jest.fn() },
   };
   const configuration = { getPublicFlags: jest.fn(), getStoryPolicy: jest.fn() };
@@ -88,6 +89,7 @@ describe("StoriesService", () => {
       storyRow(args.data),
     );
     prisma.liveSession.findMany.mockResolvedValue([]);
+    prisma.liveInvite.findMany.mockResolvedValue([]);
     prisma.story.findMany.mockResolvedValue([]);
     prisma.story.count.mockResolvedValue(0);
     patrons.isPatronOf.mockResolvedValue(false);

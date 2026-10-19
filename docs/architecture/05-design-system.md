@@ -70,9 +70,12 @@ Web and Admin import from `@hasut/ui`. Mobile uses `@hasut/ui-native` only if RN
 
 - Map is the canvas.
 - Floating search with suggestions for services, people, professionals, and businesses. Empty and error copy appears in a toast, not on the map.
-- Nearby cards and service cards sit in document flow under the map block, so the map stays visible. Horizontal strips use a native scroller (hidden scrollbar, touch momentum, pointer drag) everywhere that pattern appears.
-- Top chrome is fixed. It starts as a blurred transparent bar and shortens as the page scrolls. After half the map block has scrolled past, the bar uses the surface token.
-- Signed-in members see their profile in the chrome. Named destinations are icons with hover and press motion.
+- Nearby cards and service cards sit in a snapping overlay sheet on viewports ≤860px (peek / half / expanded) so the map stays full-screen and Leaflet only pans on `.discovery-map`. Desktop keeps results in flow under the map. Horizontal strips use a native scroller (hidden scrollbar, touch momentum, pointer drag) everywhere that pattern appears.
+- Member chrome lives in `apps/web/src/app/(member)/layout.tsx` so the top bar and bottom tabs stay mounted across tab changes. Login, register, and forgot-password stay outside that shell. Tabs use `next/link`. While the session is unknown, six tab slots are reserved so signed-in members do not see a 1→6 jump. Guest chrome is Map plus Sign in.
+- List tabs (`/inbox`, `/live`, `/connections`, `/notifications`, `/me`) restore the last successful payload from a visit cache and replace it on pull-to-refresh. Reduced motion disables the pull gesture.
+- Top chrome is fixed. It starts as a blurred transparent bar and shortens as the page scrolls. After half the map block has scrolled past, the bar uses the surface token. On the mobile overlay map, the window does not scroll, so the bar stays full height.
+- Signed-in members see their profile in the chrome. Named destinations are icons with hover and press motion. The active tab scales the icon (`transform` only; skipped under `prefers-reduced-motion`).
+- Story and live composers on ≤860px overlay tools on the 9:16 stage (right-rail icons, sticky Share). Desktop keeps the sidebar cards.
 - **Map pins are circular avatars** (photo or initials), not rating pills. A ring encodes availability or live presence. When `stories.live` is on, pin media priority is LIVE → video → image → profile.
 - Self pin links to the presence composer (`/story`) and `/me`.
 - `/me` is the signed-in member's social profile: avatar, patrons, requests, rating, bio, then Presence, Live, and Services. Name, bio, mode, status, map discoverability, photo, and approximate location open from Edit profile. Those counts and grids use the existing profile, connection, story, live, review, and service APIs. Username, per-service reviews, booking history, a recorded-live archive, and an owned-business list are not on those payloads, so the profile leaves them empty.

@@ -112,6 +112,11 @@ describe("StoryPlaybackService", () => {
     prisma.story.findFirst.mockResolvedValue(pendingStory());
     const playback = await service();
     await expect(playback.processNext()).resolves.toBe("ready");
+    expect(prisma.story.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kind: { in: ["VIDEO", "LIVE"] } }),
+      }),
+    );
 
     const args = (transcoder.transcode as jest.Mock).mock.calls[0][0] as string[];
     expect(args).toEqual(expect.arrayContaining(["-ss", "2", "-t", "6", "-an"]));

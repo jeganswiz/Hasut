@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createWebApiClient } from "./api";
 import { DEFAULT_DISCOVERY_KINDS } from "./discovery-chrome";
 import { webTokenStorage } from "./token-storage";
+import { readVisit, VISIT_KEYS, writeVisit } from "./visit-cache";
 
 type GpsState = "prompt" | "granted" | "denied" | "unavailable";
 export type DiscoveryLoadState = "loading" | "empty" | "error" | "success";
@@ -31,10 +32,19 @@ export interface DiscoveryCoords {
   longitude: number;
 }
 
+export interface MapVisit {
+  result: DiscoveryResult;
+  acceptedCoords: DiscoveryCoords;
+  overlayCoords: DiscoveryCoords | null;
+  load: DiscoveryLoadState;
+  message: string;
+}
+
 export function useDiscoveryMapController() {
+  const cached = readVisit<MapVisit>(VISIT_KEYS.map);
   const [policy, setPolicy] = useState<DiscoveryPolicyView | null>(null);
   const [categories, setCategories] = useState<CategoryView[]>([]);
-  const [result, setResult] = useState<DiscoveryResult | null>(null);
+  const [result, setResult] = useState<DiscoveryResult | null>(cached?.result ?? null);
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [radiusMeters, setRadiusMeters] = useState<number | undefined>();
@@ -44,10 +54,14 @@ export function useDiscoveryMapController() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [preview, setPreview] = useState<DiscoveryPreview | null>(null);
   const [gps, setGps] = useState<GpsState>("prompt");
-  const [overlayCoords, setOverlayCoords] = useState<DiscoveryCoords | null>(null);
-  const [acceptedCoords, setAcceptedCoords] = useState<DiscoveryCoords | null>(null);
-  const [load, setLoad] = useState<DiscoveryLoadState>("loading");
-  const [message, setMessage] = useState("Finding what’s nearby…");
+  const [overlayCoords, setOverlayCoords] = useState<DiscoveryCoords | null>(
+    cached?.overlayCoords ?? null,
+  );
+  const [acceptedCoords, setAcceptedCoords] = useState<DiscoveryCoords | null>(
+    cached?.acceptedCoords ?? null,
+  );
+  const [load, setLoad] = useState<DiscoveryLoadState>(cached?.load ?? "loading");
+  const [message, setMessage] = useState(cached?.message ?? "Finding what’s nearby…");
   const [statusTick, setStatusTick] = useState(0);
   const [suggestions, setSuggestions] = useState<DiscoveryCard[]>([]);
   const [suggestionQuery, setSuggestionQuery] = useState("");
@@ -57,11 +71,11 @@ export function useDiscoveryMapController() {
     setStatusTick((value) => value + 1);
   }, []);
 
-  const acceptedRef = useRef<DiscoveryCoords | null>(null);
-  const acceptedAtRef = useRef<number | null>(null);
+  const acceptedRef = useRef<DiscoveryCoords | null>(cached?.acceptedCoords ?? null);
+  const acceptedAtRef = useRef<number | null>(cached?.acceptedCoords ? Date.now() : null);
   const permissionGrantedRef = useRef(false);
   const searchGenRef = useRef(0);
-  const resultRef = useRef<DiscoveryResult | null>(null);
+  const resultRef = useRef<DiscoveryResult | null>(cached?.result ?? null);
   const realtimeRef = useRef<HasutRealtimeClient | null>(null);
   const [watchNonce, setWatchNonce] = useState(0);
 
@@ -225,15 +239,21 @@ export function useDiscoveryMapController() {
           return;
         }
         setResult(data);
-        if (data.items.length === 0) {
-          setLoad("empty");
-          publishStatus(
-            "No nearby results in this area. Try a wider distance or another category.",
-          );
-          return;
-        }
-        setLoad("success");
-        publishStatus(`${data.items.length} nearby results`);
+        const nextLoad: DiscoveryLoadState = data.items.length === 0 ? "empty" : "success";
+        const nextMessage =
+          data.items.length === 0
+            ? "No nearby results in this area. Try a wider distance or another category."
+            : `${data.items.length} nearby results`;
+        setLoad(nextLoad);
+        publishStatus(nextMessage);
+        writeVisit(VISIT_KEYS.map, {
+          result: data,
+          acceptedCoords,
+          overlayCoords: acceptedCoords,
+          load: nextLoad,
+          message: nextMessage,
+        });
+        return;
       } catch (error) {
         if (generation !== searchGenRef.current) {
           return;

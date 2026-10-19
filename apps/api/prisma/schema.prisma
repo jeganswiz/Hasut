@@ -87,6 +87,11 @@ model Member {
   reportsFiled          Report[]
   notifications         Notification[]
   notificationPreferences NotificationPreference[]
+  notificationSettings  NotificationSettings?
+  pushSubscriptions     PushSubscription[]
+  liveRemindersCreated  LiveReminder[]      @relation("LiveReminderCreator")
+  liveReminders         LiveReminder[]      @relation("LiveReminderSubscriber")
+  liveMetricSamples     LiveMetricSample[]
   supportTickets        SupportTicket[]
   supportMessages       SupportMessage[]
   supportAssignments    SupportAssignment[]
@@ -695,8 +700,24 @@ enum StoryModerationStatus {
 }
 
 enum LiveSessionStatus {
+  SCHEDULED
   LIVE
   ENDED
+}
+
+enum LiveRecordingStatus {
+  NONE
+  RECORDING
+  PROCESSING
+  READY
+  FAILED
+  DISCARDED
+}
+
+enum LiveEndReason {
+  HOST
+  MODERATOR
+  IDLE_TIMEOUT
 }
 
 enum StoryAudioSource {
@@ -712,9 +733,11 @@ enum StoryOriginalAudioMode {
 }
 
 /// PATRONS is HASUT's word for accepted connections (from חסות, patronage).
+/// PRIVATE is invite-only and is used by live sessions and replays.
 enum StoryAudience {
   EVERYONE
   PATRONS
+  PRIVATE
 }
 
 enum StoryPlaybackStatus {
@@ -805,22 +828,86 @@ model StoryLike {
   @@map("story_likes")
 }
 
+/// One row per broadcast. A partial unique index in the migration keeps one
+/// LIVE row per member, so concurrent starts cannot create two sessions.
 model LiveSession {
-  id            String            @id @default(uuid()) @db.Uuid
-  memberId      String            @map("member_id") @db.Uuid
-  title         String            @default("")
-  audience      StoryAudience     @default(EVERYONE)
-  status        LiveSessionStatus @default(LIVE)
-  hlsUrl        String?           @map("hls_url")
-  previewHlsUrl String?           @map("preview_hls_url")
-  ingestUrl     String?           @map("ingest_url")
-  startedAt     DateTime          @default(now()) @map("started_at") @db.Timestamptz(6)
-  endedAt       DateTime?         @map("ended_at") @db.Timestamptz(6)
+  id               String              @id @default(uuid()) @db.Uuid
+  memberId         String              @map("member_id") @db.Uuid
+  title            String              @default("")
+  description      String              @default("")
+  category         String?
+  thumbnailMediaId String?             @map("thumbnail_media_id") @db.Uuid
+  audience         StoryAudience       @default(EVERYONE)
+  status           LiveSessionStatus   @default(LIVE)
+  scheduledFor     DateTime?           @map("scheduled_for") @db.Timestamptz(6)
+  hlsUrl           String?             @map("hls_url")
+  previewHlsUrl    String?             @map("preview_hls_url")
+  ingestUrl        String?             @map("ingest_url")
+  chatEnabled      Boolean             @default(true) @map("chat_enabled")
+  chatPatronsOnly  Boolean             @default(false) @map("chat_patrons_only")
+  slowModeSeconds  Int                 @default(0) @map("slow_mode_seconds")
+  blockedWords     String[]            @default([]) @map("blocked_words")
+  recordingEnabled Boolean             @default(false) @map("recording_enabled")
+  recordingStatus  LiveRecordingStatus @default(NONE) @map("recording_status")
+  replayStoryId    String?             @map("replay_story_id") @db.Uuid
+  lastHeartbeatAt  DateTime?           @map("last_heartbeat_at") @db.Timestamptz(6)
+  peakViewers      Int                 @default(0) @map("peak_viewers")
+  totalViews       Int                 @default(0) @map("total_views")
+  reactionCount    Int                 @default(0) @map("reaction_count")
+  messageCount     Int                 @default(0) @map("message_count")
+  endedReason      LiveEndReason?      @map("ended_reason")
+  reminderSentAt   DateTime?           @map("reminder_sent_at") @db.Timestamptz(6)
+  startedAt        DateTime            @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt          DateTime?           @map("ended_at") @db.Timestamptz(6)
 
-  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member   Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  invites  LiveInvite[]
+  messages LiveChatMessage[]
 
   @@index([memberId, status])
+  @@index([status, startedAt])
+  @@index([status, scheduledFor])
   @@map("live_sessions")
+}
+
+/// Who may open a PRIVATE live. Patrons-only lives read connections instead.
+model LiveInvite {
+  liveId    String   @map("live_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  live LiveSession @relation(fields: [liveId], references: [id], onDelete: Cascade)
+
+  @@id([liveId, memberId])
+  @@index([memberId])
+  @@map("live_invites")
+}
+
+/// Chat lines for one broadcast. Hidden rows stay stored so a moderator can audit them.
+model LiveChatMessage {
+  id        String    @id @default(uuid()) @db.Uuid
+  liveId    String    @map("live_id") @db.Uuid
+  memberId  String    @map("member_id") @db.Uuid
+  body      String
+  pinned    Boolean   @default(false)
+  hiddenAt  DateTime? @map("hidden_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  live LiveSession @relation(fields: [liveId], references: [id], onDelete: Cascade)
+
+  @@index([liveId, createdAt])
+  @@map("live_chat_messages")
+}
+
+/// Members a host trusts to moderate their live chat. Applies to every live of that host.
+model LiveModerator {
+  hostId    String   @map("host_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([hostId, memberId])
+  @@index([memberId])
+  @@map("live_moderators")
 }
 
 enum ConnectionStatus {
@@ -845,6 +932,8 @@ enum ReportTargetType {
   PROFILE
   BUSINESS
   SERVICE
+  LIVE
+  LIVE_CHAT_MESSAGE
 }
 
 enum ReportStatus {
@@ -982,6 +1071,8 @@ model Notification {
   title       String
   body        String
   payloadJson Json      @default("{}") @map("payload_json")
+  /// Same start, reminder, or replay must not notify twice.
+  dedupeKey   String?   @unique @map("dedupe_key")
   readAt      DateTime? @map("read_at") @db.Timestamptz(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -990,6 +1081,62 @@ model Notification {
   @@index([memberId, createdAt])
   @@index([memberId, readAt])
   @@map("notifications")
+}
+
+/// Per-creator "Remind me" for public lives. Not a follow graph.
+model LiveReminder {
+  creatorId String   @map("creator_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  creator Member @relation("LiveReminderCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  member  Member @relation("LiveReminderSubscriber", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([creatorId, memberId])
+  @@index([memberId])
+  @@map("live_reminders")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, endpoint])
+  @@index([memberId])
+  @@map("push_subscriptions")
+}
+
+model NotificationSettings {
+  memberId                 String @id @map("member_id") @db.Uuid
+  quietHoursStartMinutes   Int?   @map("quiet_hours_start_minutes")
+  quietHoursEndMinutes     Int?   @map("quiet_hours_end_minutes")
+  maxPerHour               Int    @default(20) @map("max_per_hour")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
+}
+
+model LiveMetricSample {
+  id            String   @id @default(uuid()) @db.Uuid
+  liveId        String   @map("live_id") @db.Uuid
+  memberId      String   @map("member_id") @db.Uuid
+  startupMs     Int?     @map("startup_ms")
+  fatalErrors   Int      @default(0) @map("fatal_errors")
+  reconnects    Int      @default(0)
+  droppedFrames Int      @default(0) @map("dropped_frames")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([liveId, createdAt])
+  @@map("live_metric_samples")
 }
 
 model NotificationPreference {

@@ -67,8 +67,22 @@ export const apiEnvSchema = z
     STADIA_API_KEY: z.string().optional().default(""),
     LIVE_HLS_BASE_URL: z.string().optional().default(""),
     LIVE_WHIP_BASE_URL: z.string().optional().default(""),
+    /** MediaMTX Control API (`:9997`). Empty means stream health comes from heartbeats only. */
+    LIVE_CONTROL_API_URL: z.string().optional().default(""),
+    /** MediaMTX Playback server (`:9996`). Empty disables recording fetch. */
+    LIVE_PLAYBACK_API_URL: z.string().optional().default(""),
+    /** Hosts may only turn on recording when this is true and playback + ffmpeg are set. */
+    LIVE_RECORDING_ENABLED: z
+      .union([z.literal("true"), z.literal("false"), z.boolean()])
+      .optional()
+      .default("false"),
     /** Empty leaves video stories PENDING. A path runs the story HLS worker. */
     FFMPEG_PATH: z.string().optional().default(""),
+    /** Optional Redis URL so live chat fan-out can share rooms across API processes. */
+    REALTIME_REDIS_URL: z.string().optional().default(""),
+    VAPID_PUBLIC_KEY: z.string().optional().default(""),
+    VAPID_PRIVATE_KEY: z.string().optional().default(""),
+    VAPID_SUBJECT: z.string().optional().default("mailto:ops@hasut.local"),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === "production" && value.OTP_PROVIDER === "console") {
